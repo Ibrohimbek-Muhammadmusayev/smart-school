@@ -1,0 +1,295 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../services/api_service.dart';
+import '../theme.dart';
+import 'face_verify_screen.dart';
+
+class PassportInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    var text = newValue.text.toUpperCase();
+    if (text.length > 10) return oldValue;
+
+    // Filter characters
+    final buffer = StringBuffer();
+    for (int i = 0; i < text.length; i++) {
+      if (i < 2) {
+        if (RegExp(r'[A-Z]').hasMatch(text[i])) {
+          buffer.write(text[i]);
+        }
+      } else if (i == 2) {
+        if (text[i] != ' ') {
+          buffer.write(' ');
+          if (RegExp(r'[0-9]').hasMatch(text[i])) {
+            buffer.write(text[i]);
+          }
+        } else {
+          buffer.write(' ');
+        }
+      } else {
+        if (RegExp(r'[0-9]').hasMatch(text[i])) {
+          buffer.write(text[i]);
+        }
+      }
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _passportController = TextEditingController(text: "AA 1234567");
+  final _passwordController = TextEditingController(text: "pass123");
+  bool _obscure = true;
+  bool _loading = false;
+  String? _error;
+
+  void _onLogin() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final res = await ApiService.passportLogin(
+        _passportController.text.trim(),
+        _passwordController.text,
+      );
+
+      if (res['require_face_id'] == true) {
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FaceVerifyScreen(
+              userId: res['user_id'],
+              fullName: res['full_name'],
+              role: res['role'],
+            ),
+          ),
+        );
+      } else {
+        setState(() => _error = res['detail'] ?? "Kirishda xatolik yuz berdi");
+      }
+    } catch (e) {
+      setState(() => _error = "Server bilan bog'lanishda xatolik (FastAPI/Django ishlayotganini tekshiring)");
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showForgotDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Text("Parolni unutdingizmi?"),
+          ],
+        ),
+        content: const Text(
+          "Parolni tiklash uchun sinf rahbari yoki maktab ustozingizga murojaat qiling.\nUstoz o'z paneli orqali yangi vaqtinchalik parol taqdim eta oladi.",
+          style: TextStyle(height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Tushunarli", style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Illustration / Hero Header
+                  Center(
+                    child: Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight,
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: const Icon(Icons.school_rounded, size: 48, color: AppTheme.primary),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    "Smart School",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textDark,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    "Davomat va LMS ta'lim platformasi",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: AppTheme.textMuted),
+                  ),
+                  const SizedBox(height: 36),
+
+                  if (_error != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _error!,
+                              style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Pasport seriya kiritish
+                  const Text("Pasport / Guvohnoma seriya", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _passportController,
+                    inputFormatters: [PassportInputFormatter()],
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      hintText: "AA 1234567",
+                      prefixIcon: const Icon(Icons.badge_outlined, color: AppTheme.primary),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Parol kiritish
+                  const Text("Tizim paroli", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: _obscure,
+                    decoration: InputDecoration(
+                      hintText: "••••••••",
+                      prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppTheme.primary),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: AppTheme.textMuted),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                  ),
+
+                  // Forgot password
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _showForgotDialog,
+                      child: const Text("Parolni unutdingizmi?", style: TextStyle(color: AppTheme.textMuted, fontSize: 13)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Submit button
+                  ElevatedButton(
+                    onPressed: _loading ? null : _onLogin,
+                    child: _loading
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text("Davom etish  ➔"),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Tezkor test hisoblari yordamchisi
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentLight,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("💡 Sinov uchun tayyor hisoblar:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.accent)),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _passportController.text = "AA 1234567";
+                              _passwordController.text = "pass123";
+                            });
+                          },
+                          child: const Text("• O'quvchi: AA 1234567 / pass123", style: TextStyle(fontSize: 12, color: AppTheme.textDark)),
+                        ),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _passportController.text = "AB 1122334";
+                              _passwordController.text = "teacher123";
+                            });
+                          },
+                          child: const Text("• O'qituvchi: AB 1122334 / teacher123", style: TextStyle(fontSize: 12, color: AppTheme.textDark)),
+                        ),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
