@@ -34,3 +34,4 @@ mobile_app/.pub/
 *.swo
 .DS_Store
 Thumbs.db
+*.apk

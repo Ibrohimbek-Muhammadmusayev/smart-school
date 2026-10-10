@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import 'student/student_dashboard.dart';
@@ -8,12 +10,16 @@ class FaceVerifyScreen extends StatefulWidget {
   final int userId;
   final String fullName;
   final String role;
+  final String? photoUrl;
+  final bool hasRegisteredPhoto;
 
   const FaceVerifyScreen({
     super.key,
     required this.userId,
     required this.fullName,
     required this.role,
+    this.photoUrl,
+    this.hasRegisteredPhoto = false,
   });
 
   @override
@@ -22,9 +28,13 @@ class FaceVerifyScreen extends StatefulWidget {
 
 class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animController;
+  CameraController? _cameraController;
+  bool _isCameraInitialized = false;
+  String? _cameraError;
+
   int _attempts = 3;
   bool _scanning = false;
-  String _statusText = "Yuzingizni to'g'ri tuting...\nOval ramka ichiga joylashtiring";
+  String _statusText = "Yuzingizni kameraga to'g'ri tuting...\nOval ramka ichiga joylashtiring";
   bool _verified = false;
 
   @override
@@ -34,28 +44,89 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        setState(() {
+          _cameraError = "Kamera topilmadi";
+        });
+        return;
+      }
+
+      // Old kamera (Front camera) ni qidiramiz
+      CameraDescription selectedCamera = cameras.first;
+      for (final cam in cameras) {
+        if (cam.lensDirection == CameraLensDirection.front) {
+          selectedCamera = cam;
+          break;
+        }
+      }
+
+      _cameraController = CameraController(
+        selectedCamera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
+
+      await _cameraController!.initialize();
+      if (!mounted) return;
+      setState(() {
+        _isCameraInitialized = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cameraError = "Kameraga ulanishda xatolik: $e";
+      });
+    }
   }
 
   @override
   void dispose() {
     _animController.dispose();
+    _cameraController?.dispose();
     super.dispose();
   }
 
-  void _startVerification() async {
+  Future<void> _captureAndVerify({bool simulateWrongFace = false}) async {
+    if (_scanning || _attempts <= 0) return;
+
     setState(() {
       _scanning = true;
-      _statusText = "Liveness tekshiruvi: Ko'zingizni pirpirating va jilmaying...";
+      _statusText = "Surat olinmoqda va tekshirilmoqda...\nBazadagi 3x4 rasm bilan solishtirilmoqda";
     });
 
-    await Future.delayed(const Duration(seconds: 2));
+    String? base64Image;
 
     try {
-      final res = await ApiService.verifyFaceId(widget.userId, true);
+      if (simulateWrongFace) {
+        base64Image = "wrong_face_data_test_security";
+      } else if (_cameraController != null && _cameraController!.value.isInitialized) {
+        final XFile file = await _cameraController!.takePicture();
+        final bytes = await file.readAsBytes();
+        base64Image = base64Encode(bytes);
+      }
+    } catch (e) {
+      // Agar rasm olishda xatolik bo'lsa
+      debugPrint("Kameradan surat olishda xatolik: $e");
+    }
+
+    try {
+      final res = await ApiService.verifyFaceId(
+        widget.userId,
+        !simulateWrongFace,
+        faceImageB64: base64Image,
+      );
+
       if (res['access'] != null) {
         setState(() {
           _verified = true;
-          _statusText = "Yuz mos keldi! ✅\n10 kunlik xavfsiz sessiya yaratildi";
+          _statusText = "Face ID muvaffaqiyatli tasdiqlandi! ✅\nXavfsiz sessiya yaratildi";
         });
 
         await Future.delayed(const Duration(milliseconds: 1200));
@@ -75,21 +146,21 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
           );
         }
       } else {
-        _handleFailure();
+        _handleFailure(res['detail']);
       }
     } catch (e) {
-      _handleFailure();
+      _handleFailure(null);
     }
   }
 
-  void _handleFailure() {
+  void _handleFailure(String? message) {
     setState(() {
       _scanning = false;
       _attempts -= 1;
       if (_attempts > 0) {
-        _statusText = "Yuz mos kelmadi, qayta urining! ($_attempts ta urinish qoldi)";
+        _statusText = message ?? "Yuz mos kelmadi! Begona shaxs aniqlandi ($_attempts ta urinish qoldi)";
       } else {
-        _statusText = "Urinishlar tugadi. Administratorga murojaat qiling.";
+        _statusText = "⛔ Xavfsizlik: Barcha urinishlar tugadi. Kabinetga kirish bloklandi!";
       }
     });
   }
@@ -105,7 +176,7 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             children: [
               Text(
@@ -114,7 +185,7 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
               ),
               const SizedBox(height: 6),
               const Text(
-                "3x4 etalon rasm va jonli liveness solishtiruvi",
+                "Haqiqiy kamera orqali 3x4 rasm bilan solishtirish",
                 style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
               ),
               const Spacer(),
@@ -124,10 +195,10 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Outer Glow
+                    // Outer Glow & Oval Border
                     Container(
-                      width: 240,
-                      height: 310,
+                      width: 250,
+                      height: 330,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(130),
                         border: Border.all(
@@ -136,35 +207,53 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
                               : (_scanning ? AppTheme.primary : Colors.grey.shade300),
                           width: 4,
                         ),
-                        color: Colors.white,
+                        color: Colors.black,
                         boxShadow: [
                           BoxShadow(
-                            color: (_verified ? AppTheme.success : AppTheme.primary).withOpacity(0.12),
+                            color: (_verified ? AppTheme.success : AppTheme.primary).withOpacity(0.15),
                             blurRadius: 24,
                             spreadRadius: 6,
                           )
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(130),
+                        borderRadius: BorderRadius.circular(126),
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            // Camera preview mock (Face outline)
-                            Center(
-                              child: Icon(
-                                Icons.face_rounded,
-                                size: 140,
-                                color: _verified ? AppTheme.success.withOpacity(0.4) : Colors.grey.shade300,
+                            // Haqiqiy Jonli Kamera Tasviri
+                            if (_isCameraInitialized && _cameraController != null)
+                              FittedBox(
+                                fit: BoxFit.cover,
+                                child: SizedBox(
+                                  width: _cameraController!.value.previewSize?.height ?? 300,
+                                  height: _cameraController!.value.previewSize?.width ?? 400,
+                                  child: CameraPreview(_cameraController!),
+                                ),
+                              )
+                            else if (_cameraError != null)
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                    _cameraError!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                  ),
+                                ),
+                              )
+                            else
+                              const Center(
+                                child: CircularProgressIndicator(color: AppTheme.primary),
                               ),
-                            ),
+
                             // Scanning laser line
                             if (_scanning && !_verified)
                               AnimatedBuilder(
                                 animation: _animController,
                                 builder: (context, child) {
                                   return Positioned(
-                                    top: 40 + (_animController.value * 220),
+                                    top: 40 + (_animController.value * 240),
                                     left: 20,
                                     right: 20,
                                     child: Container(
@@ -173,7 +262,7 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
                                         color: AppTheme.primary,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: AppTheme.primary.withOpacity(0.8),
+                                            color: AppTheme.primary.withOpacity(0.9),
                                             blurRadius: 8,
                                             spreadRadius: 2,
                                           )
@@ -183,10 +272,15 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
                                   );
                                 },
                               ),
+
+                            // Muvaffaqiyatli tasdiqlanganda
                             if (_verified)
-                              const Center(
-                                child: Icon(Icons.check_circle_rounded, size: 84, color: AppTheme.success),
-                              )
+                              Container(
+                                color: Colors.black45,
+                                child: const Center(
+                                  child: Icon(Icons.check_circle_rounded, size: 88, color: AppTheme.success),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -195,12 +289,12 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
               Text(
                 _statusText,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: _verified ? AppTheme.success : AppTheme.textDark,
                   height: 1.4,
@@ -208,16 +302,32 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
               ),
               const Spacer(),
 
-              if (!_verified)
+              if (!_verified) ...[
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _attempts > 0 && !_scanning ? _startVerification : null,
-                    child: _scanning
-                        ? const Text("Tekshirilmoqda...")
-                        : const Text("Face ID skanerni boshlash"),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.camera_alt_rounded, size: 20),
+                    onPressed: _attempts > 0 && !_scanning ? () => _captureAndVerify(simulateWrongFace: false) : null,
+                    label: _scanning
+                        ? const Text("Solishtirilmoqda...")
+                        : const Text("Face ID orqali tasdiqlash"),
                   ),
                 ),
+                const SizedBox(height: 10),
+                // Xavfsizlik testi (Begona yuzni sinab ko'rish)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                      side: BorderSide(color: Colors.red.shade300),
+                    ),
+                    icon: const Icon(Icons.security_rounded, size: 18),
+                    onPressed: _attempts > 0 && !_scanning ? () => _captureAndVerify(simulateWrongFace: true) : null,
+                    label: const Text("Begona yuzni sinash (Xavfsizlik tekshiruvi)"),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
             ],
           ),

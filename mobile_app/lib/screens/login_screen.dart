@@ -49,7 +49,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _passportController = TextEditingController(text: "AA 1234567");
+  final _loginIdController = TextEditingController(text: "65167");
   final _passwordController = TextEditingController(text: "pass123");
   bool _obscure = true;
   bool _loading = false;
@@ -62,8 +62,8 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final res = await ApiService.passportLogin(
-        _passportController.text.trim(),
+      final res = await ApiService.login(
+        _loginIdController.text.trim(),
         _passwordController.text,
       );
 
@@ -76,6 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
               userId: res['user_id'],
               fullName: res['full_name'],
               role: res['role'],
+              photoUrl: res['photo_3x4'],
+              hasRegisteredPhoto: res['has_registered_photo'] == true,
             ),
           ),
         );
@@ -83,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _error = res['detail'] ?? "Kirishda xatolik yuz berdi");
       }
     } catch (e) {
-      setState(() => _error = "Server bilan bog'lanishda xatolik (FastAPI/Django ishlayotganini tekshiring)");
+      setState(() => _error = "Server bilan bog'lanishda xatolik yuz berdi");
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -181,15 +183,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                  // Pasport seriya kiritish
-                  const Text("Pasport / Guvohnoma seriya", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  // Kirish ID (5 xonali raqam) kiritish
+                  const Text("Kirish ID raqami (5 xonali)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 8),
                   TextField(
-                    controller: _passportController,
-                    inputFormatters: [PassportInputFormatter()],
-                    textCapitalization: TextCapitalization.characters,
+                    controller: _loginIdController,
+                    keyboardType: TextInputType.text,
                     decoration: InputDecoration(
-                      hintText: "AA 1234567",
+                      hintText: "Masalan: 65167",
                       prefixIcon: const Icon(Icons.badge_outlined, color: AppTheme.primary),
                       filled: true,
                       fillColor: Colors.white,
@@ -260,22 +261,32 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("💡 Sinov uchun tayyor hisoblar:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.accent)),
+                        const Text("💡 Sinov uchun tayyor 5 xonali hisoblar:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.accent)),
                         const SizedBox(height: 6),
                         InkWell(
                           onTap: () {
                             setState(() {
-                              _passportController.text = "AA 1234567";
+                              _loginIdController.text = "65167";
                               _passwordController.text = "pass123";
                             });
                           },
-                          child: const Text("• O'quvchi: AA 1234567 / pass123", style: TextStyle(fontSize: 12, color: AppTheme.textDark)),
+                          child: const Text("• O'quvchi (Vali): ID: 65167 / pass123", style: TextStyle(fontSize: 12, color: AppTheme.textDark)),
                         ),
                         const SizedBox(height: 4),
                         InkWell(
                           onTap: () {
                             setState(() {
-                              _passportController.text = "AB 1122334";
+                              _loginIdController.text = "12431";
+                              _passwordController.text = "mypassword777";
+                            });
+                          },
+                          child: const Text("• O'quvchi (Fotima): ID: 12431 / mypassword777", style: TextStyle(fontSize: 12, color: AppTheme.textDark)),
+                        ),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _loginIdController.text = "AB 1122334";
                               _passwordController.text = "teacher123";
                             });
                           },

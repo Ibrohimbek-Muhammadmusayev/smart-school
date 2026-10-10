@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // Web brauzerda ishlatish uchun localhost API
-  static const String baseUrl = 'http://127.0.0.1:8000/api';
+  // Global internetda (telefon va brauzerda) ishlash uchun online Cloudflare tunnel API
+  static const String baseUrl = 'https://arrangements-publish-wellness-sbjct.trycloudflare.com/api';
 
   static String? accessToken;
   static String? refreshToken;
@@ -17,22 +17,29 @@ class ApiService {
     return map;
   }
 
-  // 1.1 Passport Login
-  static Future<Map<String, dynamic>> passportLogin(String passport, String password) async {
+  // 1.1 Login (5 xonali ID, Username yoki Pasport)
+  static Future<Map<String, dynamic>> login(String loginId, String password) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/passport-login/'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'passport_series': passport, 'password': password}),
+      body: jsonEncode({'login_id': loginId, 'passport_series': loginId, 'password': password}),
     );
     return jsonDecode(utf8.decode(response.bodyBytes));
   }
 
-  // 1.1 Face ID tekshiruvi -> 10 kunlik token
-  static Future<Map<String, dynamic>> verifyFaceId(int userId, bool liveness) async {
+  // 1.1 Face ID tekshiruvi -> 10 kunlik token (real rasm taqqoslash bilan)
+  static Future<Map<String, dynamic>> verifyFaceId(int userId, bool liveness, {String? faceImageB64}) async {
+    final payload = <String, dynamic>{
+      'user_id': userId,
+      'liveness_verified': liveness,
+    };
+    if (faceImageB64 != null) {
+      payload['face_image'] = faceImageB64;
+    }
     final response = await http.post(
       Uri.parse('$baseUrl/auth/face-verify/'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'user_id': userId, 'liveness_verified': liveness}),
+      body: jsonEncode(payload),
     );
     final data = jsonDecode(utf8.decode(response.bodyBytes));
     if (response.statusCode == 200) {

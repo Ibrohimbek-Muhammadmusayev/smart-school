@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView, 
                     ScanAttendanceView, TodayLessonsView, LessonRoomView, 
                     SubmitHomeworkView, TeacherLiveLessonSummaryView, AddGradeView, 
-                    TeacherManagePasswordsView, GradesListView, FinishAttendanceView, CompleteLessonView)
+                    TeacherManagePasswordsView, GradesListView, FinishAttendanceView, CompleteLessonView,
+                    SchoolClassesListView, StudentManagementView)
 
 urlpatterns = [
     path('auth/passport-login/', PassportLoginView.as_view(), name='passport_login'),
@@ -18,4 +19,6 @@ urlpatterns = [
     path('grades/add/', AddGradeView.as_view(), name='add_grade'),
     path('grades/my/', GradesListView.as_view(), name='my_grades'),
     path('teacher/manage-passwords/', TeacherManagePasswordsView.as_view(), name='manage_passwords'),
+    path('classes/', SchoolClassesListView.as_view(), name='school_classes'),
+    path('students/', StudentManagementView.as_view(), name='student_management'),
 ]

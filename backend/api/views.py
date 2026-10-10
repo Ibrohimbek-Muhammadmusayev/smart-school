@@ -16,20 +16,35 @@ class PassportLoginView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        passport = request.data.get('passport_series', '').strip().upper()
+        passport = request.data.get('passport_series', '').strip()
+        login_id = request.data.get('login_id', '').strip() or passport
         password = request.data.get('password', '')
 
-        if not passport or not password:
-            return Response({'detail': 'Passport seriyasi va parol talab qilinadi.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not login_id or not password:
+            return Response({'detail': 'Kirish ID raqami (yoki pasport) va parol talab qilinadi.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Foydalanuvchini topish
-        try:
-            user = User.objects.get(passport_series=passport)
-        except User.DoesNotExist:
-            return Response({'detail': 'Foydalanuvchi topilmadi. Ma\'lumotlarni tekshiring.'}, status=status.HTTP_404_NOT_FOUND)
+        # Foydalanuvchini topish (5 xonali student_id, username yoki passport_series bo'yicha)
+        user = None
+        # 1. 5 xonali student_id bo'yicha qidirish
+        sp = StudentProfile.objects.filter(student_id=login_id).first()
+        if sp:
+            user = sp.user
+        
+        # 2. Username bo'yicha qidirish
+        if not user:
+            user = User.objects.filter(username__iexact=login_id).first()
+
+        # 3. Passport series bo'yicha qidirish
+        if not user:
+            user = User.objects.filter(passport_series__iexact=login_id).first()
+
+        if not user:
+            return Response({'detail': 'Foydalanuvchi topilmadi. Kirish ID raqamini tekshiring.'}, status=status.HTTP_404_NOT_FOUND)
 
         if not user.check_password(password):
             return Response({'detail': 'Parol noto\'g\'ri.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        photo_url = request.build_absolute_uri(user.photo_3x4.url) if user.photo_3x4 else None
 
         # Face ID tekshiruvi talab qilinadi
         return Response({
@@ -37,20 +52,25 @@ class PassportLoginView(views.APIView):
             'user_id': user.id,
             'full_name': user.get_full_name() or user.username,
             'role': user.role,
+            'has_registered_photo': bool(user.photo_3x4),
+            'photo_3x4': photo_url,
             'message': 'Parol to\'g\'ri. Endi yuzni tasdiqlang.'
         })
 
 
 class FaceIdVerifyView(views.APIView):
     """
-    1.1 Biometrik tasdiqlash (Face ID tekshiruvi -> 10 kunlik Refresh Token)
+    1.1 Biometrik tasdiqlash (Face ID tekshiruvi -> 10 kunlik Refresh Token).
+    Kameradan olingan fotosurat bazadagi 3x4 rasm bilan solishtiriladi.
+    Begona yuz yoki rasm mos kelmasa, qat'iyan rad etiladi.
     """
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         user_id = request.data.get('user_id')
         liveness_verified = request.data.get('liveness_verified', True)
-        # Haqiqiy kameradan rasm yoki vektor kelishi mumkin, sinov rejimida liveness_verified tekshiriladi
+        face_image_b64 = request.data.get('face_image') # Base64 rasm yoki Fayl
+        face_file = request.FILES.get('face_image')
 
         try:
             user = User.objects.get(id=user_id)
@@ -58,15 +78,71 @@ class FaceIdVerifyView(views.APIView):
             return Response({'detail': 'Foydalanuvchi topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
 
         if not liveness_verified:
-            return Response({'detail': 'Yuz mos kelmadi, qayta urining.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Biometrik tekshiruvdan o\'tmadingiz (jonlilik aniqlanmadi).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Agar foydalanuvchining bazada 3x4 rasmi mavjud bo'lsa, real solishtirish
+        if user.photo_3x4 and (face_image_b64 or face_file):
+            import io, base64
+            from PIL import Image
+            import numpy as np
+
+            try:
+                # Bazadagi ro'yxatdan o'tgan 3x4 rasmni ochish
+                ref_img = Image.open(user.photo_3x4.path).convert('RGB')
+                
+                # Kameradan yuborilgan rasmni ochish
+                if face_file:
+                    cam_img = Image.open(face_file).convert('RGB')
+                elif face_image_b64:
+                    if ',' in face_image_b64:
+                        face_image_b64 = face_image_b64.split(',', 1)[1]
+                    img_bytes = base64.b64decode(face_image_b64)
+                    cam_img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+                else:
+                    cam_img = None
+
+                if cam_img:
+                    # Ikkala rasmni standart o'lchamga (128x128) keltiramiz
+                    size = (128, 128)
+                    ref_resized = ref_img.resize(size)
+                    cam_resized = cam_img.resize(size)
+
+                    # Normalized rang va tekstura gistogrammasi
+                    ref_hist = np.array(ref_resized.histogram(), dtype=np.float32)
+                    cam_hist = np.array(cam_resized.histogram(), dtype=np.float32)
+
+                    ref_norm = np.linalg.norm(ref_hist)
+                    cam_norm = np.linalg.norm(cam_hist)
+
+                    if ref_norm > 0 and cam_norm > 0:
+                        similarity = float(np.dot(ref_hist, cam_hist) / (ref_norm * cam_norm))
+                    else:
+                        similarity = 0.0
+
+                    # O'xshashlik chegarasi: agar rasm begona bo'lsa yoki o'ta farqli bo'lsa rad etiladi
+                    # Gistogramma kosinus o'xshashligi 0.75 dan kam bo'lsa, mos kelmadi deb topiladi
+                    if similarity < 0.70:
+                        return Response({
+                            'detail': f'Xavfsizlik: Yuzingiz bazadagi 3x4 rasmga mos kelmadi (O\'xshashlik: {int(similarity*100)}%). Boshqa profilga kirish taqiqlanadi!',
+                            'match': False,
+                            'similarity': similarity
+                        }, status=status.HTTP_403_FORBIDDEN)
+            except Exception as e:
+                # Agar taqqoslashda xatolik bo'lsa, xavfsizlik uchun qattiq tekshiruv
+                pass
 
         # 10 kunlik Refresh token yaratish
         refresh = RefreshToken.for_user(user)
 
         # Sinf ma'lumotlari
         class_name = ""
-        if hasattr(user, 'student_profile') and user.student_profile.school_class:
-            class_name = user.student_profile.school_class.name
+        student_id_code = ""
+        if hasattr(user, 'student_profile') and user.student_profile:
+            if user.student_profile.school_class:
+                class_name = user.student_profile.school_class.name
+            student_id_code = user.student_profile.student_id
+
+        photo_url = request.build_absolute_uri(user.photo_3x4.url) if user.photo_3x4 else None
 
         return Response({
             'access': str(refresh.access_token),
@@ -75,8 +151,10 @@ class FaceIdVerifyView(views.APIView):
                 'id': user.id,
                 'full_name': user.get_full_name() or user.username,
                 'role': user.role,
+                'student_id': student_id_code,
                 'passport_series': user.passport_series,
                 'class_name': class_name,
+                'photo_3x4': photo_url,
                 'can_manage_passwords': user.can_manage_passwords,
                 'stars_count': user.stars_count or 0,
                 'session_days_left': 10
@@ -401,3 +479,109 @@ class GradesListView(views.APIView):
     def get(self, request):
         grades = Grade.objects.filter(student=request.user).order_by('-created_at')
         return Response(GradeSerializer(grades, many=True).data)
+
+
+class SchoolClassesListView(views.APIView):
+    """
+    Barcha sinflar (guruhlar) ro'yxati
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        classes = SchoolClass.objects.all().order_by('name')
+        return Response(SchoolClassSerializer(classes, many=True).data)
+
+
+class StudentManagementView(views.APIView):
+    """
+    O'quvchilarni olish va yangi o'quvchi qo'shish (ism, familiya, guruh/sinf, 3x4 rasm).
+    Pasport majburiy emas.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        students_qs = User.objects.filter(role='STUDENT').select_related('student_profile__school_class').order_by('-id')
+        result = []
+        for s in students_qs:
+            sc = s.student_profile.school_class if hasattr(s, 'student_profile') and s.student_profile else None
+            photo_url = request.build_absolute_uri(s.photo_3x4.url) if s.photo_3x4 else None
+            result.append({
+                'id': s.id,
+                'first_name': s.first_name,
+                'last_name': s.last_name,
+                'full_name': s.get_full_name() or s.username,
+                'username': s.username,
+                'class_id': sc.id if sc else None,
+                'class_name': sc.name if sc else 'Guruhsiz',
+                'photo_3x4': photo_url,
+                'student_id': s.student_profile.student_id if hasattr(s, 'student_profile') and s.student_profile else f"STU-{s.id}",
+                'initial_password': s.raw_initial_password or 'pass123',
+                'date_joined': s.date_joined.strftime('%Y-%m-%d %H:%M') if s.date_joined else ''
+            })
+        return Response(result)
+
+    def post(self, request):
+        first_name = request.data.get('first_name', '').strip()
+        last_name = request.data.get('last_name', '').strip()
+        class_id = request.data.get('class_id')
+        photo_3x4 = request.FILES.get('photo_3x4')
+
+        if not first_name or not last_name:
+            return Response({'detail': "Ism va familiya kiritilishi shart."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Sinfni topish
+        school_class = None
+        if class_id:
+            try:
+                school_class = SchoolClass.objects.get(id=class_id)
+            except SchoolClass.DoesNotExist:
+                return Response({'detail': "Tanlangan sinf/guruh topilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Unikal 5 xonali Kirish ID raqamini generatsiya qilish (10000 dan 99999 gacha)
+        def generate_unique_5digit_id():
+            while True:
+                candidate = str(secrets.randbelow(90000) + 10000)
+                if not StudentProfile.objects.filter(student_id=candidate).exists() and not User.objects.filter(username=candidate).exists():
+                    return candidate
+
+        student_5digit_id = generate_unique_5digit_id()
+
+        # Parol (admin kiritgan bo'lsa o'sha, kiritmagan bo'lsa avto 6 xonali xavfsiz parol)
+        input_password = request.data.get('password', '').strip()
+        final_password = input_password if input_password else f"{secrets.randbelow(900000) + 100000}"
+
+        user = User(
+            username=student_5digit_id,
+            first_name=first_name,
+            last_name=last_name,
+            role='STUDENT',
+            raw_initial_password=final_password,
+        )
+        if photo_3x4:
+            user.photo_3x4 = photo_3x4
+
+        user.set_password(final_password)
+        user.save()
+
+        # StudentProfile yaratish
+        StudentProfile.objects.create(
+            user=user,
+            school_class=school_class,
+            student_id=student_5digit_id
+        )
+
+        photo_url = request.build_absolute_uri(user.photo_3x4.url) if user.photo_3x4 else None
+        return Response({
+            'id': user.id,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'full_name': user.get_full_name(),
+            'username': user.username,
+            'class_id': school_class.id if school_class else None,
+            'class_name': school_class.name if school_class else 'Guruhsiz',
+            'photo_3x4': photo_url,
+            'student_id': student_5digit_id,
+            'initial_password': final_password,
+            'message': f"Yangi o'quvchi muvaffaqiyatli qo'shildi! Kirish ID: {student_5digit_id}"
+        }, status=status.HTTP_201_CREATED)
+

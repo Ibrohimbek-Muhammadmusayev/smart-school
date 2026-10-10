@@ -13,6 +13,9 @@ class ProfileScreen extends StatelessWidget {
     final passport = user['passport_series'] ?? 'AA 1234567';
     final role = user['role'] ?? 'STUDENT';
 
+    final studentId = user['student_id'] ?? user['username'] ?? '';
+    final photoUrl = user['photo_3x4'];
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Column(
@@ -29,7 +32,17 @@ class ProfileScreen extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: AppTheme.primary, width: 2),
                   ),
-                  child: const Icon(Icons.person, size: 54, color: AppTheme.primary),
+                  child: ClipOval(
+                    child: photoUrl != null
+                        ? Image.network(
+                            photoUrl,
+                            fit: BoxFit.cover,
+                            width: 100,
+                            height: 100,
+                            errorBuilder: (ctx, err, stack) => const Icon(Icons.person, size: 54, color: AppTheme.primary),
+                          )
+                        : const Icon(Icons.person, size: 54, color: AppTheme.primary),
+                  ),
                 ),
                 Positioned(
                   bottom: 0,
@@ -50,8 +63,8 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            "Rol: ${role == 'TEACHER' ? 'O\'qituvchi' : 'O\'quvchi'} | Pasport: $passport",
-            style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+            "Rol: ${role == 'TEACHER' ? 'O\'qituvchi' : 'O\'quvchi'} | Kirish ID: ${studentId.isNotEmpty ? studentId : passport}",
+            style: const TextStyle(color: AppTheme.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 20),
 

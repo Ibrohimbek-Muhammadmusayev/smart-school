@@ -510,26 +510,115 @@ function SchoolAdminDashboard({ currentUser, handleLogout, school, updateSchool 
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
-  const [newStudent, setNewStudent] = useState({ firstName: '', lastName: '', passport: '', class: '9-A', phone: '+998901234567' });
+  
+  // Real backend o'quvchilar va sinflar ro'yxati
+  const [realStudents, setRealStudents] = useState([]);
+  const [classesList, setClassesList] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [submittingStudent, setSubmittingStudent] = useState(false);
+
+  // Yangi o'quvchi formasi (Ism, Familiya, Guruh/Sinf, Parol, 3x4 Rasm) - Pasport SHART EMAS
+  const [newStudent, setNewStudent] = useState({ 
+    firstName: '', 
+    lastName: '', 
+    classId: '', 
+    password: '',
+    photo: null, 
+    photoPreview: null 
+  });
+
+  // Backenddan o'quvchilar va sinflarni yuklash
+  const fetchStudentsAndClasses = async () => {
+    setLoadingStudents(true);
+    try {
+      const [studentsRes, classesRes] = await Promise.all([
+        fetch('http://127.0.0.1:8000/api/students/'),
+        fetch('http://127.0.0.1:8000/api/classes/')
+      ]);
+      if (studentsRes.ok) {
+        const studentsData = await studentsRes.json();
+        setRealStudents(studentsData);
+      }
+      if (classesRes.ok) {
+        const classesData = await classesRes.json();
+        setClassesList(classesData);
+        if (classesData.length > 0 && !newStudent.classId) {
+          setNewStudent(prev => ({ ...prev, classId: classesData[0].id }));
+        }
+      }
+    } catch (err) {
+      console.error("Ma'lumotlarni yuklashda xatolik:", err);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchStudentsAndClasses();
+  }, []);
 
   if (!school) return <div style={{ padding: 40 }}>Maktab topilmadi!</div>;
 
-  const handleAddStudent = (e) => {
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewStudent({
+        ...newStudent,
+        photo: file,
+        photoPreview: URL.createObjectURL(file)
+      });
+    }
+  };
+
+  const handleAddStudent = async (e) => {
     e.preventDefault();
-    const created = {
-      id: Date.now(),
-      name: `${newStudent.lastName} ${newStudent.firstName}`,
-      passport: newStudent.passport.toUpperCase(),
-      initialPwd: "Pass" + Math.floor(1000 + Math.random() * 9000),
-      class: newStudent.class,
-      phone: newStudent.phone
-    };
-    updateSchool({
-      ...school,
-      students: [created, ...school.students]
-    });
-    setShowAddStudentModal(false);
-    setNewStudent({ firstName: '', lastName: '', passport: '', class: '9-A', phone: '+998901234567' });
+    if (!newStudent.firstName.trim() || !newStudent.lastName.trim()) {
+      alert("Iltimos, o'quvchining ismi va familiyasini kiriting!");
+      return;
+    }
+
+    setSubmittingStudent(true);
+    try {
+      const formData = new FormData();
+      formData.append('first_name', newStudent.firstName.trim());
+      formData.append('last_name', newStudent.lastName.trim());
+      if (newStudent.classId) {
+        formData.append('class_id', newStudent.classId);
+      }
+      if (newStudent.password && newStudent.password.trim()) {
+        formData.append('password', newStudent.password.trim());
+      }
+      if (newStudent.photo) {
+        formData.append('photo_3x4', newStudent.photo);
+      }
+
+      const res = await fetch('http://127.0.0.1:8000/api/students/', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || "O'quvchini saqlashda xatolik yuz berdi");
+      }
+
+      const created = await res.json();
+      setRealStudents([created, ...realStudents]);
+      setShowAddStudentModal(false);
+      setNewStudent({
+        firstName: '',
+        lastName: '',
+        classId: classesList.length > 0 ? classesList[0].id : '',
+        password: '',
+        photo: null,
+        photoPreview: null
+      });
+      alert(`✅ Yangi o'quvchi muvaffaqiyatli qo'shildi!\nKirish ID (5 xonali): ${created.student_id}\nParoli: ${created.initial_password}`);
+    } catch (err) {
+      alert("Xatolik: " + err.message);
+    } finally {
+      setSubmittingStudent(false);
+    }
   };
 
   return (
@@ -550,7 +639,7 @@ function SchoolAdminDashboard({ currentUser, handleLogout, school, updateSchool 
         <div style={{ flex: 1, padding: '20px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SuperNavButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<BarChart3 size={19} />} label="Umumiy Statistika" />
           <SuperNavButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<CheckCircle2 size={19} />} label="Jonli Davomat" badge="Jonli" />
-          <SuperNavButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} icon={<Users size={19} />} label="O'quvchilar & Sinflar" badge={`${school.students.length}`} />
+          <SuperNavButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} icon={<Users size={19} />} label="O'quvchilar" badge={`${realStudents.length}`} />
           <SuperNavButton active={activeTab === 'passwords'} onClick={() => setActiveTab('passwords')} icon={<Key size={19} />} label="Ruxsatlar & Parollar" />
           <SuperNavButton active={activeTab === 'telegram'} onClick={() => setActiveTab('telegram')} icon={<Send size={19} />} label="Telegram Bot" />
         </div>
@@ -583,7 +672,7 @@ function SchoolAdminDashboard({ currentUser, handleLogout, school, updateSchool 
             <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
               {activeTab === 'overview' && "Maktab Davomat & LMS Boshqaruv Monitoringi"}
               {activeTab === 'attendance' && "Jonli Sinf Davomati va Darslar Xaritasi"}
-              {activeTab === 'students' && "O'quvchilar Bazasi va Yangi Qabul"}
+              {activeTab === 'students' && "O'quvchilar Bazasi"}
               {activeTab === 'passwords' && "Xavfsizlik, Rollar va Parollarni Tiklash"}
               {activeTab === 'telegram' && "Telegram Bot Integratsiyasi & Ota-onalar Xabarnomasi"}
             </h1>
@@ -591,10 +680,6 @@ function SchoolAdminDashboard({ currentUser, handleLogout, school, updateSchool 
               {school.name} • Real vaqt rejimidagi avtomatlashtirilgan davomat statistikasi
             </p>
           </div>
-
-          <button onClick={() => setShowAddStudentModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', backgroundColor: '#FF5722', color: 'white', borderRadius: 12, border: 'none', fontWeight: 700, cursor: 'pointer' }}>
-            <Plus size={16} /> Yangi O'quvchi Qo'shish
-          </button>
         </div>
 
         {/* TAB 1: OVERVIEW (Haftalik grafik, progress barlar, KPI lar) */}
@@ -772,39 +857,108 @@ function SchoolAdminDashboard({ currentUser, handleLogout, school, updateSchool 
 
         {/* TAB 3: O'QUVCHILAR BAZASI */}
         {activeTab === 'students' && (
-          <div style={{ backgroundColor: '#FFF', borderRadius: 20, padding: 24, border: '1px solid #E2E8F0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>{school.name} O'quvchilari</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 10, width: 240 }}>
-                <Search size={15} color="#94A3B8" />
-                <input placeholder="Qidirish (Ism/Pasport)..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 12 }} />
+          <div style={{ backgroundColor: '#FFF', borderRadius: 20, padding: 24, border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>O'quvchilar Ro'yxati</h3>
+                <div style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>
+                  Bazada jami {realStudents.length} nafar o'quvchi mavjud (Pasportsiz ro'yxatga olish tizimi)
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', border: '1px solid #CBD5E1', borderRadius: 12, width: 260, backgroundColor: '#F8FAFC' }}>
+                  <Search size={16} color="#64748B" />
+                  <input 
+                    placeholder="Ism yoki familiya bo'yicha qidirish..." 
+                    value={searchTerm} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                    style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: 13 }} 
+                  />
+                </div>
+                <button 
+                  onClick={fetchStudentsAndClasses}
+                  title="Yangilash"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', border: '1px solid #CBD5E1', borderRadius: 12, background: '#FFFFFF', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                  <RefreshCw size={14} className={loadingStudents ? "animate-spin" : ""} /> Yangilash
+                </button>
+                <button 
+                  onClick={() => {
+                    if (classesList.length > 0 && !newStudent.classId) {
+                      setNewStudent(prev => ({ ...prev, classId: classesList[0].id }));
+                    }
+                    setShowAddStudentModal(true);
+                  }} 
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', backgroundColor: '#FF5722', color: 'white', borderRadius: 12, border: 'none', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(255, 87, 34, 0.25)' }}>
+                  <Plus size={16} /> Yangi O'quvchi Qo'shish
+                </button>
               </div>
             </div>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #F1F5F9', color: '#64748B' }}>
-                  <th style={{ padding: '12px 14px' }}>Ism-Familiya</th>
-                  <th style={{ padding: '12px 14px' }}>Sinf</th>
-                  <th style={{ padding: '12px 14px' }}>Pasport Seriya</th>
-                  <th style={{ padding: '12px 14px' }}>Boshlang'ich Parol</th>
-                  <th style={{ padding: '12px 14px' }}>Biometrik Holat</th>
-                </tr>
-              </thead>
-              <tbody>
-                {school.students
-                  .filter(st => st.name.toLowerCase().includes(searchTerm.toLowerCase()) || st.passport.toLowerCase().includes(searchTerm.toLowerCase()))
-                  .map(st => (
-                    <tr key={st.id} style={{ borderBottom: '1px solid #F8FAFC' }}>
-                      <td style={{ padding: '14px', fontWeight: 700 }}>{st.name}</td>
-                      <td style={{ padding: '14px' }}><span style={{ padding: '3px 8px', backgroundColor: '#EFF6FF', color: '#1D4ED8', borderRadius: 6, fontWeight: 700 }}>{st.class}</span></td>
-                      <td style={{ padding: '14px' }}><code>{st.passport}</code></td>
-                      <td style={{ padding: '14px' }}><span style={{ padding: '4px 10px', backgroundColor: '#F1F5F9', borderRadius: 8, fontWeight: 700 }}>{st.initialPwd}</span></td>
-                      <td style={{ padding: '14px', color: '#10B981', fontWeight: 700 }}>Face ID Faol ✅</td>
+            {loadingStudents ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Yuklanmoqda...</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #F1F5F9', color: '#64748B', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+                    <th style={{ padding: '12px 14px' }}>3x4 Foto</th>
+                    <th style={{ padding: '12px 14px' }}>Familiya & Ism</th>
+                    <th style={{ padding: '12px 14px' }}>Guruh / Sinf</th>
+                    <th style={{ padding: '12px 14px' }}>Kirish ID (5 xonali)</th>
+                    <th style={{ padding: '12px 14px' }}>Parol</th>
+                    <th style={{ padding: '12px 14px' }}>Holat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {realStudents
+                    .filter(st => (st.full_name || `${st.last_name} ${st.first_name}`).toLowerCase().includes(searchTerm.toLowerCase()))
+                    .map(st => (
+                      <tr key={st.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                        <td style={{ padding: '12px 14px' }}>
+                          {st.photo_3x4 ? (
+                            <img 
+                              src={st.photo_3x4} 
+                              alt={st.full_name} 
+                              style={{ width: 44, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} 
+                            />
+                          ) : (
+                            <div style={{ width: 44, height: 56, backgroundColor: '#E2E8F0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: 2 }}>
+                              Foto Yo'q
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px', fontWeight: 800, color: '#0F172A', fontSize: 14 }}>
+                          {st.last_name} {st.first_name}
+                        </td>
+                        <td style={{ padding: '14px' }}>
+                          <span style={{ padding: '5px 12px', backgroundColor: '#EFF6FF', color: '#1D4ED8', borderRadius: 8, fontWeight: 800, fontSize: 12 }}>
+                            {st.class_name || 'Guruhsiz'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px', color: '#475569', fontFamily: 'monospace', fontWeight: 700 }}>
+                          <code>{st.student_id || `STU-${st.id}`}</code>
+                        </td>
+                        <td style={{ padding: '14px' }}>
+                          <span style={{ padding: '4px 10px', backgroundColor: '#F1F5F9', borderRadius: 8, fontWeight: 700, fontFamily: 'monospace' }}>
+                            {st.initial_password || 'pass123'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', backgroundColor: '#ECFDF5', color: '#059669', borderRadius: 8, fontWeight: 700, fontSize: 11 }}>
+                            Faol ✅
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  {realStudents.length === 0 && (
+                    <tr>
+                      <td colSpan="6" style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+                        Hozircha o'quvchilar mavjud emas. "Yangi O'quvchi Qo'shish" tugmasini bosing.
+                      </td>
                     </tr>
-                  ))}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
@@ -855,19 +1009,176 @@ function SchoolAdminDashboard({ currentUser, handleLogout, school, updateSchool 
 
 
       {/* O'quvchi Qo'shish Modal */}
+      {/* O'quvchi Qo'shish Modal (Ism, Familiya, Guruh/Sinf Select, 3x4 Rasm yuklash - Pasport shart emas) */}
       {showAddStudentModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
-          <div style={{ backgroundColor: 'white', borderRadius: 20, padding: 28, width: '100%', maxWidth: 420 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <div style={{ fontWeight: 800, fontSize: 17 }}>Yangi O'quvchi Qo'shish</div>
-              <button onClick={() => setShowAddStudentModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
+          <div style={{ backgroundColor: 'white', borderRadius: 24, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid #F1F5F9', paddingBottom: 14 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 18, color: '#0F172A' }}>Yangi O'quvchi Qo'shish</div>
+                <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>Guruhni tanlang va 3x4 rasmini yuklang</div>
+              </div>
+              <button 
+                onClick={() => setShowAddStudentModal(false)} 
+                style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748B' }}>
+                <X size={18} />
+              </button>
             </div>
-            <form onSubmit={handleAddStudent} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input required placeholder="Familiya" value={newStudent.lastName} onChange={e => setNewStudent({...newStudent, lastName: e.target.value})} style={{ padding: 10, borderRadius: 10, border: '1px solid #CBD5E1' }} />
-              <input required placeholder="Ism" value={newStudent.firstName} onChange={e => setNewStudent({...newStudent, firstName: e.target.value})} style={{ padding: 10, borderRadius: 10, border: '1px solid #CBD5E1' }} />
-              <input required placeholder="Pasport / Metrika (AA 1234567)" value={newStudent.passport} onChange={e => setNewStudent({...newStudent, passport: e.target.value})} style={{ padding: 10, borderRadius: 10, border: '1px solid #CBD5E1' }} />
-              <button type="submit" style={{ padding: 12, backgroundColor: '#6366F1', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, marginTop: 10, cursor: 'pointer' }}>O'quvchini Saqlash</button>
+
+            <form onSubmit={handleAddStudent} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Familiya */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Familiyasi <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input 
+                  required 
+                  placeholder="Masalan: Karimova" 
+                  value={newStudent.lastName} 
+                  onChange={e => setNewStudent({...newStudent, lastName: e.target.value})} 
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid #CBD5E1', fontSize: 14, boxSizing: 'border-box' }} 
+                />
+              </div>
+
+              {/* Ismi */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Ismi <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input 
+                  required 
+                  placeholder="Masalan: Madina" 
+                  value={newStudent.firstName} 
+                  onChange={e => setNewStudent({...newStudent, firstName: e.target.value})} 
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid #CBD5E1', fontSize: 14, boxSizing: 'border-box' }} 
+                />
+              </div>
+
+              {/* Guruhi (Sinf) Select */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Guruhi / Sinfi <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <select 
+                  required
+                  value={newStudent.classId} 
+                  onChange={e => setNewStudent({...newStudent, classId: e.target.value})}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid #CBD5E1', fontSize: 14, boxSizing: 'border-box', backgroundColor: '#FFF', fontWeight: 600 }}>
+                  {classesList.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.academic_year || 'Sinf'})
+                    </option>
+                  ))}
+                  {classesList.length === 0 && (
+                    <option value="">Guruhlar yuklanmoqda...</option>
+                  )}
+                </select>
+              </div>
+
+              {/* Kirish ID (5 xonali avtomatik unikal) va Parol */}
+              <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', padding: 12, borderRadius: 12, fontSize: 12, color: '#166534' }}>
+                <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>🔢 Kirish ID:</span> <span style={{ backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: 6, fontFamily: 'monospace', fontWeight: 900 }}>Tizim avtomatik 5 xonali unikal ID beradi</span>
+                </div>
+                <div style={{ fontSize: 11, marginTop: 4, color: '#15803D' }}>
+                  O'quvchi mobil ilovaga kirishda mana shu 5 xonali ID raqamidan foydalanadi.
+                </div>
+              </div>
+
+              {/* Parol kiritish */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>
+                    O'quvchi Paroli
+                  </label>
+                  <span style={{ fontSize: 11, color: '#64748B' }}>Bo'sh qolsa, avto yaratiladi</span>
+                </div>
+                <input 
+                  type="text"
+                  placeholder="Masalan: 123456 yoki o'z xohishingizcha" 
+                  value={newStudent.password} 
+                  onChange={e => setNewStudent({...newStudent, password: e.target.value})} 
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid #CBD5E1', fontSize: 14, boxSizing: 'border-box' }} 
+                />
+              </div>
+
+              {/* 3x4 Rasm yuklash */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  3x4 Rasmi <span style={{ color: '#64748B', fontWeight: 500 }}>(Tavsiya etiladi)</span>
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ 
+                    width: 72, 
+                    height: 96, 
+                    borderRadius: 12, 
+                    border: '2px dashed #CBD5E1', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    overflow: 'hidden', 
+                    backgroundColor: '#F8FAFC',
+                    flexShrink: 0
+                  }}>
+                    {newStudent.photoPreview ? (
+                      <img src={newStudent.photoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ fontSize: 11, color: '#94A3B8', textAlign: 'center', padding: 4 }}>3x4 rasm</span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      id="student-photo-upload"
+                      onChange={handlePhotoChange} 
+                      style={{ display: 'none' }} 
+                    />
+                    <label 
+                      htmlFor="student-photo-upload" 
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: 6, 
+                        padding: '9px 16px', 
+                        borderRadius: 10, 
+                        backgroundColor: '#F1F5F9', 
+                        border: '1px solid #CBD5E1', 
+                        fontSize: 13, 
+                        fontWeight: 700, 
+                        color: '#334155', 
+                        cursor: 'pointer' 
+                      }}>
+                      <Plus size={15} /> Rasm tanlash
+                    </label>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 6 }}>
+                      JPG, PNG formatdagi 3x4 portret rasm
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Saqlash tugmasi */}
+              <button 
+                type="submit" 
+                disabled={submittingStudent}
+                style={{ 
+                  padding: '14px 0', 
+                  backgroundColor: submittingStudent ? '#94A3B8' : '#FF5722', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: 14, 
+                  fontWeight: 800, 
+                  fontSize: 15,
+                  marginTop: 10, 
+                  cursor: submittingStudent ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(255, 87, 34, 0.3)'
+                }}>
+                {submittingStudent ? "Saqlanmoqda..." : "O'quvchini Saqlash"}
+              </button>
             </form>
+
           </div>
         </div>
       )}
