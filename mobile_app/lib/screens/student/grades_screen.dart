@@ -89,20 +89,27 @@ class _GradesScreenState extends State<GradesScreen> {
                         itemBuilder: (ctx, i) {
                           final g = _grades[i];
                           return Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8)],
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primary.withValues(alpha: 0.04),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  width: 46,
-                                  height: 46,
+                                  width: 48,
+                                  height: 48,
                                   decoration: BoxDecoration(
                                     color: AppTheme.primaryLight,
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Center(
                                     child: Text(
@@ -121,7 +128,7 @@ class _GradesScreenState extends State<GradesScreen> {
                                       Text(g['topic'] ?? '', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
                                       if (g['comment']?.isNotEmpty == true) ...[
                                         const SizedBox(height: 4),
-                                        Text("Izoh: ${g['comment']}", style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppTheme.accent)),
+                                        Text("Izoh: ${g['comment']}", style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppTheme.primary)),
                                       ]
                                     ],
                                   ),

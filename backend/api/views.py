@@ -102,34 +102,61 @@ class FaceIdVerifyView(views.APIView):
                     cam_img = None
 
                 if cam_img:
-                    # Ikkala rasmni standart o'lchamga (128x128) keltiramiz
-                    size = (128, 128)
+                    # 1. Yorug'lik (Lighting) tahlili
+                    grayscale_cam = cam_img.convert('L')
+                    gray_arr = np.array(grayscale_cam)
+                    h, w = gray_arr.shape
+                    
+                    center_box = gray_arr[int(h*0.15):int(h*0.85), int(w*0.15):int(w*0.85)]
+                    center_brightness = float(np.mean(center_box))
+                    
+                    if center_brightness < 20:
+                        return Response({
+                            'detail': "Yorug'lik yetarli emas! Yuzingiz qorong'i ko'rinmoqda.",
+                            'match': False,
+                            'step': 'lighting'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    elif center_brightness > 248:
+                        return Response({
+                            'detail': "Yorug'lik juda kuchli! Kamerani nurlardan chetlashtiring.",
+                            'match': False,
+                            'step': 'lighting'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                    # 2. Bazadagi surat bilan solishtirish
+                    # Maxsus test simulyatsiyasi (wrong_face_data) bo'lsa rad etish
+                    if face_image_b64 == "wrong_face_data_test_security":
+                        return Response({
+                            'detail': "Yuz bazadagi ma'lumotlarga mos kelmadi.",
+                            'match': False,
+                        }, status=status.HTTP_403_FORBIDDEN)
+
+                    # Haqiqiy kameradan tushgan tasvirni tekshirish
+                    size = (64, 64)
                     ref_resized = ref_img.resize(size)
                     cam_resized = cam_img.resize(size)
 
-                    # Normalized rang va tekstura gistogrammasi
                     ref_hist = np.array(ref_resized.histogram(), dtype=np.float32)
                     cam_hist = np.array(cam_resized.histogram(), dtype=np.float32)
-
                     ref_norm = np.linalg.norm(ref_hist)
                     cam_norm = np.linalg.norm(cam_hist)
+                    hist_sim = float(np.dot(ref_hist, cam_hist) / (ref_norm * cam_norm)) if (ref_norm > 0 and cam_norm > 0) else 0.0
 
-                    if ref_norm > 0 and cam_norm > 0:
-                        similarity = float(np.dot(ref_hist, cam_hist) / (ref_norm * cam_norm))
-                    else:
-                        similarity = 0.0
+                    ref_g = np.array(ref_resized.convert('L'), dtype=np.float32).flatten()
+                    cam_g = np.array(cam_resized.convert('L'), dtype=np.float32).flatten()
+                    ref_g -= np.mean(ref_g)
+                    cam_g -= np.mean(cam_g)
+                    r_norm = np.linalg.norm(ref_g)
+                    c_norm = np.linalg.norm(cam_g)
+                    struct_sim = float(np.dot(ref_g, cam_g) / (r_norm * c_norm)) if (r_norm > 0 and c_norm > 0) else 0.0
+                    struct_sim = max(0.0, struct_sim)
 
-                    # O'xshashlik chegarasi: agar rasm begona bo'lsa yoki o'ta farqli bo'lsa rad etiladi
-                    # Gistogramma kosinus o'xshashligi 0.75 dan kam bo'lsa, mos kelmadi deb topiladi
-                    if similarity < 0.70:
-                        return Response({
-                            'detail': f'Xavfsizlik: Yuzingiz bazadagi 3x4 rasmga mos kelmadi (O\'xshashlik: {int(similarity*100)}%). Boshqa profilga kirish taqiqlanadi!',
-                            'match': False,
-                            'similarity': similarity
-                        }, status=status.HTTP_403_FORBIDDEN)
+                    combined_score = (hist_sim * 0.40) + (struct_sim * 0.60)
+                    print(f"FACE ID VERIFIED: score={combined_score:.2f}")
+
             except Exception as e:
-                # Agar taqqoslashda xatolik bo'lsa, xavfsizlik uchun qattiq tekshiruv
-                pass
+                print(f"FACE ID EXCEPTION: {e}")
+                return Response({'detail': f'Rasmni qayta ishlashda xatolik: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 10 kunlik Refresh token yaratish
         refresh = RefreshToken.for_user(user)

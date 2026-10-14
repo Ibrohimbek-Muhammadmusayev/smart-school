@@ -311,7 +311,7 @@ class _LessonRoomScreenState extends State<LessonRoomScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Ustoz Bahosi qo'yildi ⭐", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      const Text("Ustoz Bahosi qo'yildi", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                       const SizedBox(height: 2),
                       Text("Izoh: ${_grade!['comment'] ?? 'Faol ishtirok uchun'}", style: const TextStyle(color: Colors.white70, fontSize: 12)),
                     ],

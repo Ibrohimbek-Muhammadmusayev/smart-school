@@ -49,7 +49,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _loginIdController = TextEditingController(text: "65167");
+  final _loginIdController = TextEditingController(text: "23089");
   final _passwordController = TextEditingController(text: "pass123");
   bool _obscure = true;
   bool _loading = false;
@@ -129,16 +129,23 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Illustration / Hero Header
+                  // Illustration / Hero Header (Easy Learn Style)
                   Center(
                     child: Container(
-                      width: 90,
-                      height: 90,
+                      width: 96,
+                      height: 96,
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryLight,
-                        borderRadius: BorderRadius.circular(28),
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primary.withValues(alpha: 0.35),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.school_rounded, size: 48, color: AppTheme.primary),
+                      child: const Icon(Icons.school_rounded, size: 52, color: Colors.white),
                     ),
                   ),
                   const SizedBox(height: 24),

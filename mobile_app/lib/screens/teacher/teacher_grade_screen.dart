@@ -17,7 +17,6 @@ class _TeacherGradeScreenState extends State<TeacherGradeScreen> {
   final Map<int, int> _scores = {};
   final Map<int, String> _gradeTypes = {};
   final Map<int, TextEditingController> _comments = {};
-  final Set<int> _starredStudents = {}; // A'lo o'quvchilarga yulduz berish
   final Set<int> _gradedStudentIds = {}; // Baholanganlar to'plami (100% tekshirish uchun)
 
   @override
@@ -45,7 +44,6 @@ class _TeacherGradeScreenState extends State<TeacherGradeScreen> {
   }
 
   void _saveGrade(int studentId, String name) async {
-    final isStarred = _starredStudents.contains(studentId);
     try {
       final res = await ApiService.addGrade(
         lessonId: widget.lessonId,
@@ -53,7 +51,6 @@ class _TeacherGradeScreenState extends State<TeacherGradeScreen> {
         score: _scores[studentId] ?? 5,
         gradeType: _gradeTypes[studentId] ?? 'ACTIVITY',
         comment: _comments[studentId]?.text.trim() ?? '',
-        isStarred: isStarred,
       );
 
       setState(() {
@@ -149,50 +146,10 @@ class _TeacherGradeScreenState extends State<TeacherGradeScreen> {
                       ),
                       const SizedBox(height: 14),
 
-                      // Baho tanlash va ⭐ Yulduz Berish tugmasi
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text("Baho tanlang:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textMuted)),
-                          // A'lo o'quvchiga Yulduz berish tugmasi
-                          InkWell(
-                            onTap: () {
-                              setState(() {
-                                if (_starredStudents.contains(id)) {
-                                  _starredStudents.remove(id);
-                                } else {
-                                  _starredStudents.add(id);
-                                }
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _starredStudents.contains(id) ? Colors.amber.shade100 : const Color(0xFFF1F3F6),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: _starredStudents.contains(id) ? Colors.amber : Colors.transparent),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _starredStudents.contains(id) ? Icons.star_rounded : Icons.star_border_rounded,
-                                    size: 18,
-                                    color: _starredStudents.contains(id) ? Colors.amber.shade800 : AppTheme.textMuted,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _starredStudents.contains(id) ? "Yulduz berildi! ⭐" : "Yulduz berish",
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: _starredStudents.contains(id) ? Colors.amber.shade900 : AppTheme.textMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                      // Baho tanlash
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text("Baho tanlang:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textMuted)),
                       ),
                       const SizedBox(height: 6),
                       Row(

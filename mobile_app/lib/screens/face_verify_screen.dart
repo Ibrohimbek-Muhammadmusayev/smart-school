@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -27,24 +28,20 @@ class FaceVerifyScreen extends StatefulWidget {
 }
 
 class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   String? _cameraError;
 
-  int _attempts = 3;
-  bool _scanning = false;
-  String _statusText = "Yuzingizni kameraga to'g'ri tuting...\nOval ramka ichiga joylashtiring";
+  bool _isVerifying = false;
   bool _verified = false;
+  String _hintText = "Yuzingizni doira ichiga tuting";
+  Color _rimColor = Colors.white;
+
+  Timer? _autoCheckTimer;
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-
     _initCamera();
   }
 
@@ -52,84 +49,83 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
-        setState(() {
-          _cameraError = "Kamera topilmadi";
-        });
+        if (!mounted) return;
+        setState(() => _cameraError = "Kamera topilmadi");
         return;
       }
 
-      // Old kamera (Front camera) ni qidiramiz
-      CameraDescription selectedCamera = cameras.first;
+      CameraDescription frontCam = cameras.first;
       for (final cam in cameras) {
         if (cam.lensDirection == CameraLensDirection.front) {
-          selectedCamera = cam;
+          frontCam = cam;
           break;
         }
       }
 
       _cameraController = CameraController(
-        selectedCamera,
+        frontCam,
         ResolutionPreset.medium,
         enableAudio: false,
       );
 
       await _cameraController!.initialize();
       if (!mounted) return;
-      setState(() {
-        _isCameraInitialized = true;
-      });
+      setState(() => _isCameraInitialized = true);
+
+      // Kamera ochilgach foydalanuvchi yuzini to'g'rilab olishi uchun 1.2 soniyadan so'ng avtomatik tekshiruv boshlanadi
+      _scheduleAutoCapture(1200);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _cameraError = "Kameraga ulanishda xatolik: $e";
-      });
+      setState(() => _cameraError = "Kameraga ulanishda xatolik: $e");
     }
   }
 
-  @override
-  void dispose() {
-    _animController.dispose();
-    _cameraController?.dispose();
-    super.dispose();
+  void _scheduleAutoCapture(int delayMs) {
+    _autoCheckTimer?.cancel();
+    _autoCheckTimer = Timer(Duration(milliseconds: delayMs), () {
+      if (mounted && !_isVerifying && !_verified) {
+        _verifyFace();
+      }
+    });
   }
 
-  Future<void> _captureAndVerify({bool simulateWrongFace = false}) async {
-    if (_scanning || _attempts <= 0) return;
+  Future<void> _verifyFace() async {
+    if (_isVerifying || _verified) return;
 
     setState(() {
-      _scanning = true;
-      _statusText = "Surat olinmoqda va tekshirilmoqda...\nBazadagi 3x4 rasm bilan solishtirilmoqda";
+      _isVerifying = true;
+      _hintText = "Tekshirilmoqda...";
+      _rimColor = AppTheme.primary;
     });
 
     String? base64Image;
-
     try {
-      if (simulateWrongFace) {
-        base64Image = "wrong_face_data_test_security";
-      } else if (_cameraController != null && _cameraController!.value.isInitialized) {
+      if (_cameraController != null && _cameraController!.value.isInitialized) {
         final XFile file = await _cameraController!.takePicture();
         final bytes = await file.readAsBytes();
         base64Image = base64Encode(bytes);
       }
     } catch (e) {
-      // Agar rasm olishda xatolik bo'lsa
-      debugPrint("Kameradan surat olishda xatolik: $e");
+      debugPrint("Kameradan surat olish xatosi: $e");
     }
 
     try {
       final res = await ApiService.verifyFaceId(
         widget.userId,
-        !simulateWrongFace,
+        true,
         faceImageB64: base64Image,
       );
 
       if (res['access'] != null) {
+        if (!mounted) return;
         setState(() {
           _verified = true;
-          _statusText = "Face ID muvaffaqiyatli tasdiqlandi! ✅\nXavfsiz sessiya yaratildi";
+          _isVerifying = false;
+          _hintText = "Tasdiqlandi!";
+          _rimColor = AppTheme.success;
         });
 
-        await Future.delayed(const Duration(milliseconds: 1200));
+        await Future.delayed(const Duration(milliseconds: 700));
         if (!mounted) return;
 
         if (widget.role == 'TEACHER') {
@@ -146,193 +142,222 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
           );
         }
       } else {
-        _handleFailure(res['detail']);
+        _onFailed(res['detail']);
       }
     } catch (e) {
-      _handleFailure(null);
+      _onFailed(null);
     }
   }
 
-  void _handleFailure(String? message) {
+  void _onFailed(String? message) {
+    if (!mounted) return;
     setState(() {
-      _scanning = false;
-      _attempts -= 1;
-      if (_attempts > 0) {
-        _statusText = message ?? "Yuz mos kelmadi! Begona shaxs aniqlandi ($_attempts ta urinish qoldi)";
+      _isVerifying = false;
+      _rimColor = Colors.orange.shade600;
+      if (message != null && message.contains("Yorug'lik")) {
+        _hintText = "Yorug'roq joyga o'ting";
+      } else if (message != null && message.contains("to'g'riga")) {
+        _hintText = "Kameraga to'g'ri qarang";
       } else {
-        _statusText = "⛔ Xavfsizlik: Barcha urinishlar tugadi. Kabinetga kirish bloklandi!";
+        _hintText = "Yuzingizni doira ichida tuting";
       }
     });
+
+    // Avtomatik yana tekshirish (1.8 soniyadan keyin)
+    _scheduleAutoCapture(1800);
+  }
+
+  @override
+  void dispose() {
+    _autoCheckTimer?.cancel();
+    _cameraController?.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final double ovalWidth = 260;
+    final double ovalHeight = 350;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Biometrik tasdiqlash", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            children: [
-              Text(
-                widget.fullName,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. To'liq ekran jonli kamera
+          if (_isCameraInitialized && _cameraController != null)
+            Center(
+              child: CameraPreview(_cameraController!),
+            )
+          else if (_cameraError != null)
+            Center(
+              child: Text(
+                _cameraError!,
+                style: const TextStyle(color: Colors.white70),
               ),
-              const SizedBox(height: 6),
-              const Text(
-                "Haqiqiy kamera orqali 3x4 rasm bilan solishtirish",
-                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-              ),
-              const Spacer(),
+            )
+          else
+            const Center(
+              child: CircularProgressIndicator(color: AppTheme.primary),
+            ),
 
-              // Oval Camera Frame
-              Center(
-                child: Stack(
-                  alignment: Alignment.center,
+          // 2. Qora yarim-shaffof niqob (Faqat yuz tutish joyi ochiq)
+          CustomPaint(
+            size: size,
+            painter: _FaceMaskPainter(
+              ovalWidth: ovalWidth,
+              ovalHeight: ovalHeight,
+              borderColor: _rimColor,
+              borderWidth: _isVerifying ? 4.0 : 3.0,
+            ),
+          ),
+
+          // 3. Yuqori qism: Orqaga qaytish va Ism
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
                   children: [
-                    // Outer Glow & Oval Border
-                    Container(
-                      width: 250,
-                      height: 330,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(130),
-                        border: Border.all(
-                          color: _verified
-                              ? AppTheme.success
-                              : (_scanning ? AppTheme.primary : Colors.grey.shade300),
-                          width: 4,
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    Expanded(
+                      child: Text(
+                        widget.fullName,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          shadows: [Shadow(color: Colors.black87, blurRadius: 8)],
                         ),
-                        color: Colors.black,
-                        boxShadow: [
-                          BoxShadow(
-                            color: (_verified ? AppTheme.success : AppTheme.primary).withOpacity(0.15),
-                            blurRadius: 24,
-                            spreadRadius: 6,
-                          )
-                        ],
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(126),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            // Haqiqiy Jonli Kamera Tasviri
-                            if (_isCameraInitialized && _cameraController != null)
-                              FittedBox(
-                                fit: BoxFit.cover,
-                                child: SizedBox(
-                                  width: _cameraController!.value.previewSize?.height ?? 300,
-                                  height: _cameraController!.value.previewSize?.width ?? 400,
-                                  child: CameraPreview(_cameraController!),
-                                ),
-                              )
-                            else if (_cameraError != null)
-                              Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    _cameraError!,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                  ),
-                                ),
-                              )
-                            else
-                              const Center(
-                                child: CircularProgressIndicator(color: AppTheme.primary),
-                              ),
+                    ),
+                    const SizedBox(width: 48), // Balans uchun
+                  ],
+                ),
+              ),
+            ),
+          ),
 
-                            // Scanning laser line
-                            if (_scanning && !_verified)
-                              AnimatedBuilder(
-                                animation: _animController,
-                                builder: (context, child) {
-                                  return Positioned(
-                                    top: 40 + (_animController.value * 240),
-                                    left: 20,
-                                    right: 20,
-                                    child: Container(
-                                      height: 3,
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primary,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppTheme.primary.withOpacity(0.9),
-                                            blurRadius: 8,
-                                            spreadRadius: 2,
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-
-                            // Muvaffaqiyatli tasdiqlanganda
-                            if (_verified)
-                              Container(
-                                color: Colors.black45,
-                                child: const Center(
-                                  child: Icon(Icons.check_circle_rounded, size: 88, color: AppTheme.success),
-                                ),
-                              ),
-                          ],
+          // 4. Pastki qism: Faqat bitta ixcham ko'rsatma (Yuzingizni tuting / Tekshirilmoqda)
+          Positioned(
+            bottom: 60,
+            left: 24,
+            right: 24,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: _rimColor.withValues(alpha: 0.8),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isVerifying)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 10),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         ),
+                      )
+                    else if (_verified)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 8),
+                        child: Icon(Icons.check_circle_rounded, color: AppTheme.success, size: 20),
+                      ),
+                    Text(
+                      _hintText,
+                      style: TextStyle(
+                        color: _verified ? AppTheme.success : Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 24),
-              Text(
-                _statusText,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _verified ? AppTheme.success : AppTheme.textDark,
-                  height: 1.4,
-                ),
-              ),
-              const Spacer(),
-
-              if (!_verified) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.camera_alt_rounded, size: 20),
-                    onPressed: _attempts > 0 && !_scanning ? () => _captureAndVerify(simulateWrongFace: false) : null,
-                    label: _scanning
-                        ? const Text("Solishtirilmoqda...")
-                        : const Text("Face ID orqali tasdiqlash"),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Xavfsizlik testi (Begona yuzni sinab ko'rish)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red.shade700,
-                      side: BorderSide(color: Colors.red.shade300),
-                    ),
-                    icon: const Icon(Icons.security_rounded, size: 18),
-                    onPressed: _attempts > 0 && !_scanning ? () => _captureAndVerify(simulateWrongFace: true) : null,
-                    label: const Text("Begona yuzni sinash (Xavfsizlik tekshiruvi)"),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
+  }
+}
+
+/// Yuzni ushlash uchun professional Apple Face ID uslubidagi oval teshik va qoraytirilgan fon
+class _FaceMaskPainter extends CustomPainter {
+  final double ovalWidth;
+  final double ovalHeight;
+  final Color borderColor;
+  final double borderWidth;
+
+  _FaceMaskPainter({
+    required this.ovalWidth,
+    required this.ovalHeight,
+    required this.borderColor,
+    required this.borderWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2 - 20);
+    final ovalRect = Rect.fromCenter(center: center, width: ovalWidth, height: ovalHeight);
+
+    // Qora fon (yarim shaffof)
+    final backgroundPath = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final ovalPath = Path()..addRRect(RRect.fromRectAndRadius(ovalRect, Radius.circular(ovalWidth / 2)));
+
+    // Oval qismini qirqib olish (kamera ochiq ko'rinishi uchun)
+    final maskPath = Path.combine(PathOperation.difference, backgroundPath, ovalPath);
+
+    final maskPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.60)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(maskPath, maskPaint);
+
+    // Oval chetiga yuzni to'g'ri tutish ramkasi
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = borderWidth;
+    canvas.drawRRect(RRect.fromRectAndRadius(ovalRect, Radius.circular(ovalWidth / 2)), borderPaint);
+
+    // To'rt burchakda yordamchi markazlash burchaklari (Guide brackets)
+    final bracketPaint = Paint()
+      ..color = borderColor.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+
+    final double bLen = 22;
+    // Yuqori markaz
+    canvas.drawLine(Offset(center.dx - 15, ovalRect.top + 6), Offset(center.dx + 15, ovalRect.top + 6), bracketPaint);
+    // Pastki markaz
+    canvas.drawLine(Offset(center.dx - 15, ovalRect.bottom - 6), Offset(center.dx + 15, ovalRect.bottom - 6), bracketPaint);
+    // Chap markaz
+    canvas.drawLine(Offset(ovalRect.left + 6, center.dy - 15), Offset(ovalRect.left + 6, center.dy + 15), bracketPaint);
+    // O'ng markaz
+    canvas.drawLine(Offset(ovalRect.right - 6, center.dy - 15), Offset(ovalRect.right - 6, center.dy + 15), bracketPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FaceMaskPainter oldDelegate) {
+    return oldDelegate.borderColor != borderColor || oldDelegate.borderWidth != borderWidth;
   }
 }

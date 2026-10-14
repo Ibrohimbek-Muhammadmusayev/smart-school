@@ -4,6 +4,7 @@ import '../../theme.dart';
 import 'teacher_scan_screen.dart';
 import 'teacher_passwords_screen.dart';
 import '../student/profile_screen.dart';
+import '../notifications_screen.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -127,7 +128,42 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     ],
                   ),
                 ),
-                IconButton(onPressed: _fetchLessons, icon: const Icon(Icons.refresh_rounded))
+                Stack(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) => const NotificationsScreen(),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              const begin = Offset(1.0, 0.0);
+                              const end = Offset.zero;
+                              const curve = Curves.easeOutCubic;
+                              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                              return SlideTransition(position: animation.drive(tween), child: child);
+                            },
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.notifications_none_rounded, color: AppTheme.textDark, size: 24),
+                    ),
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondaryPink,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(onPressed: _fetchLessons, icon: const Icon(Icons.refresh_rounded, size: 22))
               ],
             ),
             const SizedBox(height: 20),

@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // Global internetda (telefon va brauzerda) ishlash uchun online Cloudflare tunnel API
-  static const String baseUrl = 'https://arrangements-publish-wellness-sbjct.trycloudflare.com/api';
+  // USB kabel orqali (adb reverse) yoki localhost orqali local backendga to'g'ridan-to'g'ri ulanish
+  static String get baseUrl {
+    return 'http://127.0.0.1:8000/api';
+  }
 
   static String? accessToken;
   static String? refreshToken;
@@ -114,14 +117,13 @@ class ApiService {
     return jsonDecode(utf8.decode(response.bodyBytes));
   }
 
-  // 2.5 Baho qo'yish (va Yulduz berish)
+  // 2.5 Baho qo'yish
   static Future<Map<String, dynamic>> addGrade({
     required int lessonId,
     required int studentId,
     required int score,
     required String gradeType,
     required String comment,
-    bool isStarred = false,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/grades/add/'),
@@ -132,7 +134,6 @@ class ApiService {
         'score': score,
         'grade_type': gradeType,
         'comment': comment,
-        'is_starred': isStarred,
       }),
     );
     return jsonDecode(utf8.decode(response.bodyBytes));
