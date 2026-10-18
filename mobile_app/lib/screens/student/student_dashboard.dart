@@ -313,82 +313,104 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Row(
       children: [
         // Profil qisqartmasi (Avatar, F.I.Sh., Guruh) -> Bosilsa: Profil/QR Drawer ochiladi
-        InkWell(
-          borderRadius: BorderRadius.circular(30),
-          onTap: _openProfileModal,
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 3)),
-                  ],
+        Expanded(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(30),
+            onTap: _openProfileModal,
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 3)),
+                    ],
+                  ),
+                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
                 ),
-                child: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(fullName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.verified_rounded, size: 15, color: AppTheme.primary),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(color: AppTheme.primaryLight, borderRadius: BorderRadius.circular(6)),
-                        child: Text(className, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              fullName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.verified_rounded, size: 15, color: AppTheme.primary),
+                        ],
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(color: AppTheme.primaryLight, borderRadius: BorderRadius.circular(6)),
+                            child: Text(
+                              className,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
 
-                      // Bino maqomi (Yashil: Bino ichida, Kulrang: Tashqarida)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: _isInsideBuilding ? AppTheme.success.withValues(alpha: 0.12) : Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
+                          // Bino maqomi (Yashil: Bino ichida, Kulrang: Tashqarida)
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: _isInsideBuilding ? AppTheme.success : Colors.grey,
-                                shape: BoxShape.circle,
+                                color: _isInsideBuilding ? AppTheme.success.withValues(alpha: 0.12) : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: _isInsideBuilding ? AppTheme.success : Colors.grey,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Flexible(
+                                    child: Text(
+                                      _isInsideBuilding ? "Bino ichida ($_buildingEntryTime)" : "Tashqarida",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: _isInsideBuilding ? AppTheme.success : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 5),
-                            Text(
-                              _isInsideBuilding ? "Bino ichida ($_buildingEntryTime)" : "Tashqarida",
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.bold,
-                                color: _isInsideBuilding ? AppTheme.success : Colors.grey.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 8),
 
         // Bildirishnoma qo'ng'irog'i
         Stack(
@@ -678,11 +700,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
           const SizedBox(height: 12),
           Text(
             sampleLesson['subject_name'] ?? 'Oliy Matematika',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             "Ustoz: ${sampleLesson['teacher_name'] ?? 'Rahimov A.'} • Xona: ${sampleLesson['room'] ?? '302'}",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white70, fontSize: 12.5),
           ),
           const SizedBox(height: 16),
@@ -953,9 +979,19 @@ class _StudentDashboardState extends State<StudentDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(lesson['subject_name'] ?? 'Fan', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: AppTheme.textDark)),
+                  Text(
+                    lesson['subject_name'] ?? 'Fan',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: AppTheme.textDark),
+                  ),
                   const SizedBox(height: 2),
-                  Text("Ustoz: ${lesson['teacher_name'] ?? '-'}", style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5)),
+                  Text(
+                    "Ustoz: ${lesson['teacher_name'] ?? '-'}",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5),
+                  ),
                 ],
               ),
             ),

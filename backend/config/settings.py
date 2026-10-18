@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'api',
+    'shooldex',
 ]
 
 AUTH_USER_MODEL = 'api.User'

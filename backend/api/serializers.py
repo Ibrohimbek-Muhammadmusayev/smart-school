@@ -4,8 +4,13 @@ from .models import User, SchoolClass, StudentProfile, Subject, Lesson, DynamicQ
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'role', 'passport_series', 
-                  'photo_3x4', 'can_manage_passwords', 'parent_phone', 'parent_telegram_chat_id', 'raw_initial_password', 'stars_count']
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'role', 'passport_series',
+            'photo_3x4', 'can_manage_passwords', 'parent_phone', 'parent_telegram_chat_id',
+            'raw_initial_password', 'stars_count',
+            'school_id', 'school_name', 'created_by', 'created_by_role',
+            'teacher_subject', 'teacher_group', 'teacher_rooms', 'phone_number', 'date_joined',
+        ]
         extra_kwargs = {'raw_initial_password': {'read_only': True}}
 
 

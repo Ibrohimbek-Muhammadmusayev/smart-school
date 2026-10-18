@@ -151,10 +151,18 @@ class ProfileScreen extends StatelessWidget {
         Icon(icon, size: 20, color: AppTheme.textMuted),
         const SizedBox(width: 14),
         Expanded(
-          child: Text(title, style: const TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+          child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: AppTheme.textMuted)),
         ),
         const SizedBox(width: 8),
-        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+          ),
+        ),
       ],
     );
   }

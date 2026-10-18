@@ -3,14 +3,90 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // USB kabel orqali (adb reverse) yoki localhost orqali local backendga to'g'ridan-to'g'ri ulanish
+  static const String serverUrl = 'https://talked-animals-pages-tyler.trycloudflare.com';
+
   static String get baseUrl {
-    return 'http://127.0.0.1:8000/api';
+    return '$serverUrl/api';
   }
 
   static String? accessToken;
   static String? refreshToken;
   static Map<String, dynamic>? currentUser;
+  static Map<String, dynamic>? schoolConfig;
+
+  static String get schoolName {
+    return (schoolConfig?['school_name'] as String?) ??
+        (currentUser?['school_name'] as String?) ??
+        'Smart School';
+  }
+
+  static String get groupTermSingular {
+    return (schoolConfig?['labels']?['group_singular'] as String?) ??
+        ((schoolConfig?['group_term'] == 'GURUH') ? 'Guruh' : 'Sinf');
+  }
+
+  static String get groupTermPlural {
+    return (schoolConfig?['labels']?['group_plural'] as String?) ??
+        ((schoolConfig?['group_term'] == 'GURUH') ? 'Guruhlar' : 'Sinflar');
+  }
+
+  static String get myGroupsTitle {
+    return (schoolConfig?['labels']?['my_groups'] as String?) ??
+        ((schoolConfig?['group_term'] == 'GURUH') ? 'Guruhlarim' : 'Sinflarim');
+  }
+
+  static String get advisorLabel {
+    return (schoolConfig?['labels']?['advisor_label'] as String?) ??
+        ((schoolConfig?['group_term'] == 'GURUH') ? 'Guruh rahbari' : 'Sinf rahbari');
+  }
+
+  static String get lessonTermSingular {
+    return (schoolConfig?['labels']?['lesson_singular'] as String?) ??
+        ((schoolConfig?['lesson_term'] == 'PARA') ? 'Para' : 'Dars');
+  }
+
+  static String get lessonTermPlural {
+    return (schoolConfig?['labels']?['lesson_plural'] as String?) ??
+        ((schoolConfig?['lesson_term'] == 'PARA') ? 'Paralar' : 'Darslar');
+  }
+
+  static String get studentTermSingular {
+    return (schoolConfig?['labels']?['student_singular'] as String?) ??
+        ((schoolConfig?['student_term'] == 'TALABA') ? 'Talaba' : "O'quvchi");
+  }
+
+  static String get studentTermPlural {
+    return (schoolConfig?['labels']?['student_plural'] as String?) ??
+        ((schoolConfig?['student_term'] == 'TALABA') ? 'Talabalar' : "O'quvchilar");
+  }
+
+  static String formatClassName(String? raw) {
+    if (raw == null || raw.trim().isEmpty || raw == '-' || raw == 'Guruhsiz' || raw == 'Sinfsiz') {
+      return (schoolConfig?['group_term'] == 'GURUH') ? 'Guruhsiz' : 'Sinfsiz';
+    }
+    String s = raw.trim();
+    for (final suffix in [' sinf', '-sinf', ' guruh', '-guruh', ' Sinf', ' Guruh']) {
+      if (s.toLowerCase().endsWith(suffix.toLowerCase())) {
+        s = s.substring(0, s.length - suffix.length).trim();
+      }
+    }
+    final unit = (schoolConfig?['group_term'] == 'GURUH') ? 'guruh' : 'sinf';
+    return '$s $unit';
+  }
+
+  static Future<Map<String, dynamic>?> fetchSchoolConfig(String schoolId) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/school-config/?school_id=$schoolId'));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data is Map<String, dynamic> && data['school_id'] != null) {
+          schoolConfig = data;
+          return data;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
 
   static Map<String, String> get headers {
     final map = {'Content-Type': 'application/json'};
@@ -27,7 +103,11 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'login_id': loginId, 'passport_series': loginId, 'password': password}),
     );
-    return jsonDecode(utf8.decode(response.bodyBytes));
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is Map<String, dynamic> && data['school_config'] != null) {
+      schoolConfig = Map<String, dynamic>.from(data['school_config']);
+    }
+    return data;
   }
 
   // 1.1 Face ID tekshiruvi -> 10 kunlik token (real rasm taqqoslash bilan)
@@ -49,6 +129,11 @@ class ApiService {
       accessToken = data['access'];
       refreshToken = data['refresh'];
       currentUser = data['user'];
+      if (data['school_config'] != null) {
+        schoolConfig = Map<String, dynamic>.from(data['school_config']);
+      } else if (currentUser != null && currentUser!['school_config'] != null) {
+        schoolConfig = Map<String, dynamic>.from(currentUser!['school_config']);
+      }
     }
     return data;
   }
@@ -158,6 +243,10 @@ class ApiService {
   }
 
 
+  static String get shooldexUrl {
+    return '$serverUrl/shooldex';
+  }
+
   // 2.3 Ustoz o'quvchilar parolini boshqarishi
   static Future<List<dynamic>> getStudentsPasswords() async {
     final response = await http.get(Uri.parse('$baseUrl/teacher/manage-passwords/'), headers: headers);
@@ -174,5 +263,131 @@ class ApiService {
       body: jsonEncode({'student_id': studentId}),
     );
     return jsonDecode(utf8.decode(response.bodyBytes));
+  }
+
+  // =========================================================================
+  // 3. AQLLI DOSKA (SHOOLDEX) API METODLARI
+  // =========================================================================
+
+  static String extractDeviceToken(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map) {
+          return (decoded['device_token'] ?? decoded['token'] ?? trimmed).toString();
+        }
+      } catch (_) {}
+    }
+    if (trimmed.contains('token=')) {
+      final uri = Uri.tryParse(trimmed);
+      if (uri != null && uri.queryParameters['token'] != null) {
+        return uri.queryParameters['token']!;
+      }
+    }
+    return trimmed;
+  }
+
+  // 3.1 Doskaga ulanish (QR Skanerlash) -> POST /shooldex/session/connect/
+  static Future<Map<String, dynamic>> connectToBoard(String rawQrToken) async {
+    final cleanToken = extractDeviceToken(rawQrToken);
+    final response = await http.post(
+      Uri.parse('$shooldexUrl/session/connect/'),
+      headers: headers,
+      body: jsonEncode({'device_token': cleanToken}),
+    );
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is Map<String, dynamic>) {
+      data['statusCode'] = response.statusCode;
+      return data;
+    }
+    return {'statusCode': response.statusCode, 'detail': 'Xatolik yuz berdi'};
+  }
+
+  // 3.2 Sessiya holati (ulanganmi?) -> GET /shooldex/my-session/
+  static Future<Map<String, dynamic>> getMyBoardSession() async {
+    final response = await http.get(
+      Uri.parse('$shooldexUrl/my-session/'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    }
+    return {'status': 'NO_SESSION', 'session': null};
+  }
+
+  // 3.3 Qurilma ma'lumoti va Gemini API kaliti -> GET /shooldex/device/<token>/
+  static Future<Map<String, dynamic>> getBoardDeviceInfo(String deviceToken) async {
+    final response = await http.get(
+      Uri.parse('$shooldexUrl/device/$deviceToken/'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    }
+    return {};
+  }
+
+  // 3.4 Saqlash buyrug'i yuborish -> POST /shooldex/session/<session_id>/request-save/
+  static Future<Map<String, dynamic>> requestBoardSave(int sessionId) async {
+    final response = await http.post(
+      Uri.parse('$shooldexUrl/session/$sessionId/request-save/'),
+      headers: headers,
+    );
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is Map<String, dynamic>) {
+      data['statusCode'] = response.statusCode;
+      return data;
+    }
+    return {'statusCode': response.statusCode};
+  }
+
+  // 3.5 Sessiyani uzish -> POST /shooldex/session/<session_id>/disconnect/
+  static Future<Map<String, dynamic>> disconnectBoard(int sessionId) async {
+    final response = await http.post(
+      Uri.parse('$shooldexUrl/session/$sessionId/disconnect/'),
+      headers: headers,
+    );
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is Map<String, dynamic>) {
+      data['statusCode'] = response.statusCode;
+      return data;
+    }
+    return {'statusCode': response.statusCode};
+  }
+
+  // 3.6 AI savol / Canvas saqlash -> POST /shooldex/canvas/save/
+  static Future<Map<String, dynamic>> saveBoardCanvas({
+    required int sessionId,
+    required String deviceToken,
+    required List<Map<String, dynamic>> canvases,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$shooldexUrl/canvas/save/'),
+      headers: headers,
+      body: jsonEncode({
+        'session_id': sessionId,
+        'device_token': deviceToken,
+        'canvases': canvases,
+      }),
+    );
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is Map<String, dynamic>) {
+      data['statusCode'] = response.statusCode;
+      return data;
+    }
+    return {'statusCode': response.statusCode};
+  }
+
+  // 3.7 Ustozning saqlangan doska listlarini yuklash -> GET /shooldex/canvas/load/?teacher_id=<id>
+  static Future<List<dynamic>> loadBoardCanvases(int teacherId) async {
+    final response = await http.get(
+      Uri.parse('$shooldexUrl/canvas/load/?teacher_id=$teacherId'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    }
+    return [];
   }
 }

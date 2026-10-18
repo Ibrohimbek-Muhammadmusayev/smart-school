@@ -335,8 +335,16 @@ class _ProfileIdentityModalState extends State<ProfileIdentityModal> {
         Icon(icon, size: 18, color: AppTheme.textMuted),
         const SizedBox(width: 12),
         Text(title, style: const TextStyle(fontSize: 13, color: AppTheme.textMuted)),
-        const Spacer(),
-        Text(val, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            val,
+            textAlign: TextAlign.end,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+          ),
+        ),
       ],
     );
   }
