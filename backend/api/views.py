@@ -45,7 +45,7 @@ class PassportLoginView(views.APIView):
         if not user.check_password(password):
             return Response({'detail': 'Parol noto\'g\'ri.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        photo_url = request.build_absolute_uri(user.photo_3x4.url) if user.photo_3x4 else None
+        photo_url = user.photo_3x4.url if user.photo_3x4 else None
         school_cfg = SchoolConfig.get_or_create_for_school(user.school_id, user.school_name)
 
         # Face ID tekshiruvi talab qilinadi
@@ -181,7 +181,7 @@ class FaceIdVerifyView(views.APIView):
             raw_class_name = user.teacher_group
             class_name = user.teacher_group
 
-        photo_url = request.build_absolute_uri(user.photo_3x4.url) if user.photo_3x4 else None
+        photo_url = user.photo_3x4.url if user.photo_3x4 else None
 
         return Response({
             'access': str(refresh.access_token),
@@ -343,7 +343,7 @@ class TodayLessonsView(views.APIView):
 
     def get(self, request):
         user = request.user
-        today = timezone.now().date()
+        today = timezone.localdate()
         today_iso_weekday = today.isoweekday()
         sync_today_lessons_from_schedule(today, today_iso_weekday)
         
@@ -390,7 +390,7 @@ class StudentDashboardSummaryView(views.APIView):
 
     def get(self, request):
         user = request.user
-        today = timezone.now().date()
+        today = timezone.localdate()
         today_iso_weekday = today.isoweekday() # 1: Dushanba ... 7: Yakshanba
 
         # 1. Jadvaldan bugungi darslarni Lesson jadvali bilan sinxronlash
@@ -951,7 +951,7 @@ class StudentManagementView(views.APIView):
 
     def _serialize_student(self, request, s):
         sc = s.student_profile.school_class if hasattr(s, 'student_profile') and s.student_profile else None
-        photo_url = request.build_absolute_uri(s.photo_3x4.url) if s.photo_3x4 else None
+        photo_url = s.photo_3x4.url if s.photo_3x4 else None
         return {
             'id': s.id,
             'first_name': s.first_name,
@@ -1126,7 +1126,7 @@ class TeacherManagementView(views.APIView):
         photo_url = None
         if t.photo_3x4:
             try:
-                photo_url = request.build_absolute_uri(t.photo_3x4.url) if request else t.photo_3x4.url
+                photo_url = t.photo_3x4.url
             except Exception:
                 photo_url = t.photo_3x4.url
 
@@ -1551,7 +1551,7 @@ class ClassScheduleManagementView(views.APIView):
                     )
                     created_count += 1
 
-            today = timezone.now().date()
+            today = timezone.localdate()
             sync_today_lessons_from_schedule(today, today.isoweekday())
 
             qs = ClassSchedule.objects.filter(school_class=sc).order_by('day_of_week', 'lesson_order')
@@ -1617,7 +1617,7 @@ class ClassScheduleManagementView(views.APIView):
             }
         )
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         if today.isoweekday() == day_of_week:
             sync_today_lessons_from_schedule(today, day_of_week)
 
@@ -1666,7 +1666,7 @@ class ClassScheduleManagementView(views.APIView):
 
         item.save()
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         if today.isoweekday() == item.day_of_week:
             sync_today_lessons_from_schedule(today, item.day_of_week)
 

@@ -366,6 +366,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
   // 2.3. "Haftalik Jadval" Tabi (To‘liq reja)
   // =========================================================================
   Widget _buildWeeklyScheduleTab() {
+    final todayWeekday = DateTime.now().weekday;
     if (_loadingSchedule) {
       return const Center(
         child: Padding(
@@ -458,6 +459,8 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
               separatorBuilder: (context, index) => const SizedBox(height: 20),
               itemBuilder: (ctx, i) {
                 final d = daysList[i];
+                final dayNum = d['day_of_week'] ?? (i + 1);
+                final isToday = (dayNum == todayWeekday);
                 final dayTitle = d['day_name'] ?? 'Kun';
                 final lessons = (d['lessons'] as List?) ?? [];
 
@@ -469,15 +472,39 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary,
+                            gradient: isToday ? AppTheme.primaryGradient : null,
+                            color: isToday ? null : AppTheme.primary,
                             borderRadius: BorderRadius.circular(10),
+                            boxShadow: isToday
+                                ? [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))]
+                                : null,
                           ),
-                          child: Text(dayTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(dayTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                              if (isToday) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text("BUGUN", style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w900, fontSize: 9.5)),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Text(
                           lessons.isNotEmpty ? "${lessons.length} ta ${ApiService.lessonTermPlural.toLowerCase()}" : "Dam olish",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMuted),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold, 
+                            fontSize: 13, 
+                            color: isToday ? AppTheme.primary : AppTheme.textMuted,
+                          ),
                         ),
                       ],
                     ),

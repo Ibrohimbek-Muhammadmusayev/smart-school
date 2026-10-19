@@ -31,6 +31,15 @@ const THEME = {
   border: 'rgba(0, 0, 0, 0.05)',
 };
 
+export const normalizeMediaUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+  if (url.includes('/media/')) {
+    return '/media/' + url.substring(url.indexOf('/media/') + 7);
+  }
+  return url;
+};
+
 const DEFAULT_SCHOOLS = [
   {
     id: 1,
@@ -249,7 +258,7 @@ export default function App() {
 
   // Backenddagi SchoolConfig sozlamalari bilan maktablar ro'yxatini sinxronlash
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/school-config/?all_schools=1')
+    fetch('/api/school-config/?all_schools=1')
       .then(r => (r.ok ? r.json() : []))
       .then(configs => {
         if (!Array.isArray(configs) || configs.length === 0) return;
@@ -509,7 +518,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
     // 3. O'qituvchi / Ustoz Dashbordi (5 xonali unikal ID yoki teacher orqali)
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/teachers/?all_schools=1');
+      const res = await fetch('/api/teachers/?all_schools=1');
       if (res.ok) {
         const teachers = await res.json();
         const matchedTeacher = (Array.isArray(teachers) ? teachers : []).find(
@@ -764,11 +773,11 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
     try {
       const q = `school_id=${encodeURIComponent(schoolId)}`;
       const [cfgRes, stuRes, clsRes, tchRes, schRes] = await Promise.all([
-        fetch(`http://127.0.0.1:8000/api/school-config/?${q}`),
-        fetch(`http://127.0.0.1:8000/api/students/?${q}`),
-        fetch(`http://127.0.0.1:8000/api/classes/?${q}`),
-        fetch(`http://127.0.0.1:8000/api/teachers/?${q}`),
-        fetch(`http://127.0.0.1:8000/api/schedule/?${q}`),
+        fetch(`/api/school-config/?${q}`),
+        fetch(`/api/students/?${q}`),
+        fetch(`/api/classes/?${q}`),
+        fetch(`/api/teachers/?${q}`),
+        fetch(`/api/schedule/?${q}`),
       ]);
       if (cfgRes.ok) {
         const cfgData = await cfgRes.json();
@@ -825,7 +834,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
   const fetchSchedules = async (targetClassId) => {
     try {
       setScheduleLoading(true);
-      let url = `http://127.0.0.1:8000/api/schedule/?school_id=${encodeURIComponent(schoolId)}`;
+      let url = `/api/schedule/?school_id=${encodeURIComponent(schoolId)}`;
       if (targetClassId) {
         url += `&class_id=${encodeURIComponent(targetClassId)}`;
       }
@@ -845,8 +854,8 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
     try {
       const isEdit = Boolean(formData.id);
       const url = isEdit 
-        ? `http://127.0.0.1:8000/api/schedule/${formData.id}/`
-        : `http://127.0.0.1:8000/api/schedule/`;
+        ? `/api/schedule/${formData.id}/`
+        : `/api/schedule/`;
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -879,7 +888,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       return;
     }
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/schedule/${scheduleId}/`, {
+      const res = await fetch(`/api/schedule/${scheduleId}/`, {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error("Darsni o'chirishda xatolik");
@@ -896,7 +905,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
     }
     try {
       setScheduleLoading(true);
-      const res = await fetch(`http://127.0.0.1:8000/api/schedule/`, {
+      const res = await fetch(`/api/schedule/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -923,7 +932,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
     }
     try {
       setScheduleLoading(true);
-      const res = await fetch(`http://127.0.0.1:8000/api/schedule/`, {
+      const res = await fetch(`/api/schedule/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -948,7 +957,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
 
   const handleSaveSchoolConfig = async (payload) => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/school-config/', {
+      const res = await fetch('/api/school-config/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -996,7 +1005,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       return;
     }
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/classes/', {
+      const res = await fetch('/api/classes/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1037,7 +1046,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
   // Guruh / Sinf ma'lumotlarini o'zgartirish (Edit Group CRUD)
   const handleUpdateGroup = async (groupId, updatedFields) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/classes/${groupId}/?school_id=${encodeURIComponent(schoolId)}`, {
+      const res = await fetch(`/api/classes/${groupId}/?school_id=${encodeURIComponent(schoolId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedFields),
@@ -1076,7 +1085,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       return;
     }
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/classes/${id}/?school_id=${encodeURIComponent(schoolId)}`, {
+      const res = await fetch(`/api/classes/${id}/?school_id=${encodeURIComponent(schoolId)}`, {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error(`${terms.groupSingular}ni o'chirishda xatolik`);
@@ -1130,7 +1139,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         });
       }
 
-      const res = await fetch('http://127.0.0.1:8000/api/teachers/', {
+      const res = await fetch('/api/teachers/', {
         method: 'POST',
         headers,
         body,
@@ -1160,7 +1169,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       return;
     }
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/teachers/${teacherId}/?school_id=${encodeURIComponent(schoolId)}`, {
+      const res = await fetch(`/api/teachers/${teacherId}/?school_id=${encodeURIComponent(schoolId)}`, {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error("O'qituvchini o'chirishda xatolik");
@@ -1217,7 +1226,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       fd.append('created_by', actorLabel);
       fd.append('created_by_role', actorRole);
 
-      const res = await fetch('http://127.0.0.1:8000/api/students/', {
+      const res = await fetch('/api/students/', {
         method: 'POST',
         body: fd
       });
@@ -1255,7 +1264,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
   const handleUpdateStudent = async (studentId, formData) => {
     try {
       formData.append('school_id', schoolId);
-      const res = await fetch(`http://127.0.0.1:8000/api/students/${studentId}/?school_id=${encodeURIComponent(schoolId)}`, {
+      const res = await fetch(`/api/students/${studentId}/?school_id=${encodeURIComponent(schoolId)}`, {
         method: 'PUT',
         body: formData
       });
@@ -1281,7 +1290,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       return;
     }
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/students/${studentId}/?school_id=${encodeURIComponent(schoolId)}`, {
+      const res = await fetch(`/api/students/${studentId}/?school_id=${encodeURIComponent(schoolId)}`, {
         method: 'DELETE'
       });
       if (!res.ok) throw new Error("O'chirishda xatolik");
@@ -2580,7 +2589,7 @@ function GroupsManagementSection({
                       if (st.photo_3x4 && onPreviewImage) {
                         e.stopPropagation();
                         onPreviewImage({
-                          url: st.photo_3x4,
+                          url: normalizeMediaUrl(st.photo_3x4),
                           title: `${st.last_name} ${st.first_name}`,
                           subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
                           badge: terms.studentSingular,
@@ -2608,7 +2617,7 @@ function GroupsManagementSection({
                     onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
                     {st.photo_3x4 ? (
                       <>
-                        <img src={st.photo_3x4} alt={st.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={normalizeMediaUrl(st.photo_3x4)} alt={st.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 4, padding: 2, display: 'flex' }}>
                           <ZoomIn size={10} />
                         </div>
@@ -2738,7 +2747,7 @@ function GroupsManagementSection({
                           if (st.photo_3x4 && onPreviewImage) {
                             e.stopPropagation();
                             onPreviewImage({
-                              url: st.photo_3x4,
+                              url: normalizeMediaUrl(st.photo_3x4),
                               title: `${st.last_name} ${st.first_name}`,
                               subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
                               badge: terms.studentSingular,
@@ -2769,7 +2778,7 @@ function GroupsManagementSection({
                         {st.photo_3x4 ? (
                           <>
                             <img
-                              src={st.photo_3x4}
+                              src={normalizeMediaUrl(st.photo_3x4)}
                               alt={st.full_name}
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
@@ -3026,7 +3035,7 @@ function ImagePreviewModal({ image, onClose }) {
         }}>
           {url ? (
             <img
-              src={url}
+              src={normalizeMediaUrl(url)}
               alt={title}
               style={{
                 width: '100%',
@@ -3076,7 +3085,7 @@ function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onPreviewI
             onClick={() => {
               if (student.photo_3x4 && onPreviewImage) {
                 onPreviewImage({
-                  url: student.photo_3x4,
+                  url: normalizeMediaUrl(student.photo_3x4),
                   title: `${student.last_name} ${student.first_name}`,
                   subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(student.class_name)}`,
                   badge: terms.studentSingular,
@@ -3104,7 +3113,7 @@ function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onPreviewI
           >
             {student.photo_3x4 ? (
               <>
-                <img src={student.photo_3x4} alt={student.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={normalizeMediaUrl(student.photo_3x4)} alt={student.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 <div style={{ position: 'absolute', bottom: 3, right: 3, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 4, padding: 2, display: 'flex' }}>
                   <ZoomIn size={12} />
                 </div>
@@ -3218,7 +3227,7 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
             onClick={() => {
               if (teacher.photo_3x4 && onPreviewImage) {
                 onPreviewImage({
-                  url: teacher.photo_3x4,
+                  url: normalizeMediaUrl(teacher.photo_3x4),
                   title: teacher.name,
                   subtitle: `${teacher.subject || "Fan o'qituvchisi"} • ${teacher.group || ''}`,
                   badge: "O'qituvchi",
@@ -3252,7 +3261,7 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
           >
             {teacher.photo_3x4 ? (
               <>
-                <img src={teacher.photo_3x4} alt={teacher.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={normalizeMediaUrl(teacher.photo_3x4)} alt={teacher.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 <div style={{ position: 'absolute', bottom: 3, right: 3, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 4, padding: 2, display: 'flex' }}>
                   <ZoomIn size={12} />
                 </div>
@@ -4308,7 +4317,7 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
                           if (st.photo_3x4 && onPreviewImage) {
                             e.stopPropagation();
                             onPreviewImage({
-                              url: st.photo_3x4,
+                              url: normalizeMediaUrl(st.photo_3x4),
                               title: `${st.last_name} ${st.first_name}`,
                               subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
                               badge: terms.studentSingular,
@@ -4336,7 +4345,7 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
                         onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
                         {st.photo_3x4 ? (
                           <>
-                            <img src={st.photo_3x4} alt={st.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={normalizeMediaUrl(st.photo_3x4)} alt={st.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 3, padding: 1, display: 'flex' }}>
                               <ZoomIn size={10} />
                             </div>
@@ -4525,7 +4534,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
                         if (t.photo_3x4 && onPreviewImage) {
                           e.stopPropagation();
                           onPreviewImage({
-                            url: t.photo_3x4,
+                            url: normalizeMediaUrl(t.photo_3x4),
                             title: t.name,
                             subtitle: `${t.subject} • ${terms.formatGroupBadge(t.group)}`,
                             badge: "O'qituvchi",
@@ -4558,7 +4567,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
                     >
                       {t.photo_3x4 ? (
                         <>
-                          <img src={t.photo_3x4} alt={t.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={normalizeMediaUrl(t.photo_3x4)} alt={t.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 3, padding: 1, display: 'flex' }}>
                             <ZoomIn size={10} />
                           </div>
@@ -5778,17 +5787,17 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
   const schoolId = String(currentUser?.schoolId || '1');
 
   useEffect(() => {
-    fetch(`http://127.0.0.1:8000/api/school-config/?school_id=${encodeURIComponent(schoolId)}`)
+    fetch(`/api/school-config/?school_id=${encodeURIComponent(schoolId)}`)
       .then(r => r.json())
       .then(cfg => {
         if (cfg && cfg.school_id) setSchoolConfig(cfg);
       })
       .catch(() => {});
-    fetch(`http://127.0.0.1:8000/api/students/?school_id=${encodeURIComponent(schoolId)}`)
+    fetch(`/api/students/?school_id=${encodeURIComponent(schoolId)}`)
       .then(r => r.json())
       .then(d => setStudents(Array.isArray(d) ? d : []))
       .catch(() => {});
-    fetch(`http://127.0.0.1:8000/api/classes/?school_id=${encodeURIComponent(schoolId)}`)
+    fetch(`/api/classes/?school_id=${encodeURIComponent(schoolId)}`)
       .then(r => r.json())
       .then(c => {
         if (Array.isArray(c) && c.length > 0) {
@@ -5894,7 +5903,7 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
                       onClick={() => {
                         if (st.photo_3x4) {
                           setPreviewImage({
-                            url: st.photo_3x4,
+                            url: normalizeMediaUrl(st.photo_3x4),
                             title: `${st.last_name} ${st.first_name}`,
                             subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
                             badge: terms.studentSingular,
@@ -5922,7 +5931,7 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
                       onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
                       {st.photo_3x4 ? (
                         <>
-                          <img src={st.photo_3x4} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={normalizeMediaUrl(st.photo_3x4)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 3, padding: 1, display: 'flex' }}>
                             <ZoomIn size={9} />
                           </div>
@@ -6219,7 +6228,7 @@ function EditStudentModal({ student, classesList, terms = buildSchoolTerms(), on
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6 }}>
               <div style={{ width: 56, height: 72, borderRadius: 10, border: '2px dashed #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#F8FAFC' }}>
                 {photoPreview ? (
-                  <img src={photoPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={normalizeMediaUrl(photoPreview)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span style={{ fontSize: 10, color: THEME.textMuted }}>3x4</span>
                 )}

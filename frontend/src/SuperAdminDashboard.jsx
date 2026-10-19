@@ -213,9 +213,9 @@ export default function SuperAdminDashboardView({
     const loadRealProjectStats = async () => {
       try {
         const [stuRes, tchRes, clsRes] = await Promise.all([
-          fetch('http://127.0.0.1:8000/api/students/?all_schools=1'),
-          fetch('http://127.0.0.1:8000/api/teachers/?all_schools=1'),
-          fetch('http://127.0.0.1:8000/api/classes/?all_schools=1'),
+          fetch('/api/students/?all_schools=1'),
+          fetch('/api/teachers/?all_schools=1'),
+          fetch('/api/classes/?all_schools=1'),
         ]);
         if (stuRes.ok) {
           const sData = await stuRes.json();

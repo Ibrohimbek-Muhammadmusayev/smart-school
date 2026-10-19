@@ -24,6 +24,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Map<String, dynamic> _stats = {};
   List<dynamic> _weeklyGrid = [];
   bool _loading = true;
+  int _selectedScheduleDay = (DateTime.now().weekday <= 6) ? DateTime.now().weekday : 1;
 
   // Bino maqomi: true = "Bino ichida", false = "Tashqarida"
   bool _isInsideBuilding = true;
@@ -75,6 +76,18 @@ class _StudentDashboardState extends State<StudentDashboard> {
           _lessons = summary['today_lessons'] ?? [];
           _stats = summary['stats'] ?? {};
           _weeklyGrid = summary['weekly_grid'] ?? [];
+          if (summary['today_iso_weekday'] != null) {
+            final tw = summary['today_iso_weekday'] as int;
+            if (tw <= 6) {
+              _selectedScheduleDay = tw;
+            }
+          }
+          if (summary['today_iso_weekday'] != null) {
+            final tw = summary['today_iso_weekday'] as int;
+            if (tw <= 6) {
+              _selectedScheduleDay = tw;
+            }
+          }
           if (_stats['turnstile_entry'] != null) {
             _buildingEntryTime = _stats['turnstile_entry'];
           }
@@ -396,31 +409,53 @@ class _StudentDashboardState extends State<StudentDashboard> {
             _buildWeeklyAttendanceGrid(),
             const SizedBox(height: 22),
 
-            // Bugungi darslar ro'yxati
+            // 1.5. Haftalik Dars Jadvali & Bugungi darslar
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Bugungi Darslar Jadvali",
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Dars Jadvali",
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                    ),
+                    Text(
+                      _selectedScheduleDay == DateTime.now().weekday 
+                          ? "Bugungi darslar va real davomat holati" 
+                          : "Haftalik jadvaldan tanlangan kun",
+                      style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted),
+                    ),
+                  ],
                 ),
-                Text("${_lessons.length} ta dars", style: const TextStyle(color: AppTheme.textMuted, fontSize: 13)),
+                InkWell(
+                  onTap: () => setState(() => _tabIndex = 1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text("To'liq reja", style: TextStyle(color: AppTheme.primary, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppTheme.primary),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
 
-            if (_loading)
-              const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
-            else if (_lessons.isEmpty)
-              const Center(child: Padding(padding: EdgeInsets.all(24), child: Text("Bugun darslar rejalashtirilmagan")))
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _lessons.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (ctx, i) => _buildLessonItem(_lessons[i]),
-              ),
+            // Haftaning kunlari tanlagichi (Karusel)
+            _buildWeeklyDaySelector(),
+            const SizedBox(height: 14),
+
+            // Tanlangan kunning darslari ro'yxati
+            _buildSelectedDayLessons(),
             const SizedBox(height: 20),
           ],
         ),
@@ -639,6 +674,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
       final isAllCompleted = _lessons.isNotEmpty && 
           nowMinutes >= _parseTimeToMinutes(_lessons.last['end_time']);
 
+      final int attendedCount = _lessons.where((l) => l['is_attended'] == true).length;
+
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -665,8 +702,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   const SizedBox(height: 2),
                   Text(
                     isAllCompleted 
-                        ? "Bugungi barcha paralar muvaffaqiyatli tugadi. Ishtirok: ${_stats['today_attended_count'] ?? 0} / ${_stats['today_total_lessons'] ?? _lessons.length} ta dars."
-                        : "Darslar rejalashtirilmagan. Maroqli hordiq tilaymiz!", 
+                        ? "Bugungi barcha paralar yakuniga yetdi. Davomat: $attendedCount / ${_lessons.length} ta darsda qatnashdingiz."
+                        : "Bugun darslar rejalashtirilmagan. Maroqli hordiq tilaymiz!", 
                     style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
                   ),
                 ],
@@ -745,14 +782,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
       );
     }
 
-    // VARIANT B: Bino ichida, lekin tanaffus (Dars boshlanishiga qadar)
+    // VARIANT B: Bino ichida, lekin tanaffus yoki 1-dars boshlanishiga qadar
     if (mode == 1) {
       dynamic nextLesson;
       int breakDuration = 10;
+      bool isBeforeFirstLesson = false;
 
       if (_lessons.isNotEmpty && nowMinutes < _parseTimeToMinutes(_lessons.first['start_time'])) {
         nextLesson = _lessons.first;
         breakDuration = _parseTimeToMinutes(nextLesson['start_time']) - nowMinutes;
+        isBeforeFirstLesson = true;
       } else {
         for (int i = 0; i < _lessons.length - 1; i++) {
           final curEnd = _parseTimeToMinutes(_lessons[i]['end_time']);
@@ -766,7 +805,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         nextLesson ??= _lessons.isNotEmpty ? _lessons.last : null;
       }
 
-      final nextStartMin = _parseTimeToMinutes(nextLesson?['start_time'] ?? "09:10");
+      final nextStartMin = _parseTimeToMinutes(nextLesson?['start_time'] ?? "09:00");
       final targetDT = DateTime(now.year, now.month, now.day, nextStartMin ~/ 60, nextStartMin % 60, 0);
       final remainingSec = targetDT.difference(now).inSeconds;
       final countdownStr = remainingSec > 0
@@ -778,14 +817,24 @@ class _StudentDashboardState extends State<StudentDashboard> {
       return Container(
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF48DBFB), Color(0xFF0ABDE3)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          gradient: isBeforeFirstLesson
+              ? const LinearGradient(
+                  colors: [Color(0xFF6C5CE7), Color(0xFF5845D8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : const LinearGradient(
+                  colors: [Color(0xFF48DBFB), Color(0xFF0ABDE3)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
-            BoxShadow(color: const Color(0xFF48DBFB).withValues(alpha: 0.35), blurRadius: 18, offset: const Offset(0, 6)),
+            BoxShadow(
+              color: (isBeforeFirstLesson ? const Color(0xFF6C5CE7) : const Color(0xFF48DBFB)).withValues(alpha: 0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         child: Column(
@@ -799,42 +848,53 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(10)),
                   child: Row(
                     children: [
-                      const Icon(Icons.coffee_rounded, size: 14, color: Colors.white),
+                      Icon(isBeforeFirstLesson ? Icons.wb_sunny_rounded : Icons.coffee_rounded, size: 14, color: Colors.white),
                       const SizedBox(width: 4),
                       Text(
-                        isBigBreak ? "Katta Tanaffus ☕" : "Hozir Tanaffus", 
+                        isBeforeFirstLesson ? "1-Dars kutilmoqda" : (isBigBreak ? "Katta Tanaffus ☕" : "Hozir Tanaffus"), 
                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
                 Text(
-                  "Tanaffus tugashiga: $countdownStr", 
+                  isBeforeFirstLesson ? "Boshlanishiga: $countdownStr" : "Tanaffus tugashiga: $countdownStr", 
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
-              "Keyingi dars: ${nextLesson?['subject_name'] ?? 'Keyingi dars'}",
+              isBeforeFirstLesson 
+                  ? "Bugungi 1-dars: ${nextLesson?['subject_name'] ?? 'Dars'}"
+                  : "Keyingi dars: ${nextLesson?['subject_name'] ?? 'Keyingi dars'}",
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
             ),
             const SizedBox(height: 4),
             Text(
-              "${nextLesson?['room'] ?? '101-xona'} • Boshlanish vaqti: ${nextLesson?['start_time'] ?? ''}",
+              "${nextLesson?['room'] ?? nextLesson?['room_number'] ?? '101-xona'} • Boshlanish vaqti: ${nextLesson?['start_time'] ?? ''} • Ustoz: ${nextLesson?['teacher_name'] ?? 'Ustoz'}",
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.3),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                ),
-                onPressed: null,
-                child: const Text("Darsni boshlash (Tanaffus vaqti nofaol)"),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: Colors.white, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isBeforeFirstLesson 
+                          ? "Qo'ng'iroq chalinishi bilan o'quv xonangizga kiring va ustozga davomat kodini taqdim eting."
+                          : "Tanaffus tugashi bilan dars xonasiga boring va davomatdan o'ting.",
+                      style: const TextStyle(color: Colors.white, fontSize: 11.5),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -858,8 +918,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
       "subject_name": "Algebra",
       "teacher_name": "Akmal Rahimov",
       "room": "3-xona",
-      "start_time": "08:00",
-      "end_time": "09:00",
+      "start_time": "09:00",
+      "end_time": "09:45",
       "is_attended": false,
     };
 
@@ -876,10 +936,24 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: AppTheme.primaryGradient,
+        gradient: isAttended
+            ? const LinearGradient(
+                colors: [Color(0xFF10AC84), Color(0xFF0B8767)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : const LinearGradient(
+                colors: [Color(0xFFFF4757), Color(0xFFC0392B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
-          BoxShadow(color: AppTheme.primary.withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 8)),
+          BoxShadow(
+            color: (isAttended ? const Color(0xFF10AC84) : const Color(0xFFFF4757)).withValues(alpha: 0.38),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: Column(
@@ -890,95 +964,153 @@ class _StudentDashboardState extends State<StudentDashboard> {
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4),
+                  ],
+                ),
                 child: Row(
                   children: [
-                    const Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
+                    Icon(
+                      isAttended ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                      size: 15,
+                      color: isAttended ? const Color(0xFF10AC84) : const Color(0xFFC0392B),
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      "Dars ketmoqda ($lessonOrder-${ApiService.lessonTermSingular.toLowerCase()})", 
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                      isAttended ? "DARSDA MAVJUD (Kelgan) ✅" : "DARSGA KIRMAGANSIZ! ⚠️",
+                      style: TextStyle(
+                        color: isAttended ? const Color(0xFF10AC84) : const Color(0xFFC0392B),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
               ),
-              if (isAttended)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(8)),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.check, size: 12, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text("Davomat olindi", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
-                    ],
-                  ),
-                )
-              else
-                Text(
-                  "Tugashiga: $countdownStr", 
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                ),
+              Text(
+                "Tugashiga: $countdownStr",
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            currentLesson['subject_name'] ?? 'Fan nomi',
+            "${currentLesson['subject_name'] ?? 'Fan'} darsi ketmoqda ($lessonOrder-${ApiService.lessonTermSingular.toLowerCase()})",
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: Colors.white, fontSize: 18.5, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
-            "Ustoz: ${currentLesson['teacher_name'] ?? 'Ustoz'} • Xona: ${currentLesson['room'] ?? '101-xona'}",
+            "Vaqti: ${currentLesson['start_time']} - ${currentLesson['end_time']} • Xona: ${currentLesson['room'] ?? currentLesson['room_number'] ?? '101-xona'} • Ustoz: ${currentLesson['teacher_name'] ?? 'Ustoz'}",
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          if (!isAttended)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppTheme.primary,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                ),
-                onPressed: () => _openLessonQRModal(currentLesson),
-                icon: const Icon(Icons.qr_code_2_rounded, size: 22),
-                label: const Text("Darsga kirish / Darsni boshlash", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              ),
-            )
-          else
+          if (!isAttended) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                  const SizedBox(width: 10),
+                  Icon(Icons.report_problem_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "Davomat tasdiqlandi — ${currentLesson['attendance_time'] ?? '08:05'} da ustoz qabul qildi",
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      "Ayni paytda dars ketmoqda! Siz hali davomatdan o'tmadingiz. Agar tezda belgilamasangiz, NB (sababsiz dars qoldirish) hisoblanadi!",
+                      style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600, height: 1.3),
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFFC0392B),
+                  elevation: 3,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                ),
+                onPressed: () => _openLessonQRModal(currentLesson),
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 22),
+                label: const Text(
+                  "⚡ Hoziroq davomatdan o'tish (QR Kod)",
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                ),
+              ),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Siz darsdasiz (Davomat tasdiqlangan)",
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          currentLesson['attendance_time'] != null
+                              ? "Soat ${currentLesson['attendance_time']} da ustoz qabul qildi"
+                              : "Muvaffaqiyatli qatnashmoqdasiz",
+                          style: const TextStyle(color: Colors.white70, fontSize: 11.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF10AC84),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => LessonRoomScreen(lessonId: currentLesson['id'] ?? 101)),
+                  );
+                },
+                icon: const Icon(Icons.menu_book_rounded, size: 20),
+                label: const Text("Dars xonasiga kirish / Mavzu", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  // 1.3 Tezkor Statistika Vidjetlari (Bugungi ko'rsatkichlar)
   Widget _buildQuickStatsWidgets() {
     final entryTime = _stats['turnstile_entry'] ?? _buildingEntryTime;
     final exitTime = _stats['turnstile_exit'] ?? "--:--";
@@ -1191,10 +1323,228 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
+  // Haftaning kunlari karuseli (Dushanba - Shanba, Bugun ajratilgan)
+  Widget _buildWeeklyDaySelector() {
+    final days = [
+      {"num": 1, "short": "Dush", "name": "Dushanba"},
+      {"num": 2, "short": "Sesh", "name": "Seshanba"},
+      {"num": 3, "short": "Chor", "name": "Chorshanba"},
+      {"num": 4, "short": "Pay", "name": "Payshanba"},
+      {"num": 5, "short": "Juma", "name": "Juma"},
+      {"num": 6, "short": "Shan", "name": "Shanba"},
+    ];
+    final todayNum = DateTime.now().weekday;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: days.map((d) {
+          final dNum = d['num'] as int;
+          final isSelected = _selectedScheduleDay == dNum;
+          final isToday = todayNum == dNum;
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => setState(() => _selectedScheduleDay = dNum),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppTheme.primary
+                      : (isToday ? AppTheme.primaryLight : Colors.white),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppTheme.primary
+                        : (isToday ? AppTheme.primary.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.05)),
+                    width: isToday ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      d['short'] as String,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
+                        color: isSelected
+                            ? Colors.white
+                            : (isToday ? AppTheme.primary : AppTheme.textDark),
+                      ),
+                    ),
+                    if (isToday) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white.withValues(alpha: 0.25) : AppTheme.primary,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          "Bugun",
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w900,
+                            color: isSelected ? Colors.white : Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // Tanlangan kunning darslari ro'yxati (Bugun bo'lsa real davomat bilan, boshqa kun bo'lsa jadval bilan)
+  Widget _buildSelectedDayLessons() {
+    final todayWeekday = DateTime.now().weekday;
+    final isToday = (_selectedScheduleDay == todayWeekday);
+
+    if (isToday) {
+      if (_loading) {
+        return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
+      }
+      if (_lessons.isEmpty) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+          ),
+          child: const Center(
+            child: Text(
+              "Bugun uchun darslar rejalashtirilmagan yoki dam olish kuni",
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+            ),
+          ),
+        );
+      }
+      return ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _lessons.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (ctx, i) => _buildLessonItem(_lessons[i]),
+      );
+    } else {
+      final weeklySchedules = (_dashboardData?['weekly_schedules'] as List?) ?? [];
+      dynamic targetDayData;
+      for (final dayObj in weeklySchedules) {
+        if (dayObj['day_of_week'] == _selectedScheduleDay) {
+          targetDayData = dayObj;
+          break;
+        }
+      }
+      final lessons = (targetDayData?['lessons'] as List?) ?? [];
+
+      if (lessons.isEmpty) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+          ),
+          child: Center(
+            child: Text(
+              "${targetDayData?['day_name'] ?? 'Ushbu kun'}ga darslar belgilanmagan",
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+            ),
+          ),
+        );
+      }
+
+      return ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: lessons.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (ctx, i) {
+          final l = lessons[i];
+          final order = l['order'] ?? l['lesson_order'] ?? (i + 1);
+          final room = l['room_number'] ?? l['room'] ?? '101-xona';
+
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "$order",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primary,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l['subject_name'] ?? 'Fan',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: AppTheme.textDark),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Ustoz: ${l['teacher_name'] ?? 'Ustoz'} • $room",
+                        style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    "${l['start_time']} - ${l['end_time']}",
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
   // Dars kartasi (Pastdagi ro'yxat)
   Widget _buildLessonItem(dynamic lesson) {
     final bool isAttended = lesson['is_attended'] == true;
     final String status = lesson['status'] ?? 'PENDING';
+    final String? attTime = lesson['attendance_time'];
+    final bool isUrgentMissed = (status == 'ACTIVE' && !isAttended);
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -1210,21 +1560,34 @@ class _StudentDashboardState extends State<StudentDashboard> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isAttended ? AppTheme.success.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.04),
-            width: isAttended ? 1.5 : 1,
+            color: isAttended
+                ? AppTheme.success.withValues(alpha: 0.35)
+                : (isUrgentMissed
+                    ? Colors.red.shade400
+                    : Colors.black.withValues(alpha: 0.05)),
+            width: (isAttended || isUrgentMissed) ? 1.8 : 1,
           ),
+          boxShadow: isUrgentMissed
+              ? [BoxShadow(color: Colors.red.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4))]
+              : null,
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isAttended ? AppTheme.success.withValues(alpha: 0.12) : AppTheme.primaryLight,
+                color: isAttended
+                    ? AppTheme.success.withValues(alpha: 0.12)
+                    : (isUrgentMissed ? Colors.red.shade50 : AppTheme.primaryLight),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                isAttended ? Icons.check_circle_rounded : Icons.menu_book_rounded,
-                color: isAttended ? AppTheme.success : AppTheme.primary,
+                isAttended
+                    ? Icons.check_circle_rounded
+                    : (isUrgentMissed ? Icons.warning_amber_rounded : Icons.menu_book_rounded),
+                color: isAttended
+                    ? AppTheme.success
+                    : (isUrgentMissed ? Colors.red.shade600 : AppTheme.primary),
                 size: 22,
               ),
             ),
@@ -1243,21 +1606,34 @@ class _StudentDashboardState extends State<StudentDashboard> {
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: AppTheme.textDark),
                         ),
                       ),
-                      if (isAttended) ...[
-                        const SizedBox(width: 6),
+                      const SizedBox(width: 6),
+                      if (isAttended)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(6)),
-                          child: const Text("Kelgan", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
-                        ),
-                      ] else if (status == 'ACTIVE') ...[
-                        const SizedBox(width: 6),
+                          child: Text(
+                            attTime != null ? "Kelgan ($attTime)" : "Kelgan ✅",
+                            style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                          ),
+                        )
+                      else if (status == 'ACTIVE')
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: AppTheme.secondaryOrange, borderRadius: BorderRadius.circular(6)),
-                          child: const Text("Hozir", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                          decoration: BoxDecoration(color: Colors.red.shade600, borderRadius: BorderRadius.circular(6)),
+                          child: const Text("Kirmadingiz! ⚠️", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        )
+                      else if (status == 'COMPLETED')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.red.shade700, borderRadius: BorderRadius.circular(6)),
+                          child: const Text("NB (Kirmagan)", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.blue.shade600, borderRadius: BorderRadius.circular(6)),
+                          child: const Text("Kutilmoqda", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
                         ),
-                      ],
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -1270,13 +1646,39 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 ],
               ),
             ),
-            Text(
-              "${lesson['start_time']} - ${lesson['end_time']}",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isAttended ? AppTheme.success : AppTheme.primary,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  "${lesson['start_time']} - ${lesson['end_time']}",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isAttended
+                        ? AppTheme.success
+                        : (isUrgentMissed ? Colors.red.shade600 : AppTheme.primary),
+                  ),
+                ),
+                if (isUrgentMissed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: InkWell(
+                      onTap: () => _openLessonQRModal(lesson),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: const Text(
+                          "QR ochish",
+                          style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String serverUrl = 'https://talked-animals-pages-tyler.trycloudflare.com';
+  static const String serverUrl = 'https://wireless-verbal-cartridge-careful.trycloudflare.com';
 
   static String get baseUrl {
     return '$serverUrl/api';
@@ -164,8 +164,9 @@ class ApiService {
       final url = classId != null ? '$baseUrl/schedule/?class_id=$classId' : '$baseUrl/schedule/';
       final response = await http.get(Uri.parse(url), headers: headers);
       if (response.statusCode == 200) {
-        final list = jsonDecode(utf8.decode(response.bodyBytes));
-        if (list is List) return list;
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        if (decoded is List) return decoded;
+        if (decoded is Map && decoded['schedules'] is List) return decoded['schedules'] as List<dynamic>;
       }
     } catch (_) {}
     return [];

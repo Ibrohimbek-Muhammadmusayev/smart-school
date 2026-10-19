@@ -14,7 +14,14 @@ class ProfileScreen extends StatelessWidget {
     final role = user['role'] ?? 'STUDENT';
 
     final studentId = user['student_id'] ?? user['username'] ?? '';
-    final photoUrl = user['photo_3x4'];
+    String? photoUrl = user['photo_3x4'];
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      if (photoUrl.startsWith('/')) {
+        photoUrl = "${ApiService.serverUrl}$photoUrl";
+      } else if (photoUrl.contains('127.0.0.1:8000')) {
+        photoUrl = photoUrl.replaceAll('http://127.0.0.1:8000', ApiService.serverUrl);
+      }
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
