@@ -26,6 +26,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<dynamic> _weeklyGrid = [];
   bool _loading = true;
   int _selectedScheduleDay = (DateTime.now().weekday <= 6) ? DateTime.now().weekday : 1;
+  late PageController _dayPageController;
 
   // Bino maqomi: true = "Bino ichida", false = "Tashqarida"
   bool _isInsideBuilding = true;
@@ -48,6 +49,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
   @override
   void initState() {
     super.initState();
+    final initialDay = (DateTime.now().weekday <= 6) ? DateTime.now().weekday : 1;
+    _selectedScheduleDay = initialDay;
+    _dayPageController = PageController(initialPage: initialDay - 1);
     _fetchDashboardSummary();
     // Har 1 soniyada dars va tanaffus taymerlarini real vaqtda hisoblash
     _clockTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -61,6 +65,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   @override
   void dispose() {
+    _dayPageController.dispose();
     _clockTicker?.cancel();
     _backgroundSyncTimer?.cancel();
     _qrTicker?.cancel();
@@ -502,7 +507,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             const SizedBox(height: 14),
 
             // Tanlangan kunning darslari ro'yxati
-            _buildSelectedDayLessons(),
+            _buildWeeklyScheduleCarousel(),
             const SizedBox(height: 20),
           ],
         ),
@@ -1394,7 +1399,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
             padding: const EdgeInsets.only(right: 8),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              onTap: () => setState(() => _selectedScheduleDay = dNum),
+              onTap: () {
+                setState(() => _selectedScheduleDay = dNum);
+                if (_dayPageController.hasClients) {
+                  _dayPageController.animateToPage(
+                    dNum - 1,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOutCubic,
+                  );
+                }
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
@@ -1450,143 +1464,320 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   // Tanlangan kunning darslari ro'yxati (Bugun bo'lsa real davomat bilan, boshqa kun bo'lsa jadval bilan)
-  Widget _buildSelectedDayLessons() {
+  Widget _buildWeeklyScheduleCarousel() {
+    final days = [
+      {"num": 1, "name": "Dushanba"},
+      {"num": 2, "name": "Seshanba"},
+      {"num": 3, "name": "Chorshanba"},
+      {"num": 4, "name": "Payshanba"},
+      {"num": 5, "name": "Juma"},
+      {"num": 6, "name": "Shanba"},
+    ];
     final todayWeekday = DateTime.now().weekday;
-    final isToday = (_selectedScheduleDay == todayWeekday);
 
+    return Column(
+      children: [
+        SizedBox(
+          height: 490,
+          child: PageView.builder(
+            controller: _dayPageController,
+            onPageChanged: (pageIndex) {
+              setState(() {
+                _selectedScheduleDay = pageIndex + 1;
+              });
+            },
+            itemCount: 6,
+            itemBuilder: (context, index) {
+              final dayNum = index + 1;
+              final dayInfo = days[index];
+              final isToday = (dayNum == todayWeekday);
+
+              return _buildDayScheduleCard(dayNum, dayInfo['name'] as String, isToday);
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Karusel indikatori (Pagination dots)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(6, (i) {
+            final isCurrent = (_selectedScheduleDay == i + 1);
+            final isToday = (todayWeekday == i + 1);
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: isCurrent ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isCurrent
+                    ? AppTheme.primary
+                    : (isToday ? AppTheme.primary.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.12)),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDayScheduleCard(int dayNum, String dayName, bool isToday) {
+    List<dynamic> lessonsList = [];
+    if (isToday && _loading && _lessons.isEmpty) {
+      return const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()));
+    }
     if (isToday) {
-      if (_loading) {
-        return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
-      }
-      if (_lessons.isEmpty) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
-          ),
-          child: const Center(
-            child: Text(
-              "Bugun uchun darslar rejalashtirilmagan yoki dam olish kuni",
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-            ),
-          ),
-        );
-      }
-      return ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _lessons.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (ctx, i) => _buildLessonItem(_lessons[i]),
-      );
+      lessonsList = _lessons;
     } else {
       final weeklySchedules = (_dashboardData?['weekly_schedules'] as List?) ?? [];
-      dynamic targetDayData;
       for (final dayObj in weeklySchedules) {
-        if (dayObj['day_of_week'] == _selectedScheduleDay) {
-          targetDayData = dayObj;
+        if (dayObj['day_of_week'] == dayNum) {
+          lessonsList = (dayObj['lessons'] as List?) ?? [];
           break;
         }
       }
-      final lessons = (targetDayData?['lessons'] as List?) ?? [];
+    }
 
-      if (lessons.isEmpty) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isToday ? AppTheme.primary.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.05),
+          width: isToday ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isToday ? AppTheme.primary.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-          child: Center(
-            child: Text(
-              "${targetDayData?['day_name'] ?? 'Ushbu kun'}ga darslar belgilanmagan",
-              style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Karta sarlavhasi va surish tugmalari
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isToday ? AppTheme.primaryLight : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.calendar_today_rounded,
+                      size: 16,
+                      color: isToday ? AppTheme.primary : AppTheme.textMuted,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    dayName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textDark),
+                  ),
+                  if (isToday) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "BUGUN 🌟",
+                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              Row(
+                children: [
+                  InkWell(
+                    onTap: dayNum > 1
+                        ? () {
+                            if (_dayPageController.hasClients) {
+                              _dayPageController.previousPage(
+                                duration: const Duration(milliseconds: 280),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                          }
+                        : null,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: dayNum > 1 ? Colors.grey.shade100 : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.chevron_left_rounded, size: 20, color: dayNum > 1 ? AppTheme.textDark : Colors.grey.shade300),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "${lessonsList.length} ta dars",
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.textMuted),
+                  ),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: dayNum < 6
+                        ? () {
+                            if (_dayPageController.hasClients) {
+                              _dayPageController.nextPage(
+                                duration: const Duration(milliseconds: 280),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                          }
+                        : null,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: dayNum < 6 ? Colors.grey.shade100 : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.chevron_right_rounded, size: 20, color: dayNum < 6 ? AppTheme.textDark : Colors.grey.shade300),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+
+          // Darslar ro'yxati
+          Expanded(
+            child: lessonsList.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.event_busy_rounded, size: 44, color: Colors.grey.shade300),
+                        const SizedBox(height: 10),
+                        Text(
+                          "$dayName kuni uchun darslar belgilanmagan",
+                          style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: lessonsList.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 10),
+                    itemBuilder: (ctx, i) {
+                      final l = lessonsList[i];
+                      if (isToday) {
+                        return _buildLessonItem(l);
+                      } else {
+                        return _buildPlannedLessonItem(l, i + 1);
+                      }
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlannedLessonItem(dynamic lesson, int defaultOrder) {
+    final order = lesson['order'] ?? lesson['lesson_order'] ?? defaultOrder;
+    final subject = (lesson['subject_name'] ?? 'Umumiy Fan').toString();
+    final time = (lesson['time'] ?? "${lesson['start_time'] ?? ''} - ${lesson['end_time'] ?? ''}").toString();
+    final room = (lesson['room_number'] ?? lesson['room'] ?? '101-xona').toString();
+    final teacher = (lesson['teacher_name'] ?? '').toString();
+    final topic = (lesson['topic'] ?? '').toString();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(
+                "$order",
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primary),
+              ),
             ),
           ),
-        );
-      }
-
-      return ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: lessons.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (ctx, i) {
-          final l = lessons[i];
-          final order = l['order'] ?? l['lesson_order'] ?? (i + 1);
-          final room = l['room_number'] ?? l['room'] ?? '101-xona';
-
-          return Container(
-            padding: const EdgeInsets.all(16),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  subject,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppTheme.textDark),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(Icons.access_time_rounded, size: 12, color: Colors.grey.shade500),
+                    const SizedBox(width: 4),
+                    Text(time, style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 10),
+                    Icon(Icons.location_on_outlined, size: 12, color: Colors.grey.shade500),
+                    const SizedBox(width: 3),
+                    Text(room, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  ],
+                ),
+                if (teacher.isNotEmpty || topic.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    teacher.isNotEmpty ? "Ustoz: $teacher" : topic,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 10.5, color: AppTheme.textMuted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      "$order",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primary,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l['subject_name'] ?? 'Fan',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: AppTheme.textDark),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Ustoz: ${l['teacher_name'] ?? 'Ustoz'} • $room",
-                        style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryLight,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    "${l['start_time']} - ${l['end_time']}",
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primary,
-                    ),
-                  ),
+                Icon(Icons.schedule_rounded, size: 12, color: Colors.blue.shade700),
+                const SizedBox(width: 4),
+                Text(
+                  "Reja",
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
                 ),
               ],
             ),
-          );
-        },
-      );
-    }
+          ),
+        ],
+      ),
+    );
   }
 
-  // Dars kartasi (Pastdagi ro'yxat)
   Widget _buildLessonItem(dynamic lesson) {
     final bool isAttended = lesson['is_attended'] == true;
     final String status = lesson['status'] ?? 'PENDING';

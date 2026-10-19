@@ -1644,6 +1644,11 @@ class ClassScheduleManagementView(views.APIView):
         except ClassSchedule.DoesNotExist:
             return Response({'detail': 'Jadval topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if 'class_id' in request.data and request.data.get('class_id'):
+            try:
+                item.school_class = SchoolClass.objects.get(id=int(request.data.get('class_id')))
+            except SchoolClass.DoesNotExist:
+                pass
         if 'subject_name' in request.data:
             item.subject_name = str(request.data.get('subject_name')).strip()
         if 'day_of_week' in request.data:
