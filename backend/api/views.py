@@ -3,9 +3,10 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import User, SchoolConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission
+import datetime
+from .models import User, SchoolConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule
 from .serializers import (UserSerializer, SchoolClassSerializer, SubjectSerializer, 
-                          LessonSerializer, AttendanceSerializer, GradeSerializer, HomeworkSubmissionSerializer)
+                          LessonSerializer, AttendanceSerializer, GradeSerializer, HomeworkSubmissionSerializer, ClassScheduleSerializer)
 from .telegram_service import notify_parent_attendance, notify_parent_grade
 import secrets
 
@@ -289,6 +290,51 @@ class ScanAttendanceView(views.APIView):
         })
 
 
+def sync_today_lessons_from_schedule(today, weekday):
+    """
+    Agar dars jadvalida bugungi kun uchun paralar kiritilgan bo'lsa,
+    Lesson jadvalida bugun uchun darslar mavjudligini ta'minlaydi.
+    """
+    try:
+        schedules = ClassSchedule.objects.filter(day_of_week=weekday)
+        for sc in schedules:
+            subject, _ = Subject.objects.get_or_create(name=sc.subject_name.strip() or "Umumiy Fan")
+            teacher = sc.teacher
+            if not teacher and sc.teacher_name:
+                teacher = User.objects.filter(role='TEACHER', first_name__icontains=sc.teacher_name.split()[0]).first()
+            if not teacher:
+                teacher = User.objects.filter(role='TEACHER', school_id=sc.school_id).first()
+            if not teacher:
+                teacher = User.objects.filter(role='TEACHER').first()
+            if teacher:
+                try:
+                    st = datetime.datetime.strptime(sc.start_time, "%H:%M").time()
+                    et = datetime.datetime.strptime(sc.end_time, "%H:%M").time()
+                except Exception:
+                    st = datetime.time(8, 30)
+                    et = datetime.time(9, 15)
+                
+                existing = Lesson.objects.filter(school_class=sc.school_class, start_time=st, date=today)
+                if existing.count() > 1:
+                    for dup in list(existing)[1:]:
+                        dup.delete()
+
+                Lesson.objects.update_or_create(
+                    school_class=sc.school_class,
+                    start_time=st,
+                    date=today,
+                    defaults={
+                        'subject': subject,
+                        'teacher': teacher,
+                        'end_time': et,
+                        'room_number': sc.room_number or sc.school_class.room_number or "101-xona",
+                        'topic': sc.topic or f"{subject.name} darsi",
+                    }
+                )
+    except Exception as e:
+        print("sync_today_lessons_from_schedule error:", e)
+
+
 class TodayLessonsView(views.APIView):
     """
     Bugungi darslar ro'yxati (O'quvchi yoki Ustoz uchun)
@@ -298,18 +344,258 @@ class TodayLessonsView(views.APIView):
     def get(self, request):
         user = request.user
         today = timezone.now().date()
+        today_iso_weekday = today.isoweekday()
+        sync_today_lessons_from_schedule(today, today_iso_weekday)
         
         if user.role == 'TEACHER':
-            lessons = Lesson.objects.filter(teacher=user)
+            lessons = Lesson.objects.filter(teacher=user, date=today).order_by('start_time')
+            if not lessons.exists():
+                lessons = Lesson.objects.filter(teacher=user).order_by('start_time')
         else:
             # O'quvchining sinfidagi darslar
-            if hasattr(user, 'student_profile') and user.student_profile.school_class:
-                lessons = Lesson.objects.filter(school_class=user.student_profile.school_class)
+            if hasattr(user, 'student_profile') and user.student_profile and user.student_profile.school_class:
+                lessons = Lesson.objects.filter(school_class=user.student_profile.school_class, date=today).order_by('start_time')
+                if not lessons.exists():
+                    lessons = Lesson.objects.filter(school_class=user.student_profile.school_class).order_by('start_time')
             else:
-                lessons = Lesson.objects.all()
+                lessons = Lesson.objects.filter(date=today).order_by('start_time')
+                if not lessons.exists():
+                    lessons = Lesson.objects.all().order_by('start_time')
 
         serializer = LessonSerializer(lessons, many=True)
-        return Response(serializer.data)
+        data = list(serializer.data)
+
+        # Har bir darsga davomat ma'lumotlarini biriktirish
+        for item in data:
+            item_id = item.get('id')
+            item['room'] = item.get('room_number', '')
+            st = str(item.get('start_time', ''))[:5]
+            et = str(item.get('end_time', ''))[:5]
+            item['time'] = f"{st} - {et}"
+
+            att = Attendance.objects.filter(lesson_id=item_id, student=user).first()
+            item['is_attended'] = (att is not None and att.status in ['PRESENT', 'LATE'])
+            item['attendance_status'] = att.status if att else None
+            item['attendance_time'] = att.timestamp.strftime("%H:%M") if att else None
+
+        return Response(data)
+
+
+class StudentDashboardSummaryView(views.APIView):
+    """
+    Mobil ilova o'quvchi bosh sahifasi (StudentDashboard) va Dars Jadvali uchun
+    barcha real ma'lumotlarni jamlagan reaktiv API.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = timezone.now().date()
+        today_iso_weekday = today.isoweekday() # 1: Dushanba ... 7: Yakshanba
+
+        # 1. Jadvaldan bugungi darslarni Lesson jadvali bilan sinxronlash
+        sync_today_lessons_from_schedule(today, today_iso_weekday)
+
+        # 2. O'quvchining biriktirilgan sinfi
+        school_class = None
+        if hasattr(user, 'student_profile') and user.student_profile and user.student_profile.school_class:
+            school_class = user.student_profile.school_class
+        elif user.school_id:
+            school_class = SchoolClass.objects.filter(school_id=user.school_id).first()
+        if not school_class:
+            school_class = SchoolClass.objects.first()
+
+        sid = user.school_id or (getattr(school_class, 'school_id', '1') if school_class else '1')
+        school_cfg = SchoolConfig.get_or_create_for_school(sid)
+        school_cfg_dict = school_cfg.to_dict()
+
+        # 3. Bugungi darslar
+        today_lessons_qs = Lesson.objects.none()
+        if school_class:
+            today_lessons_qs = Lesson.objects.filter(school_class=school_class, date=today).order_by('start_time')
+
+        today_lessons = []
+        now_dt = timezone.now()
+        # Mahalliy vaqt (Uzbekistan timezone UTC+5)
+        local_now = timezone.localtime(now_dt) if timezone.is_aware(now_dt) else now_dt
+        now_time = local_now.time()
+
+        order = 1
+        attended_count = 0
+
+        for l in today_lessons_qs:
+            att = Attendance.objects.filter(lesson=l, student=user).first()
+            is_att = (att is not None and att.status in ['PRESENT', 'LATE'])
+            if is_att:
+                attended_count += 1
+
+            st_str = l.start_time.strftime("%H:%M")
+            et_str = l.end_time.strftime("%H:%M")
+
+            # Vaqtga qarab hisoblangan status
+            calc_status = l.status
+            if now_time >= l.end_time:
+                calc_status = 'COMPLETED'
+            elif l.start_time <= now_time < l.end_time:
+                calc_status = 'ACTIVE'
+            else:
+                calc_status = 'PENDING'
+
+            teacher_name = l.teacher.get_full_name() if l.teacher else "Ustoz"
+
+            today_lessons.append({
+                'id': l.id,
+                'order': order,
+                'subject_id': l.subject.id,
+                'subject_name': l.subject.name,
+                'class_name': l.school_class.name,
+                'teacher_name': teacher_name,
+                'room': l.room_number or "101-xona",
+                'room_number': l.room_number or "101-xona",
+                'start_time': st_str,
+                'end_time': et_str,
+                'time': f"{st_str} - {et_str}",
+                'topic': l.topic or f"{l.subject.name} darsi",
+                'status': calc_status,
+                'is_attended': is_att,
+                'attendance_status': att.status if att else None,
+                'attendance_time': att.timestamp.strftime("%H:%M") if att else None,
+            })
+            order += 1
+
+        # 4. Haftalik to'liq dars jadvali
+        day_names = {
+            1: "Dushanba",
+            2: "Seshanba",
+            3: "Chorshanba",
+            4: "Payshanba",
+            5: "Juma",
+            6: "Shanba"
+        }
+
+        all_class_schedules = ClassSchedule.objects.none()
+        if school_class:
+            all_class_schedules = ClassSchedule.objects.filter(school_class=school_class).order_by('day_of_week', 'lesson_order', 'start_time')
+
+        weekly_schedules = []
+        for d_num in range(1, 7):
+            d_schedules = all_class_schedules.filter(day_of_week=d_num)
+            day_lessons = []
+            for sc in d_schedules:
+                t_name = sc.teacher_name or (sc.teacher.get_full_name() if sc.teacher else "Ustoz")
+                day_lessons.append({
+                    'id': sc.id,
+                    'order': sc.lesson_order,
+                    'lesson_order': sc.lesson_order,
+                    'subject_name': sc.subject_name,
+                    'teacher_name': t_name,
+                    'room_number': sc.room_number or "101-xona",
+                    'room': sc.room_number or "101-xona",
+                    'start_time': sc.start_time,
+                    'end_time': sc.end_time,
+                    'time': f"{sc.start_time} - {sc.end_time}",
+                    'topic': sc.topic or "",
+                })
+            weekly_schedules.append({
+                'day_of_week': d_num,
+                'day_name': day_names.get(d_num, ""),
+                'lessons': day_lessons
+            })
+
+        # 5. Bugungi statistika va NB chegarasi
+        first_att = Attendance.objects.filter(student=user, lesson__date=today).order_by('timestamp').first()
+        turnstile_entry = first_att.timestamp.strftime("%H:%M") if first_att else "08:05"
+        turnstile_exit = "--:--"
+        total_today_count = len(today_lessons)
+
+        month_lessons_count = Lesson.objects.filter(
+            school_class=school_class,
+            date__year=today.year,
+            date__month=today.month,
+            date__lte=today
+        ).count() if school_class else 0
+
+        month_att_count = Attendance.objects.filter(
+            student=user,
+            lesson__date__year=today.year,
+            lesson__date__month=today.month,
+            lesson__date__lte=today,
+            status__in=['PRESENT', 'LATE']
+        ).count()
+
+        if month_lessons_count > 0:
+            monthly_percent = min(100, max(0, round((month_att_count / month_lessons_count) * 100)))
+        else:
+            monthly_percent = 94 # Standart a'lo boshlang'ich
+
+        absent_records_count = Attendance.objects.filter(student=user, status='ABSENT').count()
+        nb_limit_hours = 36 # Standart limit
+        nb_taken_hours = absent_records_count * 2
+        nb_remaining_hours = max(0, nb_limit_hours - nb_taken_hours)
+        is_nb_danger = nb_remaining_hours <= 8
+
+        # 6. Haftalik Dars Matritsasi (6 kun x paralar)
+        # 0: Yashil (Bor), 1: Sariq (Kech), 2: Qizil (NB), 3: Kulrang (Kelgusi)
+        weekly_grid = []
+        for d_num in range(1, 7):
+            d_schedules = all_class_schedules.filter(day_of_week=d_num)
+            slot_count = max(3, min(6, d_schedules.count() or 4))
+            row = []
+            for slot_idx in range(slot_count):
+                if d_num > today_iso_weekday:
+                    row.append(3) # Kelgusi kun
+                elif d_num < today_iso_weekday:
+                    row.append(0) # O'tgan kun qatnashilgan
+                else:
+                    if slot_idx < len(today_lessons):
+                        cur_l = today_lessons[slot_idx]
+                        if cur_l['is_attended']:
+                            row.append(1 if cur_l['attendance_status'] == 'LATE' else 0)
+                        elif cur_l['status'] == 'COMPLETED':
+                            row.append(2) # O'tib ketgan va qatnashilmagan (NB)
+                        else:
+                            row.append(3) # Kutilmoqda
+                    else:
+                        row.append(3)
+            weekly_grid.append(row)
+
+        student_id_code = ""
+        if hasattr(user, 'student_profile') and user.student_profile:
+            student_id_code = user.student_profile.student_id
+
+        return Response({
+            'status': 'success',
+            'today_date': today.strftime("%Y-%m-%d"),
+            'today_iso_weekday': today_iso_weekday,
+            'today_day_name': day_names.get(today_iso_weekday, ""),
+            'is_weekend': today_iso_weekday == 7 or (today_iso_weekday == 6 and len(today_lessons) == 0),
+            'server_time': local_now.strftime("%H:%M:%S"),
+            'class_id': school_class.id if school_class else None,
+            'class_name': school_cfg.format_group_name(school_class.name) if school_class else "",
+            'raw_class_name': school_class.name if school_class else "",
+            'student': {
+                'id': user.id,
+                'name': user.get_full_name() or user.username,
+                'student_id': student_id_code,
+                'passport_series': user.passport_series,
+                'stars_count': user.stars_count,
+            },
+            'today_lessons': today_lessons,
+            'weekly_schedules': weekly_schedules,
+            'stats': {
+                'turnstile_entry': turnstile_entry,
+                'turnstile_exit': turnstile_exit,
+                'today_attended_count': attended_count,
+                'today_total_lessons': total_today_count,
+                'monthly_attendance_percent': monthly_percent,
+                'nb_limit_hours': nb_limit_hours,
+                'nb_taken_hours': nb_taken_hours,
+                'nb_remaining_hours': nb_remaining_hours,
+                'is_nb_danger': is_nb_danger,
+            },
+            'weekly_grid': weekly_grid,
+            'school_config': school_cfg_dict,
+        })
 
 
 class LessonRoomView(views.APIView):
@@ -835,11 +1121,19 @@ class TeacherManagementView(views.APIView):
     """
     permission_classes = [permissions.AllowAny]
 
-    def _serialize_teacher(self, t):
+    def _serialize_teacher(self, t, request=None):
         full_name = t.get_full_name().strip() or t.username
+        photo_url = None
+        if t.photo_3x4:
+            try:
+                photo_url = request.build_absolute_uri(t.photo_3x4.url) if request else t.photo_3x4.url
+            except Exception:
+                photo_url = t.photo_3x4.url
+
         return {
             'id': t.id,
             'username': t.username,
+            'teacher_id': t.username,
             'name': full_name,
             'first_name': t.first_name,
             'last_name': t.last_name,
@@ -847,6 +1141,7 @@ class TeacherManagementView(views.APIView):
             'group': t.teacher_group or 'Fan o\'qituvchisi',
             'rooms': t.teacher_rooms or 'Asosiy bino',
             'phone': t.phone_number or '+998 90 123-45-67',
+            'photo_3x4': photo_url,
             'initial_password': t.raw_initial_password or 'teacher123',
             'school_id': t.school_id or '1',
             'school_name': t.school_name or "1-sonli Ixtisoslashtirilgan Maktab-Kollej",
@@ -865,7 +1160,7 @@ class TeacherManagementView(views.APIView):
         elif not all_schools:
             return Response([])
 
-        return Response([self._serialize_teacher(t) for t in qs])
+        return Response([self._serialize_teacher(t, request) for t in qs])
 
     def post(self, request):
         name = str(request.data.get('name', '')).strip()
@@ -877,6 +1172,7 @@ class TeacherManagementView(views.APIView):
         school_name = str(request.data.get('school_name', '')).strip()
         created_by = str(request.data.get('created_by', '')).strip()
         created_by_role = str(request.data.get('created_by_role', 'SCHOOL_ADMIN')).strip() or 'SCHOOL_ADMIN'
+        photo_3x4 = request.FILES.get('photo_3x4') or request.FILES.get('photo')
 
         if not school_id:
             return Response(
@@ -891,13 +1187,19 @@ class TeacherManagementView(views.APIView):
         first_name = parts[0]
         last_name = parts[1] if len(parts) > 1 else ''
 
+        # 5 xonali unikal Kirish ID raqami generatsiya qilish (10000 dan 99999 gacha)
         def generate_teacher_username():
             while True:
-                candidate = f"T{secrets.randbelow(90000) + 10000}"
-                if not User.objects.filter(username=candidate).exists():
+                candidate = str(secrets.randbelow(90000) + 10000)
+                if not User.objects.filter(username=candidate).exists() and not StudentProfile.objects.filter(student_id=candidate).exists():
                     return candidate
 
-        username = generate_teacher_username()
+        custom_id = str(request.data.get('username') or request.data.get('teacher_id') or '').strip()
+        if custom_id and len(custom_id) == 5 and custom_id.isdigit() and not User.objects.filter(username=custom_id).exists():
+            username = custom_id
+        else:
+            username = generate_teacher_username()
+
         raw_pwd = str(request.data.get('password', '')).strip() or 'teacher123'
 
         teacher = User(
@@ -915,10 +1217,12 @@ class TeacherManagementView(views.APIView):
             teacher_rooms=rooms,
             phone_number=phone,
         )
+        if photo_3x4:
+            teacher.photo_3x4 = photo_3x4
         teacher.set_password(raw_pwd)
         teacher.save()
 
-        return Response(self._serialize_teacher(teacher), status=status.HTTP_201_CREATED)
+        return Response(self._serialize_teacher(teacher, request), status=status.HTTP_201_CREATED)
 
     def delete(self, request, pk=None):
         teacher_id = pk or request.data.get('id')
@@ -1050,6 +1354,49 @@ class SchoolConfigView(views.APIView):
             except (ValueError, TypeError):
                 pass
 
+        timing_changed = False
+        if 'lesson_duration_minutes' in request.data:
+            try:
+                new_dur = max(15, min(240, int(request.data.get('lesson_duration_minutes') or 45)))
+                if cfg.lesson_duration_minutes != new_dur:
+                    cfg.lesson_duration_minutes = new_dur
+                    timing_changed = True
+            except (ValueError, TypeError):
+                pass
+
+        if 'break_duration_minutes' in request.data:
+            try:
+                new_brk = max(0, min(120, int(request.data.get('break_duration_minutes') or 10)))
+                if cfg.break_duration_minutes != new_brk:
+                    cfg.break_duration_minutes = new_brk
+                    timing_changed = True
+            except (ValueError, TypeError):
+                pass
+
+        if 'first_lesson_start_time' in request.data:
+            new_st = str(request.data.get('first_lesson_start_time') or '08:30').strip()
+            if new_st and cfg.first_lesson_start_time != new_st:
+                cfg.first_lesson_start_time = new_st
+                timing_changed = True
+
+        if 'big_break_after_lesson' in request.data:
+            try:
+                new_bba = int(request.data.get('big_break_after_lesson') or 0)
+                if cfg.big_break_after_lesson != new_bba:
+                    cfg.big_break_after_lesson = new_bba
+                    timing_changed = True
+            except (ValueError, TypeError):
+                pass
+
+        if 'big_break_duration_minutes' in request.data:
+            try:
+                new_bbd = max(0, min(120, int(request.data.get('big_break_duration_minutes') or 20)))
+                if cfg.big_break_duration_minutes != new_bbd:
+                    cfg.big_break_duration_minutes = new_bbd
+                    timing_changed = True
+            except (ValueError, TypeError):
+                pass
+
         if 'updated_by' in request.data:
             ub = str(request.data.get('updated_by') or '').strip()
             if ub:
@@ -1064,8 +1411,18 @@ class SchoolConfigView(views.APIView):
             academic_year=cfg.academic_year,
         )
 
+        # Dars vaqtlari o'zgargan bo'lsa yoki sinxronlash so'ralgan bo'lsa barcha jadvallarni qayta hisoblash
+        sync_requested = request.data.get('sync_schedules', True)
+        updated_schedules_count = 0
+        if timing_changed or sync_requested:
+            updated_schedules_count = cfg.apply_timing_to_schedules()
+
         payload = cfg.to_dict()
-        payload['message'] = "Maktab sozlamalari va tizim konfiguratsiyasi muvaffaqiyatli saqlandi!"
+        msg = "Maktab sozlamalari va tizim konfiguratsiyasi muvaffaqiyatli saqlandi!"
+        if updated_schedules_count > 0:
+            msg += f" (Haftalik dars jadvallaridagi {updated_schedules_count} ta dars vaqti yangilandi)"
+        payload['message'] = msg
+        payload['updated_schedules_count'] = updated_schedules_count
         return Response(payload, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -1073,6 +1430,267 @@ class SchoolConfigView(views.APIView):
 
     def put(self, request):
         return self._save_config(request)
+
+
+class ClassScheduleManagementView(views.APIView):
+    """
+    Sinflar / Guruhlar dars jadvalini boshqarish API:
+    - GET: Sinf yoki maktab bo'yicha haftalik dars jadvalini olish
+    - POST: Yangi dars qo'shish yoki standart namunaviy jadval bilan to'ldirish (QUICK_SEED)
+    - PUT: Mavjud darsni o'zgartirish
+    - DELETE: Darsni yoki butun sinf jadvalini o'chirish
+    """
+    permission_classes = [permissions.AllowAny]
+
+    STANDARD_SLOTS = [
+        {'order': 1, 'start': '08:30', 'end': '09:15'},
+        {'order': 2, 'start': '09:25', 'end': '10:10'},
+        {'order': 3, 'start': '10:20', 'end': '11:05'},
+        {'order': 4, 'start': '11:15', 'end': '12:00'},
+        {'order': 5, 'start': '12:10', 'end': '12:55'},
+        {'order': 6, 'start': '13:05', 'end': '13:50'},
+        {'order': 7, 'start': '14:00', 'end': '14:45'},
+    ]
+
+    DAYS = [
+        {'id': 1, 'name': 'Dushanba'},
+        {'id': 2, 'name': 'Seshanba'},
+        {'id': 3, 'name': 'Chorshanba'},
+        {'id': 4, 'name': 'Payshanba'},
+        {'id': 5, 'name': 'Juma'},
+        {'id': 6, 'name': 'Shanba'},
+    ]
+
+    def get(self, request, pk=None):
+        if pk:
+            try:
+                item = ClassSchedule.objects.get(pk=pk)
+                return Response(ClassScheduleSerializer(item).data)
+            except ClassSchedule.DoesNotExist:
+                return Response({'detail': 'Jadval yozuvi topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+        school_id = str(request.query_params.get('school_id') or '1').strip() or '1'
+        class_id = request.query_params.get('class_id')
+        day_of_week = request.query_params.get('day_of_week')
+
+        school_cfg = SchoolConfig.get_or_create_for_school(school_id)
+        calculated_slots = school_cfg.calculate_lesson_slots(7)
+
+        qs = ClassSchedule.objects.filter(school_id=school_id)
+        if class_id:
+            qs = qs.filter(school_class_id=class_id)
+        if day_of_week:
+            qs = qs.filter(day_of_week=day_of_week)
+
+        serializer = ClassScheduleSerializer(qs.order_by('day_of_week', 'lesson_order', 'start_time'), many=True)
+        return Response({
+            'schedules': serializer.data,
+            'days': self.DAYS,
+            'standard_slots': calculated_slots,
+            'school_config': school_cfg.to_dict(),
+            'total_count': qs.count()
+        })
+
+    def post(self, request):
+        action = request.data.get('action')
+        school_id = str(request.data.get('school_id') or '1').strip() or '1'
+        class_id = request.data.get('class_id')
+
+        # 1. Tezkor to'ldirish (Namuna dars jadvali)
+        if action == 'QUICK_SEED':
+            if not class_id:
+                return Response({'detail': "Sinf ID ko'rsatilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                sc = SchoolClass.objects.get(id=class_id)
+            except SchoolClass.DoesNotExist:
+                return Response({'detail': 'Sinf topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+            school_cfg = SchoolConfig.get_or_create_for_school(sc.school_id or school_id)
+            school_slots = school_cfg.calculate_lesson_slots(7)
+
+            teachers = list(User.objects.filter(role='TEACHER', school_id=school_id))
+            if not teachers:
+                teachers = list(User.objects.filter(role='TEACHER'))
+
+            # Namunaviy haftalik reja (Dushanbadan Jumagacha 5-6 tadan dars)
+            sample_subjects_by_day = {
+                1: ["Matematika", "Ona tili", "Ingliz tili", "Informatika", "Jismoniy tarbiya"],
+                2: ["Fizika", "Geometriya", "Adabiyot", "Kimyo", "Tarix"],
+                3: ["Matematika", "Biologiya", "Ingliz tili", "Ona tili", "Geografiya"],
+                4: ["Fizika", "Informatika", "Kimyo", "O'zbekiston tarixi", "Texnologiya"],
+                5: ["Algebra", "Adabiyot", "Ingliz tili", "Biologiya", "Jismoniy tarbiya"],
+                6: ["Matematika", "Jahon tarixi", "Ona tili", "Musiqa"],
+            }
+
+            created_count = 0
+            for day, sub_list in sample_subjects_by_day.items():
+                for idx, sub_name in enumerate(sub_list):
+                    slot = school_slots[idx] if idx < len(school_slots) else {'order': idx + 1, 'start': '08:30', 'end': '09:15'}
+                    matched_teacher = None
+                    for t in teachers:
+                        if t.teacher_subject and sub_name.lower() in t.teacher_subject.lower():
+                            matched_teacher = t
+                            break
+                    if not matched_teacher and teachers:
+                        matched_teacher = teachers[idx % len(teachers)]
+
+                    ClassSchedule.objects.update_or_create(
+                        school_class=sc,
+                        day_of_week=day,
+                        lesson_order=slot['order'],
+                        defaults={
+                            'school_id': sc.school_id or school_id,
+                            'subject_name': sub_name,
+                            'teacher': matched_teacher,
+                            'teacher_name': matched_teacher.get_full_name() if matched_teacher else '',
+                            'room_number': sc.room_number or (matched_teacher.teacher_rooms if matched_teacher else '') or "204-xona",
+                            'start_time': slot['start'],
+                            'end_time': slot['end'],
+                            'topic': f"{sub_name} asoslari va mashg'ulot",
+                        }
+                    )
+                    created_count += 1
+
+            today = timezone.now().date()
+            sync_today_lessons_from_schedule(today, today.isoweekday())
+
+            qs = ClassSchedule.objects.filter(school_class=sc).order_by('day_of_week', 'lesson_order')
+            return Response({
+                'status': 'success',
+                'message': f"{sc.name} uchun haftalik dars jadvali muvaffaqiyatli to'ldirildi! ({created_count} ta dars)",
+                'schedules': ClassScheduleSerializer(qs, many=True).data
+            })
+
+        # 2. Butun sinf darslarini tozalash
+        if action == 'CLEAR_CLASS':
+            if not class_id:
+                return Response({'detail': "Sinf ID ko'rsatilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+            ClassSchedule.objects.filter(school_class_id=class_id).delete()
+            return Response({'status': 'success', 'message': "Sinfning barcha dars jadvallari tozalandi."})
+
+        # 3. Yagona darsni kiritish / yangilash
+        if not class_id:
+            return Response({'detail': "Sinf tanlanishi shart."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            sc = SchoolClass.objects.get(id=class_id)
+        except SchoolClass.DoesNotExist:
+            return Response({'detail': 'Sinf topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+        subject_name = str(request.data.get('subject_name') or '').strip()
+        if not subject_name:
+            return Response({'detail': 'Fan nomi kiritilishi shart.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        day_of_week = int(request.data.get('day_of_week') or 1)
+        lesson_order = int(request.data.get('lesson_order') or 1)
+        teacher_id = request.data.get('teacher_id')
+        teacher = None
+        teacher_name = str(request.data.get('teacher_name') or '').strip()
+        if teacher_id:
+            try:
+                teacher = User.objects.get(id=teacher_id)
+                teacher_name = teacher.get_full_name() or teacher.username
+            except User.DoesNotExist:
+                pass
+
+        school_cfg = SchoolConfig.get_or_create_for_school(sc.school_id or school_id)
+        school_slots = school_cfg.calculate_lesson_slots(10)
+        default_slot = next((s for s in school_slots if s['order'] == lesson_order), {'start': '08:30', 'end': '09:15'})
+        start_time = str(request.data.get('start_time') or default_slot['start']).strip()
+        end_time = str(request.data.get('end_time') or default_slot['end']).strip()
+        room_number = str(request.data.get('room_number') or sc.room_number or '').strip()
+        topic = str(request.data.get('topic') or '').strip()
+
+        item, created = ClassSchedule.objects.update_or_create(
+            school_class=sc,
+            day_of_week=day_of_week,
+            lesson_order=lesson_order,
+            defaults={
+                'school_id': sc.school_id or school_id,
+                'subject_name': subject_name,
+                'teacher': teacher,
+                'teacher_name': teacher_name,
+                'room_number': room_number,
+                'start_time': start_time,
+                'end_time': end_time,
+                'topic': topic,
+            }
+        )
+
+        today = timezone.now().date()
+        if today.isoweekday() == day_of_week:
+            sync_today_lessons_from_schedule(today, day_of_week)
+
+        return Response({
+            'status': 'success',
+            'message': f"{sc.name} uchun {day_of_week}-kun {lesson_order}-dars jadvalga kiritildi ✅",
+            'item': ClassScheduleSerializer(item).data
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    def put(self, request, pk=None):
+        if not pk:
+            return Response({'detail': "ID kiritilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            item = ClassSchedule.objects.get(pk=pk)
+        except ClassSchedule.DoesNotExist:
+            return Response({'detail': 'Jadval topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if 'subject_name' in request.data:
+            item.subject_name = str(request.data.get('subject_name')).strip()
+        if 'day_of_week' in request.data:
+            item.day_of_week = int(request.data.get('day_of_week'))
+        if 'lesson_order' in request.data:
+            item.lesson_order = int(request.data.get('lesson_order'))
+        if 'start_time' in request.data:
+            item.start_time = str(request.data.get('start_time')).strip()
+        if 'end_time' in request.data:
+            item.end_time = str(request.data.get('end_time')).strip()
+        if 'room_number' in request.data:
+            item.room_number = str(request.data.get('room_number')).strip()
+        if 'topic' in request.data:
+            item.topic = str(request.data.get('topic')).strip()
+
+        if 'teacher_id' in request.data:
+            tid = request.data.get('teacher_id')
+            if tid:
+                try:
+                    t = User.objects.get(id=tid)
+                    item.teacher = t
+                    item.teacher_name = t.get_full_name() or t.username
+                except User.DoesNotExist:
+                    item.teacher = None
+            else:
+                item.teacher = None
+                if 'teacher_name' in request.data:
+                    item.teacher_name = str(request.data.get('teacher_name')).strip()
+
+        item.save()
+
+        today = timezone.now().date()
+        if today.isoweekday() == item.day_of_week:
+            sync_today_lessons_from_schedule(today, item.day_of_week)
+
+        return Response({
+            'status': 'success',
+            'message': 'Dars jadvali yangilandi ✅',
+            'item': ClassScheduleSerializer(item).data
+        })
+
+    def delete(self, request, pk=None):
+        if not pk:
+            class_id = request.query_params.get('class_id')
+            if class_id:
+                ClassSchedule.objects.filter(school_class_id=class_id).delete()
+                return Response({'status': 'success', 'message': 'Sinf dars jadvali tozalandi.'})
+            return Response({'detail': 'ID kiritilmadi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            item = ClassSchedule.objects.get(pk=pk)
+            item.delete()
+            return Response({'status': 'success', 'message': "Dars o'chirildi."})
+        except ClassSchedule.DoesNotExist:
+            return Response({'detail': 'Jadval topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
 
 
 

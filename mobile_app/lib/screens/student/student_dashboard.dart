@@ -19,19 +19,23 @@ class StudentDashboard extends StatefulWidget {
 
 class _StudentDashboardState extends State<StudentDashboard> {
   int _tabIndex = 0;
+  Map<String, dynamic>? _dashboardData;
   List<dynamic> _lessons = [];
+  Map<String, dynamic> _stats = {};
+  List<dynamic> _weeklyGrid = [];
   bool _loading = true;
 
-  // Bino maqomi: true = "Bino ichida" (08:14 da qayd etilgan), false = "Tashqarida"
+  // Bino maqomi: true = "Bino ichida", false = "Tashqarida"
   bool _isInsideBuilding = true;
-  String _buildingEntryTime = "08:14";
+  String _buildingEntryTime = "08:05";
 
-  // Reaktiv holat testi uchun ssenariy almashgich
-  // 0: VARIANT A (Bino ichida + Dars vaqti)
-  // 1: VARIANT B (Bino ichida, lekin tanaffus)
-  // 2: VARIANT C (Dars vaqti, lekin talaba tashqarida)
-  // 3: VARIANT D (Dam olish kuni - dars yo'q)
-  int _scenarioMode = 0;
+  // Agar null bo'lsa, dars jadvali va soat bo'yicha AVTOMATIK real-vaqt rejimida ishlaydi!
+  // Agar 0, 1, 2, 3 bo'lsa, test sinovi override rejimida ishlaydi.
+  int? _scenarioModeOverride;
+
+  // Real-time timers
+  Timer? _clockTicker;
+  Timer? _backgroundSyncTimer;
 
   // Dinamik dars 45s QR token
   String _dynamicLessonQR = "LESSON_QR_INIT";
@@ -42,18 +46,125 @@ class _StudentDashboardState extends State<StudentDashboard> {
   @override
   void initState() {
     super.initState();
-    _fetchLessons();
+    _fetchDashboardSummary();
+    // Har 1 soniyada dars va tanaffus taymerlarini real vaqtda hisoblash
+    _clockTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) setState(() {});
+    });
+    // Har 20 soniyada fon rejimida serverdan ma'lumotlarni yangilash
+    _backgroundSyncTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
+      if (mounted) _fetchDashboardSummary(silent: true);
+    });
   }
 
-  void _fetchLessons() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    _clockTicker?.cancel();
+    _backgroundSyncTimer?.cancel();
+    _qrTicker?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchDashboardSummary({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     try {
-      final list = await ApiService.getTodayLessons();
-      setState(() => _lessons = list);
+      final summary = await ApiService.getStudentDashboardSummary();
+      if (summary != null) {
+        setState(() {
+          _dashboardData = summary;
+          _lessons = summary['today_lessons'] ?? [];
+          _stats = summary['stats'] ?? {};
+          _weeklyGrid = summary['weekly_grid'] ?? [];
+          if (_stats['turnstile_entry'] != null) {
+            _buildingEntryTime = _stats['turnstile_entry'];
+          }
+          if (_lessons.any((l) => l['is_attended'] == true)) {
+            _attendanceConfirmed = true;
+          }
+        });
+      } else {
+        final list = await ApiService.getTodayLessons();
+        if (mounted) setState(() => _lessons = list);
+      }
     } catch (_) {
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && !silent) setState(() => _loading = false);
     }
+  }
+
+  int _parseTimeToMinutes(dynamic timeStr) {
+    if (timeStr == null) return 0;
+    final s = timeStr.toString().trim();
+    final parts = s.split(':');
+    if (parts.length >= 2) {
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = int.tryParse(parts[1]) ?? 0;
+      return h * 60 + m;
+    }
+    return 0;
+  }
+
+  // Real-vaqt holatini aniqlash (0: A - Dars ketmoqda, 1: B - Tanaffus, 2: C - Tashqarida, 3: D - Darslar yakunlangan/Dam olish)
+  int _computeCurrentScenario() {
+    if (_scenarioModeOverride != null) {
+      return _scenarioModeOverride!;
+    }
+
+    // 1. Agar talaba bino tashqarisida bo'lsa
+    if (!_isInsideBuilding) {
+      if (_lessons.isNotEmpty) {
+        final now = DateTime.now();
+        final nowMin = now.hour * 60 + now.minute;
+        final firstStart = _parseTimeToMinutes(_lessons.first['start_time']);
+        final lastEnd = _parseTimeToMinutes(_lessons.last['end_time']);
+        if (nowMin >= firstStart - 30 && nowMin <= lastEnd) {
+          return 2; // VARIANT C: O'quv hududiga kirmagan (Qulflangan)
+        } else if (nowMin > lastEnd) {
+          return 3; // VARIANT D: Darslar tugagan
+        }
+      }
+      return 2; // Tashqarida
+    }
+
+    // 2. Agar bino ichida bo'lsa
+    if (_lessons.isEmpty || (_dashboardData != null && _dashboardData!['is_weekend'] == true)) {
+      return 3; // VARIANT D: Dam olish kuni yoki bugun dars yo'q
+    }
+
+    final now = DateTime.now();
+    final nowMin = now.hour * 60 + now.minute;
+
+    // 2.1 Hozir dars ketmoqdami?
+    for (final l in _lessons) {
+      final sMin = _parseTimeToMinutes(l['start_time']);
+      final eMin = _parseTimeToMinutes(l['end_time']);
+      if (nowMin >= sMin && nowMin < eMin) {
+        return 0; // VARIANT A: Dars ketmoqda!
+      }
+    }
+
+    // 2.2 Birinchi darsdan oldingi vaqtmi?
+    final firstStart = _parseTimeToMinutes(_lessons.first['start_time']);
+    if (nowMin < firstStart) {
+      return 1; // VARIANT B: Dars boshlanishini kutish / Tanaffus
+    }
+
+    // 2.3 Paralar orasidagi tanaffusmi?
+    for (int i = 0; i < _lessons.length - 1; i++) {
+      final curEnd = _parseTimeToMinutes(_lessons[i]['end_time']);
+      final nextStart = _parseTimeToMinutes(_lessons[i + 1]['start_time']);
+      if (nowMin >= curEnd && nowMin < nextStart) {
+        return 1; // VARIANT B: Tanaffus!
+      }
+    }
+
+    // 2.4 Barcha darslar yakunlandimi?
+    final lastEnd = _parseTimeToMinutes(_lessons.last['end_time']);
+    if (nowMin >= lastEnd) {
+      return 3; // VARIANT D: Barcha darslar tugagan
+    }
+
+    return 0;
   }
 
   void _openProfileModal() {
@@ -156,14 +267,23 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                // Sinov uchun: Davomatni tasdiqlash simulatsiyasi
                 ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
                     setModalState(() => _attendanceConfirmed = true);
                     setState(() => _attendanceConfirmed = true);
+                    final user = ApiService.currentUser;
+                    if (user != null && lesson['id'] != null) {
+                      try {
+                        await ApiService.scanAttendance(
+                          lessonId: lesson['id'],
+                          studentId: user['id'],
+                        );
+                      } catch (_) {}
+                      _fetchDashboardSummary(silent: true);
+                    }
                   },
                   icon: const Icon(Icons.check_circle_outline, size: 18),
-                  label: const Text("Ustoz skanerladi (Simulatsiya)"),
+                  label: const Text("Ustoz skanerladi (Davomatni tasdiqlash)"),
                 ),
               ] else ...[
                 // Yashil tasdiqlangan chek
@@ -180,7 +300,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  "08:32 da ustoz tomonidan qabul qilindi",
+                  "Dars davomati bazada muvaffaqiyatli saqlandi",
                   style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
@@ -249,7 +369,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   // =========================================================================
   Widget _buildHomeTab(String fullName, String className) {
     return RefreshIndicator(
-      onRefresh: () async => _fetchLessons(),
+      onRefresh: () async => _fetchDashboardSummary(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -298,7 +418,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _lessons.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
                 itemBuilder: (ctx, i) => _buildLessonItem(_lessons[i]),
               ),
             const SizedBox(height: 20),
@@ -365,39 +485,57 @@ class _StudentDashboardState extends State<StudentDashboard> {
                           ),
                           const SizedBox(width: 8),
 
-                          // Bino maqomi (Yashil: Bino ichida, Kulrang: Tashqarida)
+                          // Bino maqomi (Yashil: Bino ichida, Kulrang: Tashqarida) -> Bosilsa holat almashadi
                           Flexible(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: _isInsideBuilding ? AppTheme.success.withValues(alpha: 0.12) : Colors.grey.shade200,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      color: _isInsideBuilding ? AppTheme.success : Colors.grey,
-                                      shape: BoxShape.circle,
-                                    ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(6),
+                              onTap: () {
+                                setState(() {
+                                  _isInsideBuilding = !_isInsideBuilding;
+                                  _scenarioModeOverride = null;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(_isInsideBuilding 
+                                        ? "Bino ichiga kirildi ✅ (Davomat ochildi)" 
+                                        : "Bino tashqarisiga chiqildi 📍 (Dars qulflangan)"),
+                                    duration: const Duration(seconds: 2),
+                                    behavior: SnackBarBehavior.floating,
                                   ),
-                                  const SizedBox(width: 5),
-                                  Flexible(
-                                    child: Text(
-                                      _isInsideBuilding ? "Bino ichida ($_buildingEntryTime)" : "Tashqarida",
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: _isInsideBuilding ? AppTheme.success : Colors.grey.shade700,
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _isInsideBuilding ? AppTheme.success.withValues(alpha: 0.12) : Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: _isInsideBuilding ? AppTheme.success : Colors.grey,
+                                        shape: BoxShape.circle,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 5),
+                                    Flexible(
+                                      child: Text(
+                                        _isInsideBuilding ? "Bino ichida ($_buildingEntryTime)" : "Tashqarida",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: _isInsideBuilding ? AppTheme.success : Colors.grey.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -438,33 +576,34 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  // Tezkor Ssenariy Switcher (Talaba holatlarini test qilish uchun)
+  // Tezkor Ssenariy Switcher (Avtomatik real-vaqt yoki qo'lda test sinovi)
   Widget _buildScenarioSwitcher() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _buildScenarioBtn(0, "A: Bino ichida (Dars)"),
+          _buildScenarioBtn(null, "⚡ Real-Vaqt (Avtomatik)"),
+          _buildScenarioBtn(0, "A: Dars ketmoqda"),
           _buildScenarioBtn(1, "B: Tanaffus"),
-          _buildScenarioBtn(2, "C: Tashqarida (Qulflangan)"),
-          _buildScenarioBtn(3, "D: Dam olish kuni"),
+          _buildScenarioBtn(2, "C: Tashqarida"),
+          _buildScenarioBtn(3, "D: Darslar tugagan"),
         ],
       ),
     );
   }
 
-  Widget _buildScenarioBtn(int index, String label) {
-    final active = _scenarioMode == index;
+  Widget _buildScenarioBtn(int? index, String label) {
+    final active = _scenarioModeOverride == index;
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () {
           setState(() {
-            _scenarioMode = index;
+            _scenarioModeOverride = index;
             if (index == 2) {
               _isInsideBuilding = false;
-            } else {
+            } else if (index != null) {
               _isInsideBuilding = true;
             }
           });
@@ -491,8 +630,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   // 1.2 Dinamik Dars & Holat Bloki (VARIANT A, B, C, D)
   Widget _buildDynamicLessonCard() {
-    // VARIANT D: Bugun dars yo'q
-    if (_scenarioMode == 3) {
+    final mode = _computeCurrentScenario();
+    final now = DateTime.now();
+    final nowMinutes = now.hour * 60 + now.minute;
+
+    // VARIANT D: Dam olish kuni yoki bugungi barcha darslar yakunlangan
+    if (mode == 3) {
+      final isAllCompleted = _lessons.isNotEmpty && 
+          nowMinutes >= _parseTimeToMinutes(_lessons.last['end_time']);
+
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -500,16 +646,29 @@ class _StudentDashboardState extends State<StudentDashboard> {
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.weekend_rounded, color: AppTheme.secondaryOrange, size: 28),
-            SizedBox(width: 14),
+            Icon(
+              isAllCompleted ? Icons.celebration_rounded : Icons.weekend_rounded, 
+              color: AppTheme.secondaryOrange, 
+              size: 28,
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Bugun dam olish kuni 🎉", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                  Text("Darslar rejalashtirilmagan. Maroqli hordiq tilaymiz!", style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                  Text(
+                    isAllCompleted ? "Bugungi barcha darslar yakunlandi 🎉" : "Bugun dam olish kuni 🎉", 
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isAllCompleted 
+                        ? "Bugungi barcha paralar muvaffaqiyatli tugadi. Ishtirok: ${_stats['today_attended_count'] ?? 0} / ${_stats['today_total_lessons'] ?? _lessons.length} ta dars."
+                        : "Darslar rejalashtirilmagan. Maroqli hordiq tilaymiz!", 
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                  ),
                 ],
               ),
             ),
@@ -518,8 +677,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
       );
     }
 
-    // VARIANT C: Dars vaqti bo'ldi, lekin talaba tashqarida
-    if (_scenarioMode == 2) {
+    // VARIANT C: Dars vaqti bo'ldi, lekin talaba tashqarida (Turniketdan o'tmagan)
+    if (mode == 2) {
       return Container(
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
@@ -557,7 +716,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
             const SizedBox(height: 16),
             Row(
               children: [
-                // Qulflangan Darsni boshlash
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
@@ -570,7 +728,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                // Sababli qoldirish arizasi
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red.shade700,
@@ -578,7 +735,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   ),
-                  onPressed: () => setState(() => _tabIndex = 2), // Arizalar tabiga o'tadi
+                  onPressed: () => setState(() => _tabIndex = 2),
                   child: const Text("Ariza yozish", style: TextStyle(fontSize: 12.5)),
                 ),
               ],
@@ -588,8 +745,36 @@ class _StudentDashboardState extends State<StudentDashboard> {
       );
     }
 
-    // VARIANT B: Bino ichida, lekin tanaffus
-    if (_scenarioMode == 1) {
+    // VARIANT B: Bino ichida, lekin tanaffus (Dars boshlanishiga qadar)
+    if (mode == 1) {
+      dynamic nextLesson;
+      int breakDuration = 10;
+
+      if (_lessons.isNotEmpty && nowMinutes < _parseTimeToMinutes(_lessons.first['start_time'])) {
+        nextLesson = _lessons.first;
+        breakDuration = _parseTimeToMinutes(nextLesson['start_time']) - nowMinutes;
+      } else {
+        for (int i = 0; i < _lessons.length - 1; i++) {
+          final curEnd = _parseTimeToMinutes(_lessons[i]['end_time']);
+          final nextStart = _parseTimeToMinutes(_lessons[i + 1]['start_time']);
+          if (nowMinutes >= curEnd && nowMinutes < nextStart) {
+            nextLesson = _lessons[i + 1];
+            breakDuration = nextStart - curEnd;
+            break;
+          }
+        }
+        nextLesson ??= _lessons.isNotEmpty ? _lessons.last : null;
+      }
+
+      final nextStartMin = _parseTimeToMinutes(nextLesson?['start_time'] ?? "09:10");
+      final targetDT = DateTime(now.year, now.month, now.day, nextStartMin ~/ 60, nextStartMin % 60, 0);
+      final remainingSec = targetDT.difference(now).inSeconds;
+      final countdownStr = remainingSec > 0
+          ? "${(remainingSec ~/ 60).toString().padLeft(2, '0')}:${(remainingSec % 60).toString().padLeft(2, '0')}"
+          : "00:00";
+
+      final isBigBreak = breakDuration >= 20;
+
       return Container(
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
@@ -612,24 +797,33 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(10)),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.coffee_rounded, size: 14, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text("Hozir Tanaffus", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                      const Icon(Icons.coffee_rounded, size: 14, color: Colors.white),
+                      const SizedBox(width: 4),
+                      Text(
+                        isBigBreak ? "Katta Tanaffus ☕" : "Hozir Tanaffus", 
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                      ),
                     ],
                   ),
                 ),
-                const Text("Tanaffus tugashiga: 06:45", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                Text(
+                  "Tanaffus tugashiga: $countdownStr", 
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            const Text(
-              "Keyingi dars: Fizika (Amaliy)",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+            Text(
+              "Keyingi dars: ${nextLesson?['subject_name'] ?? 'Keyingi dars'}",
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
             ),
             const SizedBox(height: 4),
-            const Text("204-laboratoriya xonasi • Boshlanish vaqti: 10:00", style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(
+              "${nextLesson?['room'] ?? '101-xona'} • Boshlanish vaqti: ${nextLesson?['start_time'] ?? ''}",
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -648,14 +842,36 @@ class _StudentDashboardState extends State<StudentDashboard> {
       );
     }
 
-    // VARIANT A: Bino ichida + Dars vaqti (Asosiy ssenariy)
-    final sampleLesson = _lessons.isNotEmpty ? _lessons[0] : {
+    // VARIANT A: Bino ichida + Dars vaqti (Dars ketmoqda)
+    dynamic currentLesson;
+    for (final l in _lessons) {
+      final sMin = _parseTimeToMinutes(l['start_time']);
+      final eMin = _parseTimeToMinutes(l['end_time']);
+      if (nowMinutes >= sMin && nowMinutes < eMin) {
+        currentLesson = l;
+        break;
+      }
+    }
+    currentLesson ??= _lessons.isNotEmpty ? _lessons.first : {
       "id": 101,
-      "subject_name": "Oliy Matematika",
-      "teacher_name": "Dots. Rahimov Akmal",
-      "room": "302-auditoriya",
-      "time": "08:30 - 09:50",
+      "order": 1,
+      "subject_name": "Algebra",
+      "teacher_name": "Akmal Rahimov",
+      "room": "3-xona",
+      "start_time": "08:00",
+      "end_time": "09:00",
+      "is_attended": false,
     };
+
+    final endMin = _parseTimeToMinutes(currentLesson['end_time']);
+    final endDT = DateTime(now.year, now.month, now.day, endMin ~/ 60, endMin % 60, 0);
+    final remainingSec = endDT.difference(now).inSeconds;
+    final countdownStr = remainingSec > 0
+        ? "${(remainingSec ~/ 60).toString().padLeft(2, '0')}:${(remainingSec % 60).toString().padLeft(2, '0')}"
+        : "00:00";
+
+    final bool isAttended = currentLesson['is_attended'] == true || _attendanceConfirmed;
+    final lessonOrder = currentLesson['order'] ?? 1;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -675,15 +891,18 @@ class _StudentDashboardState extends State<StudentDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(10)),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
-                    SizedBox(width: 4),
-                    Text("Dars ketmoqda (1-para)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                    const Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
+                    const SizedBox(width: 4),
+                    Text(
+                      "Dars ketmoqda ($lessonOrder-${ApiService.lessonTermSingular.toLowerCase()})", 
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                    ),
                   ],
                 ),
               ),
-              if (_attendanceConfirmed)
+              if (isAttended)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(8)),
@@ -694,26 +913,31 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       Text("Davomat olindi", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
                     ],
                   ),
+                )
+              else
+                Text(
+                  "Tugashiga: $countdownStr", 
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                 ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            sampleLesson['subject_name'] ?? 'Oliy Matematika',
+            currentLesson['subject_name'] ?? 'Fan nomi',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
-            "Ustoz: ${sampleLesson['teacher_name'] ?? 'Rahimov A.'} • Xona: ${sampleLesson['room'] ?? '302'}",
+            "Ustoz: ${currentLesson['teacher_name'] ?? 'Ustoz'} • Xona: ${currentLesson['room'] ?? '101-xona'}",
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white70, fontSize: 12.5),
           ),
           const SizedBox(height: 16),
 
-          if (!_attendanceConfirmed)
+          if (!isAttended)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -724,7 +948,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                 ),
-                onPressed: () => _openLessonQRModal(sampleLesson),
+                onPressed: () => _openLessonQRModal(currentLesson),
                 icon: const Icon(Icons.qr_code_2_rounded, size: 22),
                 label: const Text("Darsga kirish / Darsni boshlash", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               ),
@@ -736,14 +960,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 10),
+                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      "Davomat tasdiqlandi — 08:32 da ustoz qabul qildi",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      "Davomat tasdiqlandi — ${currentLesson['attendance_time'] ?? '08:05'} da ustoz qabul qildi",
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                     ),
                   ),
                 ],
@@ -756,6 +980,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   // 1.3 Tezkor Statistika Vidjetlari (Bugungi ko'rsatkichlar)
   Widget _buildQuickStatsWidgets() {
+    final entryTime = _stats['turnstile_entry'] ?? _buildingEntryTime;
+    final exitTime = _stats['turnstile_exit'] ?? "--:--";
+    final attendedCount = _stats['today_attended_count'] ?? (_attendanceConfirmed ? 1 : 0);
+    final totalCount = _stats['today_total_lessons'] ?? (_lessons.isNotEmpty ? _lessons.length : 5);
+    final monthlyPercent = _stats['monthly_attendance_percent'] ?? 94;
+    final nbRemaining = _stats['nb_remaining_hours'] ?? 36;
+    final nbLimit = _stats['nb_limit_hours'] ?? 36;
+    final nbTaken = _stats['nb_taken_hours'] ?? 0;
+    final isNbDanger = _stats['is_nb_danger'] == true || nbRemaining <= 8;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -763,23 +997,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
         const SizedBox(height: 10),
         Row(
           children: [
-            // Turniket kirish-chiqish
             Expanded(
               child: _buildStatCard(
                 title: "Turniket vaqtlari",
-                mainValue: "08:14  ➔  --:--",
-                subText: "Kirish: 08:14 (Asosiy)",
+                mainValue: "$entryTime  ➔  $exitTime",
+                subText: "Kirish: $entryTime (${_isInsideBuilding ? 'Bino ichida' : 'Tashqarida'})",
                 icon: Icons.door_front_door_rounded,
                 accentColor: AppTheme.primary,
               ),
             ),
             const SizedBox(width: 10),
-            // Bugungi darslarda ishtirok
             Expanded(
               child: _buildStatCard(
                 title: "Darslarda ishtirok",
-                mainValue: _attendanceConfirmed ? "1 / 3 para" : "0 / 3 para",
-                subText: "1-para tasdiqlangan",
+                mainValue: "$attendedCount / $totalCount ${ApiService.lessonTermSingular.toLowerCase()}",
+                subText: "$attendedCount-${ApiService.lessonTermSingular.toLowerCase()} tasdiqlangan",
                 icon: Icons.checklist_rounded,
                 accentColor: AppTheme.success,
               ),
@@ -789,25 +1021,23 @@ class _StudentDashboardState extends State<StudentDashboard> {
         const SizedBox(height: 10),
         Row(
           children: [
-            // Oylik davomat foizi
             Expanded(
               child: _buildStatCard(
                 title: "Oylik davomat",
-                mainValue: "92%",
-                subText: "A'lo darajada (Norma)",
+                mainValue: "$monthlyPercent%",
+                subText: monthlyPercent >= 85 ? "A'lo darajada (Norma)" : "Ogohlantirish darajasida",
                 icon: Icons.pie_chart_rounded,
                 accentColor: AppTheme.secondaryBlue,
               ),
             ),
             const SizedBox(width: 10),
-            // NB chegarasi hisoblagichi
             Expanded(
               child: _buildStatCard(
                 title: "NB chegarasi (Xavf)",
-                mainValue: "Yana 4 soat",
-                subText: "Limit: 36 soat (32 olingan)",
-                icon: Icons.warning_amber_rounded,
-                accentColor: AppTheme.secondaryOrange,
+                mainValue: "Yana $nbRemaining soat",
+                subText: "Limit: $nbLimit soat ($nbTaken olingan)",
+                icon: isNbDanger ? Icons.warning_rounded : Icons.shield_outlined,
+                accentColor: isNbDanger ? Colors.red.shade600 : AppTheme.secondaryOrange,
               ),
             ),
           ],
@@ -857,15 +1087,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
   // 1.4 Haftalik Dars Matritsasi (Weekly Attendance Grid)
   Widget _buildWeeklyAttendanceGrid() {
     final days = ["Dush", "Sesh", "Chor", "Pay", "Juma", "Shan"];
-    // 0: Yashil (Darsda bo'lgan), 1: Sariq (Kechikkan), 2: Qizil (NB), 3: Kulrang (Kelgusi)
-    final gridData = [
-      [0, 0, 3], // Dushanba
-      [0, 1, 3], // Seshanba
-      [0, 2, 3], // Chorshanba
-      [3, 3, 3], // Payshanba
-      [3, 3, 3], // Juma
-      [3, 3, 3], // Shanba
-    ];
+    final gridData = (_weeklyGrid.isNotEmpty && _weeklyGrid.length >= 6)
+        ? _weeklyGrid
+        : [
+            [0, 0, 3],
+            [0, 1, 3],
+            [0, 2, 3],
+            [3, 3, 3],
+            [3, 3, 3],
+            [3, 3, 3],
+          ];
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -898,17 +1129,27 @@ class _StudentDashboardState extends State<StudentDashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(6, (dayIdx) {
+              final dayRow = (dayIdx < gridData.length && gridData[dayIdx] is List)
+                  ? (gridData[dayIdx] as List)
+                  : [3, 3, 3];
+              final slotCount = dayRow.length;
+
               return Column(
                 children: [
                   Text(days[dayIdx], style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
                   const SizedBox(height: 8),
-                  ...List.generate(3, (pairIdx) {
-                    final status = gridData[dayIdx][pairIdx];
+                  ...List.generate(slotCount, (pairIdx) {
+                    final status = dayRow[pairIdx];
                     Color blockColor;
-                    if (status == 0) blockColor = AppTheme.success;
-                    else if (status == 1) blockColor = AppTheme.secondaryOrange;
-                    else if (status == 2) blockColor = Colors.red.shade600;
-                    else blockColor = Colors.grey.shade200;
+                    if (status == 0) {
+                      blockColor = AppTheme.success;
+                    } else if (status == 1) {
+                      blockColor = AppTheme.secondaryOrange;
+                    } else if (status == 2) {
+                      blockColor = Colors.red.shade600;
+                    } else {
+                      blockColor = Colors.grey.shade200;
+                    }
 
                     return Container(
                       width: 36,
@@ -950,8 +1191,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  // Dars kartasi
+  // Dars kartasi (Pastdagi ro'yxat)
   Widget _buildLessonItem(dynamic lesson) {
+    final bool isAttended = lesson['is_attended'] == true;
+    final String status = lesson['status'] ?? 'PENDING';
+
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () {
@@ -965,29 +1209,60 @@ class _StudentDashboardState extends State<StudentDashboard> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+          border: Border.all(
+            color: isAttended ? AppTheme.success.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.04),
+            width: isAttended ? 1.5 : 1,
+          ),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: AppTheme.primaryLight, borderRadius: BorderRadius.circular(14)),
-              child: const Icon(Icons.menu_book_rounded, color: AppTheme.primary, size: 22),
+              decoration: BoxDecoration(
+                color: isAttended ? AppTheme.success.withValues(alpha: 0.12) : AppTheme.primaryLight,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                isAttended ? Icons.check_circle_rounded : Icons.menu_book_rounded,
+                color: isAttended ? AppTheme.success : AppTheme.primary,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    lesson['subject_name'] ?? 'Fan',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: AppTheme.textDark),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          lesson['subject_name'] ?? 'Fan',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: AppTheme.textDark),
+                        ),
+                      ),
+                      if (isAttended) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(6)),
+                          child: const Text("Kelgan", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        ),
+                      ] else if (status == 'ACTIVE') ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: AppTheme.secondaryOrange, borderRadius: BorderRadius.circular(6)),
+                          child: const Text("Hozir", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    "Ustoz: ${lesson['teacher_name'] ?? '-'}",
+                    "Ustoz: ${lesson['teacher_name'] ?? '-'} • ${lesson['room'] ?? '101-xona'}",
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5),
@@ -997,7 +1272,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
             ),
             Text(
               "${lesson['start_time']} - ${lesson['end_time']}",
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isAttended ? AppTheme.success : AppTheme.primary,
+              ),
             ),
           ],
         ),

@@ -293,11 +293,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         InkWell(
                           onTap: () {
                             setState(() {
-                              _loginIdController.text = "AB 1122334";
+                              _loginIdController.text = "20101";
                               _passwordController.text = "teacher123";
                             });
                           },
-                          child: const Text("• O'qituvchi: AB 1122334 / teacher123", style: TextStyle(fontSize: 12, color: AppTheme.textDark)),
+                          child: const Text("• O'qituvchi: ID: 20101 / teacher123", style: TextStyle(fontSize: 12, color: AppTheme.textDark)),
                         ),
                       ],
                     ),

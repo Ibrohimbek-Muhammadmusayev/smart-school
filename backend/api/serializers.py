@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission
+from .models import User, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -62,3 +62,23 @@ class HomeworkSubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = HomeworkSubmission
         fields = '__all__'
+
+
+class ClassScheduleSerializer(serializers.ModelSerializer):
+    class_name = serializers.CharField(source='school_class.name', read_only=True)
+    day_name = serializers.CharField(source='get_day_of_week_display', read_only=True)
+    teacher_full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ClassSchedule
+        fields = [
+            'id', 'school_class', 'class_name', 'school_id', 'day_of_week', 'day_name',
+            'lesson_order', 'subject_name', 'teacher', 'teacher_name', 'teacher_full_name',
+            'room_number', 'start_time', 'end_time', 'topic', 'created_at', 'updated_at'
+        ]
+
+    def get_teacher_full_name(self, obj):
+        if obj.teacher:
+            return obj.teacher.get_full_name() or obj.teacher.username
+        return obj.teacher_name or ""
+

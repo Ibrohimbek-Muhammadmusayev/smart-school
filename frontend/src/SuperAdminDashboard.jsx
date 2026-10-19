@@ -51,6 +51,18 @@ const INITIAL_PRICING_TIERS = [
     storageGb: 20,
     features: ['Dinamik 25s QR Davomat', 'Dars Matritsasi va Jurnal', '5 xonali ID Avtorizatsiya', 'CSV Hisobotlar'],
     color: '#0EA5E9',
+    popular: false,
+    modules: {
+      face_id: false,
+      dynamic_qr: true,
+      telegram_bot: false,
+      turnstile_api: false,
+      anti_spoofing: false,
+      sms_alerts: false,
+      journal_matrix: true,
+      gps_geofence: true,
+      vip_support: false,
+    },
   },
   {
     id: 'standard',
@@ -63,6 +75,17 @@ const INITIAL_PRICING_TIERS = [
     features: ['Face ID Biometrik Kirish', 'Dinamik 25s QR Davomat', 'Ota-onalar Telegram Boti', 'Turniket Integratsiyasi'],
     color: '#6C5CE7',
     popular: true,
+    modules: {
+      face_id: true,
+      dynamic_qr: true,
+      telegram_bot: true,
+      turnstile_api: true,
+      anti_spoofing: false,
+      sms_alerts: true,
+      journal_matrix: true,
+      gps_geofence: true,
+      vip_support: false,
+    },
   },
   {
     id: 'pro',
@@ -74,6 +97,18 @@ const INITIAL_PRICING_TIERS = [
     storageGb: 500,
     features: ['Dedicated AI Face Server', 'Anti-Spoofing Liveness v3', 'SMS + Telegram + Push', '24/7 VIP SLA & Backup'],
     color: '#10B981',
+    popular: false,
+    modules: {
+      face_id: true,
+      dynamic_qr: true,
+      telegram_bot: true,
+      turnstile_api: true,
+      anti_spoofing: true,
+      sms_alerts: true,
+      journal_matrix: true,
+      gps_geofence: true,
+      vip_support: true,
+    },
   },
 ];
 
@@ -132,7 +167,23 @@ export default function SuperAdminDashboardView({
   globalAnnouncement,
   onUpdateAnnouncement,
 }) {
-  const [superTab, setSuperTab] = useState('overview');
+  const [superTab, setSuperTabState] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('smart_super_admin_tab');
+      if (saved && ['overview', 'schools', 'billing', 'ai', 'security', 'config', 'support'].includes(saved)) {
+        return saved;
+      }
+    } catch (_) {}
+    return 'overview';
+  });
+
+  const setSuperTab = (tab) => {
+    try {
+      sessionStorage.setItem('smart_super_admin_tab', tab);
+    } catch (_) {}
+    setSuperTabState(tab);
+  };
+
   const [toastMsg, setToastMsg] = useState(null);
 
   const showToast = (text) => {
@@ -184,7 +235,22 @@ export default function SuperAdminDashboardView({
   }, []);
 
   // 2. Schools Multi-tenancy state
-  const [selectedSchoolId, setSelectedSchoolId] = useState(() => (schoolsList[0] ? schoolsList[0].id : null));
+  const [selectedSchoolId, setSelectedSchoolIdState] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('smart_super_admin_selected_school_id');
+      if (saved && schoolsList.some(s => String(s.id) === String(saved))) {
+        return saved;
+      }
+    } catch (_) {}
+    return schoolsList[0] ? schoolsList[0].id : null;
+  });
+
+  const setSelectedSchoolId = (id) => {
+    try {
+      sessionStorage.setItem('smart_super_admin_selected_school_id', String(id));
+    } catch (_) {}
+    setSelectedSchoolIdState(id);
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [regionFilter, setRegionFilter] = useState('ALL');
@@ -195,7 +261,91 @@ export default function SuperAdminDashboardView({
   const [warningBannerInput, setWarningBannerInput] = useState('');
 
   // 3. Billing & Subscriptions state
-  const [pricingTiers, setPricingTiers] = useState(INITIAL_PRICING_TIERS);
+  const [pricingTiers, setPricingTiers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('smart_school_pricing_tiers');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return INITIAL_PRICING_TIERS;
+  });
+
+  const savePricingTiers = (tiers) => {
+    setPricingTiers(tiers);
+    try {
+      localStorage.setItem('smart_school_pricing_tiers', JSON.stringify(tiers));
+    } catch (_) {}
+  };
+
+  const [editingTier, setEditingTier] = useState(null);
+  const [showTierModal, setShowTierModal] = useState(false);
+
+  const handleOpenEditTier = (tier) => {
+    setEditingTier(JSON.parse(JSON.stringify(tier)));
+    setShowTierModal(true);
+  };
+
+  const handleOpenCreateTier = () => {
+    setEditingTier({
+      id: 'tier_' + Date.now(),
+      name: 'Yangi Tarif Rejasi',
+      pricePerMonth: '3 000 000 so‘m / oy',
+      perStudent: '4 500 so‘m / o‘quvchi',
+      maxStudents: 1000,
+      maxRooms: 50,
+      storageGb: 80,
+      color: '#6C5CE7',
+      popular: false,
+      features: [
+        'Dinamik 25s QR Davomat',
+        'Dars Matritsasi va Jurnal',
+        'Ota-onalar Telegram Boti',
+      ],
+      modules: {
+        face_id: true,
+        dynamic_qr: true,
+        telegram_bot: true,
+        turnstile_api: false,
+        anti_spoofing: false,
+        sms_alerts: false,
+        journal_matrix: true,
+        gps_geofence: true,
+        vip_support: false,
+      },
+    });
+    setShowTierModal(true);
+  };
+
+  const handleSaveTier = (tierData) => {
+    const exists = pricingTiers.some(t => t.id === tierData.id);
+    const updated = exists ? pricingTiers.map(t => t.id === tierData.id ? tierData : t) : [...pricingTiers, tierData];
+    savePricingTiers(updated);
+    setShowTierModal(false);
+    setEditingTier(null);
+    appendAuditLog('UPDATE_PRICING_TIER', tierData.name, `Tarif rejasi sozlamalari yangilandi (${tierData.pricePerMonth})`);
+    showToast(`✅ "${tierData.name}" tarif rejasi muvaffaqiyatli saqlandi!`);
+  };
+
+  const handleDeleteTier = (tierId) => {
+    if (pricingTiers.length <= 1) {
+      showToast("⚠️ Kamida 1 ta tarif rejasi mavjud bo‘lishi shart!");
+      return;
+    }
+    const tier = pricingTiers.find(t => t.id === tierId);
+    if (window.confirm(`"${tier?.name || 'Ushbu'}" tarif rejasini o‘chirmoqchimisiz?`)) {
+      const updated = pricingTiers.filter(t => t.id !== tierId);
+      savePricingTiers(updated);
+      appendAuditLog('DELETE_PRICING_TIER', tier?.name, `Tarif rejasi o‘chirildi`);
+      showToast(`🗑️ "${tier?.name}" tarifi o‘chirildi!`);
+    }
+  };
+
+  const handleResetDefaultTiers = () => {
+    if (window.confirm("Barcha tarif rejalarini dastlabki standart holatiga qaytarmoqchimisiz?")) {
+      savePricingTiers(INITIAL_PRICING_TIERS);
+      showToast("🔄 Tarif rejalari standart holatiga qaytarildi!");
+    }
+  };
+
   const [invoices, setInvoices] = useState(INITIAL_INVOICES);
   const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
 
@@ -258,6 +408,7 @@ export default function SuperAdminDashboardView({
   };
 
   const handleGhostLogin = (school) => {
+    if (!school) return;
     appendAuditLog(
       'IMPERSONATE_SCHOOL_ADMIN',
       school.name,
@@ -1443,87 +1594,103 @@ export default function SuperAdminDashboardView({
                         </div>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: 14 }}>
+                      {/* Miqdoriy Ko'rsatkichlar (Faqat raqamlar va agregat ma'lumotlar — ro'yxatsiz) */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
                         <div style={miniStatBoxStyle}>
-                          <div style={{ fontSize: 11, color: THEME.textMuted }}>Shu Maktab Bazasi (O‘quvchilar)</div>
-                          <div style={{ fontSize: 18, fontWeight: 800, color: THEME.primary, marginTop: 4 }}>
-                            {schoolDbStudents.length} nafar (Real DB)
+                          <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 600 }}>Jami O‘quvchilar Soni</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: THEME.primary, marginTop: 4 }}>
+                            {schoolDbStudents.length} nafar
                           </div>
-                          <div style={{ fontSize: 11, color: THEME.textMuted }}>Kvota: {currentSelectedSchool.capacity || 800} ta</div>
+                          <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Kvota: {currentSelectedSchool.capacity || 800} ta</div>
                         </div>
+
                         <div style={miniStatBoxStyle}>
-                          <div style={{ fontSize: 11, color: THEME.textMuted }}>Shu Maktab Sinflari va Ustozlari</div>
-                          <div style={{ fontSize: 18, fontWeight: 800, color: THEME.textDark, marginTop: 4 }}>
-                            {schoolDbClasses.length} ta sinf • {schoolDbTeachers.length} ustoz
+                          <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 600 }}>
+                            Jami {currentSelectedSchool.groupTerm === 'GURUH' ? 'Guruhlar' : 'Sinflar'} Soni
                           </div>
-                          <div style={{ fontSize: 11, color: THEME.green }}>Boshqa maktablardan ajratilgan</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: THEME.textDark, marginTop: 4 }}>
+                            {schoolDbClasses.length} ta {currentSelectedSchool.groupTerm === 'GURUH' ? 'guruh' : 'sinf'}
+                          </div>
+                          <div style={{ fontSize: 11, color: THEME.green, marginTop: 2 }}>
+                            {currentSelectedSchool.groupTerm === 'GURUH' ? 'Guruh tizimida' : 'Sinf tizimida'}
+                          </div>
                         </div>
+
                         <div style={miniStatBoxStyle}>
-                          <div style={{ fontSize: 11, color: THEME.textMuted }}>Direktor Login / Paroli</div>
-                          <div style={{ fontSize: 15, fontWeight: 800, color: THEME.textDark, marginTop: 4 }}>
-                            <code>{currentSelectedSchool.username}</code> / <code>{currentSelectedSchool.password}</code>
+                          <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 600 }}>Jami O‘qituvchilar Soni</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: THEME.textDark, marginTop: 4 }}>
+                            {schoolDbTeachers.length} nafar
                           </div>
-                          <div style={{ fontSize: 11, color: THEME.textMuted }}>Maktab Admin kaliti</div>
+                          <div style={{ fontSize: 11, color: THEME.cyan, marginTop: 2 }}>
+                            Fan ustozlari bazasi
+                          </div>
                         </div>
+
                         <div style={miniStatBoxStyle}>
-                          <div style={{ fontSize: 11, color: THEME.textMuted }}>Yoqilgan Modullar</div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: THEME.green, marginTop: 6 }}>
-                            ✅ Face ID • ✅ 25s QR • ✅ TG Bot
+                          <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 600 }}>Bugungi Davomat Ko‘rsatkichi</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: THEME.orange, marginTop: 4 }}>
+                            {currentSelectedSchool.attendanceRate || 96.2}%
                           </div>
+                          <div style={{ fontSize: 11, color: THEME.green, marginTop: 2 }}>Turniket Face ID & QR</div>
                         </div>
                       </div>
 
-                      {/* Tanlangan maktabning o'z bazasidagi o'quvchilar va ularning kim tomonidan yaratilganlik tarixi (Read-Only ko'rinish) */}
-                      <div style={{ padding: 18, borderRadius: 20, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}` }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+                      {/* Maktabning Asosiy Baza Parametrlari (Ro'yxatsiz, faqat agregat ko'rsatkichlar) */}
+                      <div style={{ padding: 18, borderRadius: 20, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                           <div>
                             <div style={{ fontWeight: 800, fontSize: 14, color: THEME.textDark }}>
-                              📋 {currentSelectedSchool.name} — O‘quvchilarning Yaratilganlik Tarixi ({schoolDbStudents.length} nafar)
+                              📋 {currentSelectedSchool.name} — Baza va Konfiguratsiya Ko‘rsatkichlari
                             </div>
                             <div style={{ fontSize: 11.5, color: THEME.textMuted }}>
-                              Faqat ushbu maktab bazasiga tegishli o‘quvchilar va ularni kim yaratganligi haqida ma'lumot
+                              Sinflar va o‘quvchilar ro‘yxati multi-tenant xavfsizlik talabiga binoan faqat maktab ichki dashbordida to‘liq ochiladi
                             </div>
                           </div>
                           <button
                             className="sa-btn"
                             onClick={() => handleGhostLogin(currentSelectedSchool)}
-                            style={{ ...secondaryBtnStyle, color: THEME.primary, borderColor: THEME.primary }}>
-                            Maktab ichiga kirib yaratish / tahrirlash ➔
+                            style={{ ...secondaryBtnStyle, color: THEME.primary, borderColor: THEME.primary, fontWeight: 700 }}>
+                            Maktab Dashbordiga Kirish ➔
                           </button>
                         </div>
 
-                        {schoolDbStudents.length === 0 ? (
-                          <div style={{ padding: 20, textAlign: 'center', color: THEME.textMuted, fontSize: 12.5 }}>
-                            Ushbu maktab bazasida hozircha o‘quvchilar yaratilmagan. Maktab dashbordiga kirib birinchi sinf va o‘quvchini yaratishingiz mumkin.
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                          <div style={{ padding: '12px 14px', borderRadius: 14, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
+                            <div style={{ fontSize: 11, color: THEME.textMuted }}>Direktor Login va Paroli</div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: THEME.textDark, marginTop: 3 }}>
+                              <code>{currentSelectedSchool.username}</code> / <code>{currentSelectedSchool.password}</code>
+                            </div>
+                            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Direktor: {currentSelectedSchool.director}</div>
                           </div>
-                        ) : (
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
-                            <thead>
-                              <tr style={{ borderBottom: `1px solid ${THEME.border}`, color: THEME.textMuted }}>
-                                <th style={{ padding: '8px 10px' }}>O‘quvchi F.I.Sh.</th>
-                                <th style={{ padding: '8px 10px' }}>Sinf</th>
-                                <th style={{ padding: '8px 10px' }}>Kirish ID</th>
-                                <th style={{ padding: '8px 10px' }}>Kim Tomonidan Yaratilgan</th>
-                                <th style={{ padding: '8px 10px' }}>Yaratilgan Vaqt</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {schoolDbStudents.slice(0, 6).map(st => (
-                                <tr key={st.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
-                                  <td style={{ padding: '9px 10px', fontWeight: 700, color: THEME.textDark }}>{st.last_name} {st.first_name}</td>
-                                  <td style={{ padding: '9px 10px' }}>
-                                    <span style={{ padding: '2px 8px', borderRadius: 6, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 700 }}>
-                                      {st.class_name || 'Guruhsiz'}
-                                    </span>
-                                  </td>
-                                  <td style={{ padding: '9px 10px', fontFamily: 'monospace', fontWeight: 700 }}>{st.student_id}</td>
-                                  <td style={{ padding: '9px 10px', fontWeight: 600, color: THEME.textDark }}>{st.created_by || 'Maktab Direktori'}</td>
-                                  <td style={{ padding: '9px 10px', color: THEME.textMuted }}>{st.date_joined}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        )}
+
+                          <div style={{ padding: '12px 14px', borderRadius: 14, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
+                            <div style={{ fontSize: 11, color: THEME.textMuted }}>Xaritadagi Joylashuv & Radius</div>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: THEME.textDark, marginTop: 3 }}>
+                              {currentSelectedSchool.is_location_set !== false ? (
+                                <span style={{ color: THEME.green }}>📍 Belgilangan ({currentSelectedSchool.radius_meters || 150} metr)</span>
+                              ) : (
+                                <span style={{ color: '#EF4444' }}>⚠️ Belgilanmagan</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>{currentSelectedSchool.district}</div>
+                          </div>
+
+                          <div style={{ padding: '12px 14px', borderRadius: 14, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
+                            <div style={{ fontSize: 11, color: THEME.textMuted }}>Obuna Tarifi & Status</div>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: THEME.primary, marginTop: 3 }}>
+                              {currentSelectedSchool.plan || 'Standart'}
+                            </div>
+                            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Holati: {currentSelectedSchool.status === 'ACTIVE' ? 'Faol ✅' : currentSelectedSchool.status}</div>
+                          </div>
+
+                          <div style={{ padding: '12px 14px', borderRadius: 14, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
+                            <div style={{ fontSize: 11, color: THEME.textMuted }}>Faol Tizim Modullari</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: THEME.green, marginTop: 4 }}>
+                              ✅ Face ID • ✅ 25s QR • ✅ TG Bot
+                            </div>
+                            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Baza: 🔒 Izolyatsiyalangan #{currentSelectedSchool.id}</div>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Cheklovlar va Bloklash */}
@@ -1598,57 +1765,118 @@ export default function SuperAdminDashboardView({
               </div>
 
               <div className="sa-card" style={cardBoxStyle}>
-                <div style={{ marginBottom: 16 }}>
-                  <h3 style={sectionTitleStyle}>Tarif Rejalari Konstruktori</h3>
-                  <p style={sectionSubStyle}>Maktab paketlari va o‘quvchi boshiga oylik limitlar sozlamasi</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h3 style={sectionTitleStyle}>Tarif Rejalari Konstruktori</h3>
+                    <p style={sectionSubStyle}>Maktab paketlari, modul ruxsatlari, oylik narxlar va xotira limitlarini to‘liq sozlash</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      className="sa-btn"
+                      onClick={handleResetDefaultTiers}
+                      style={{ ...secondaryBtnStyle, fontSize: 12 }}
+                      title="Barcha tariflarni standart boshlang'ich holatiga qaytarish">
+                      <RefreshCw size={13} /> Dastlabki Holatga Qaytarish
+                    </button>
+                    <button
+                      className="sa-btn"
+                      onClick={handleOpenCreateTier}
+                      style={{ ...primaryBtnStyle, fontSize: 12 }}>
+                      <Plus size={15} /> Yangi Tarif Qo‘shish
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
-                  {pricingTiers.map(tier => (
-                    <div
-                      key={tier.id}
-                      className="sa-metric-card"
-                      style={{
-                        padding: 22,
-                        borderRadius: 24,
-                        border: `1.5px solid ${tier.popular ? THEME.primary : THEME.border}`,
-                        backgroundColor: tier.popular ? '#FCFBFF' : '#FFFFFF',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 12,
-                      }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 800, fontSize: 16, color: tier.color }}>{tier.name}</span>
-                        {tier.popular && <span style={pillBadgeStyle}>Eng Ommabop</span>}
-                      </div>
-                      <div style={{ fontSize: 21, fontWeight: 800, color: THEME.textDark }}>{tier.pricePerMonth}</div>
-                      <div style={{ fontSize: 12, color: THEME.textMuted }}>Yoki: <b>{tier.perStudent}</b></div>
-                      <div style={{ padding: 13, borderRadius: 16, backgroundColor: '#F8F9FE', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div>👥 Maksimal o‘quvchilar: <b>{tier.maxStudents} nafar</b></div>
-                        <div>🏫 Xonalar sig‘imi: <b>{tier.maxRooms} ta</b></div>
-                        <div>💾 Cloud Xotira: <b>{tier.storageGb} GB S3</b></div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-                        {tier.features.map((f, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <CheckCircle2 size={14} color={THEME.green} /> {f}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 18 }}>
+                  {pricingTiers.map(tier => {
+                    const activeModulesCount = tier.modules ? Object.values(tier.modules).filter(Boolean).length : 0;
+                    return (
+                      <div
+                        key={tier.id}
+                        className="sa-metric-card"
+                        style={{
+                          padding: 22,
+                          borderRadius: 24,
+                          border: `1.5px solid ${tier.popular ? tier.color || THEME.primary : THEME.border}`,
+                          backgroundColor: tier.popular ? '#FCFBFF' : '#FFFFFF',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 14,
+                          position: 'relative',
+                          boxShadow: tier.popular ? '0 12px 30px -8px rgba(108, 92, 231, 0.18)' : 'none',
+                        }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 900, fontSize: 17, color: tier.color || THEME.primary }}>
+                            {tier.name}
+                          </span>
+                          {tier.popular && <span style={pillBadgeStyle}>⭐ Eng Ommabop</span>}
+                        </div>
+
+                        <div>
+                          <div style={{ fontSize: 22, fontWeight: 900, color: THEME.textDark }}>
+                            {tier.pricePerMonth}
                           </div>
-                        ))}
+                          <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
+                            Yoki: <b>{tier.perStudent}</b>
+                          </div>
+                        </div>
+
+                        {/* Limitlar */}
+                        <div style={{ padding: 13, borderRadius: 16, backgroundColor: '#F8F9FE', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <div>👥 Maksimal o‘quvchilar: <b>{tier.maxStudents} nafar</b></div>
+                          <div>🏫 Xonalar sig‘imi: <b>{tier.maxRooms} ta</b></div>
+                          <div>💾 Cloud Xotira: <b>{tier.storageGb} GB S3</b></div>
+                        </div>
+
+                        {/* Modullar piktogrammalari */}
+                        {tier.modules && (
+                          <div style={{ padding: '10px 12px', borderRadius: 14, backgroundColor: '#F1F5F9', display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textMuted, width: '100%', marginBottom: 2 }}>
+                              Yoqilgan tizim modullari ({activeModulesCount} ta):
+                            </span>
+                            {tier.modules.face_id && <span style={tierBadgeStyle}>🧠 Face ID</span>}
+                            {tier.modules.dynamic_qr && <span style={tierBadgeStyle}>📱 25s QR</span>}
+                            {tier.modules.telegram_bot && <span style={tierBadgeStyle}>🤖 TG Bot</span>}
+                            {tier.modules.turnstile_api && <span style={tierBadgeStyle}>🚪 Turniket</span>}
+                            {tier.modules.anti_spoofing && <span style={tierBadgeStyle}>🛡️ Anti-Spoof</span>}
+                            {tier.modules.sms_alerts && <span style={tierBadgeStyle}>📩 SMS</span>}
+                            {tier.modules.journal_matrix && <span style={tierBadgeStyle}>📊 Jurnal</span>}
+                            {tier.modules.gps_geofence && <span style={tierBadgeStyle}>📍 Geometka</span>}
+                            {tier.modules.vip_support && <span style={tierBadgeStyle}>⚡ VIP SLA</span>}
+                          </div>
+                        )}
+
+                        {/* Imkoniyatlar ro'yxati */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, flex: 1 }}>
+                          {(tier.features || []).map((f, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, color: THEME.textDark }}>
+                              <CheckCircle2 size={14} color={THEME.green} style={{ flexShrink: 0 }} />
+                              <span>{f}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Pastki boshqaruv tugmalari */}
+                        <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 10, borderTop: `1px solid ${THEME.border}` }}>
+                          <button
+                            className="sa-btn"
+                            onClick={() => handleOpenEditTier(tier)}
+                            style={{ ...primaryBtnStyle, flex: 1, justifyContent: 'center', fontSize: 12, padding: '9px 12px', background: tier.color ? `linear-gradient(135deg, ${tier.color} 0%, #4338CA 100%)` : THEME.gradient }}>
+                            <Edit size={13} /> To‘liq Sozlash
+                          </button>
+                          {pricingTiers.length > 1 && (
+                            <button
+                              className="sa-btn"
+                              onClick={() => handleDeleteTier(tier.id)}
+                              title="Tarifni o‘chirish"
+                              style={{ ...secondaryBtnStyle, color: '#EF4444', borderColor: '#FCA5A5', padding: '9px 12px' }}>
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        className="sa-btn"
-                        onClick={() => {
-                          const nextPrice = window.prompt(`"${tier.name}" uchun yangi oylik narxni kiriting:`, tier.pricePerMonth);
-                          if (nextPrice) {
-                            setPricingTiers(pricingTiers.map(t => t.id === tier.id ? { ...t, pricePerMonth: nextPrice } : t));
-                            showToast(`💳 "${tier.name}" tarif narxi yangilandi!`);
-                          }
-                        }}
-                        style={{ ...secondaryBtnStyle, marginTop: 'auto', justifyContent: 'center' }}>
-                        <Edit size={13} /> Tarif Narxini O‘zgartirish
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2260,6 +2488,17 @@ export default function SuperAdminDashboardView({
           }}
         />
       )}
+
+      {showTierModal && editingTier && (
+        <TariffPlanModal
+          tier={editingTier}
+          onClose={() => {
+            setShowTierModal(false);
+            setEditingTier(null);
+          }}
+          onSave={handleSaveTier}
+        />
+      )}
     </div>
   );
 }
@@ -2585,6 +2824,537 @@ function NewInvoiceModal({ schoolsList, onClose, onCreate }) {
   );
 }
 
+function TariffPlanModal({ tier, onClose, onSave }) {
+  const [form, setForm] = useState(() => ({
+    id: tier.id || 'tier_' + Date.now(),
+    name: tier.name || '',
+    pricePerMonth: tier.pricePerMonth || '',
+    perStudent: tier.perStudent || '',
+    maxStudents: tier.maxStudents || 1000,
+    maxRooms: tier.maxRooms || 50,
+    storageGb: tier.storageGb || 100,
+    color: tier.color || '#6C5CE7',
+    popular: Boolean(tier.popular),
+    features: Array.isArray(tier.features) ? [...tier.features] : [],
+    modules: {
+      face_id: false,
+      dynamic_qr: true,
+      telegram_bot: false,
+      turnstile_api: false,
+      anti_spoofing: false,
+      sms_alerts: false,
+      journal_matrix: true,
+      gps_geofence: true,
+      vip_support: false,
+      ...(tier.modules || {}),
+    },
+  }));
+
+  const [newFeatureText, setNewFeatureText] = useState('');
+
+  const PRESET_COLORS = [
+    { label: 'Binafsha', color: '#6C5CE7' },
+    { label: 'Moviy', color: '#0EA5E9' },
+    { label: 'Yashil', color: '#10B981' },
+    { label: 'To‘q sariq', color: '#F59E0B' },
+    { label: 'Pushti', color: '#EC4899' },
+    { label: 'Qizil', color: '#EF4444' },
+    { label: 'Indigo', color: '#4F46E5' },
+    { label: 'Zumrad', color: '#059669' },
+  ];
+
+  const MODULE_DEFINITIONS = [
+    {
+      key: 'face_id',
+      icon: '🧠',
+      title: 'Face ID Biometrik Identifikatsiya',
+      desc: '3x4 fotosurat orqali yuzni tanish va eshik/turniketlarda avtomatik ochish',
+      badge: 'AI Vision v2.4',
+    },
+    {
+      key: 'dynamic_qr',
+      icon: '📱',
+      title: '25-soniyalik Dinamik QR Kod Davomat',
+      desc: 'Har 25 soniyada yangilanuvchi xavfsiz QR orqali darsga kirishni qayd etish',
+      badge: 'Anti-Clone',
+    },
+    {
+      key: 'telegram_bot',
+      icon: '🤖',
+      title: 'Ota-onalar Avtomat Telegram Boti',
+      desc: 'Farzandi maktabga kirgani va chiqqani haqida oniy xabarnoma yuborish',
+      badge: 'Telegram API',
+    },
+    {
+      key: 'turnstile_api',
+      icon: '🚪',
+      title: 'Turniket va Darvoza Apparat Integratsiyasi',
+      desc: 'Hikvision, Dahua va ZKTeco kontrollerlari bilan to‘g‘ridan-to‘g‘ri apparat aloqasi',
+      badge: 'Hardware SDK',
+    },
+    {
+      key: 'anti_spoofing',
+      icon: '🛡️',
+      title: 'Anti-Spoofing (Liveness Detection)',
+      desc: 'Yuz o‘rniga telefon ekrani yoki qog‘oz rasm tutilganda darhol soxtalashtirishni aniqlash',
+      badge: 'Security v3',
+    },
+    {
+      key: 'sms_alerts',
+      icon: '📩',
+      title: 'SMS Xabarnomalar (Eskiz.uz)',
+      desc: 'Telegrami yo‘q ota-onalar yoki favqulodda e’lonlar uchun to‘g‘ridan-to‘g‘ri SMS shlyuzi',
+      badge: 'SMS Gateway',
+    },
+    {
+      key: 'journal_matrix',
+      icon: '📊',
+      title: 'Elektron Jurnal va Dars Matritsasi',
+      desc: 'Kundalik baholash, choraklik hisobotlar va dars jadvali matritsasini to‘liq yuritish',
+      badge: 'Jurnal Core',
+    },
+    {
+      key: 'gps_geofence',
+      icon: '📍',
+      title: 'GPS Geofence (Xaritadagi Metka)',
+      desc: 'O‘qituvchi va xodimlar faqat belgilangan radius ichida davomat qila olishi',
+      badge: 'Geolocation',
+    },
+    {
+      key: 'vip_support',
+      icon: '⚡',
+      title: '24/7 Shaxsiy VIP SLA Texnik Yordam',
+      desc: 'Alohida ajratilgan server quvvati, kunlik avtomatik backup va shaxsiy muhandis',
+      badge: 'VIP SLA',
+    },
+  ];
+
+  const handleToggleModule = (key) => {
+    setForm(prev => ({
+      ...prev,
+      modules: {
+        ...prev.modules,
+        [key]: !prev.modules[key],
+      },
+    }));
+  };
+
+  const handleAddFeature = (e) => {
+    e.preventDefault();
+    const txt = newFeatureText.trim();
+    if (!txt) return;
+    if (form.features.includes(txt)) {
+      setNewFeatureText('');
+      return;
+    }
+    setForm(prev => ({
+      ...prev,
+      features: [...prev.features, txt],
+    }));
+    setNewFeatureText('');
+  };
+
+  const handleRemoveFeature = (idx) => {
+    setForm(prev => ({
+      ...prev,
+      features: prev.features.filter((_, i) => i !== idx),
+    }));
+  };
+
+  const activeModulesCount = Object.values(form.modules).filter(Boolean).length;
+
+  return (
+    <div style={modalBackdropStyle}>
+      <div
+        className="sa-modal-box"
+        style={{
+          backgroundColor: '#FFFFFF',
+          borderRadius: 28,
+          width: '100%',
+          maxWidth: 740,
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+          overflow: 'hidden',
+        }}>
+        {/* Modal Sarlavhasi */}
+        <div style={{
+          padding: '20px 26px',
+          borderBottom: `1px solid ${THEME.border}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#FCFBFF',
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                backgroundColor: form.color || THEME.primary,
+                boxShadow: `0 0 10px ${form.color || THEME.primary}`,
+              }} />
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: THEME.textDark }}>
+                {form.name ? `🛠️ "${form.name}" Tarifini To‘liq Sozlash` : '✨ Yangi Tarif Rejasi'}
+              </h3>
+            </div>
+            <p style={{ margin: '4px 0 0 0', fontSize: 12, color: THEME.textMuted }}>
+              Narxlar, texnik limitlar va maktablarga beriladigan modullarni boshqaring ({activeModulesCount}/9 modul faol)
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              border: 'none',
+              background: '#F1F5F9',
+              borderRadius: 12,
+              width: 36,
+              height: 36,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              color: THEME.textMuted,
+            }}>
+            ✕
+          </button>
+        </div>
+
+        {/* Scrollable Form Body */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!form.name.trim()) {
+              alert("Iltimos, tarif nomini kiriting!");
+              return;
+            }
+            onSave(form);
+          }}
+          style={{
+            padding: '22px 26px',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 20,
+          }}>
+          {/* 1. Asosiy identifikatsiya va vizual dizayn */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: THEME.textDark, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              1. Tarif Nomi va Brend Rangi
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Tarif Rejasi Nomi *</label>
+                <input
+                  required
+                  placeholder="Masalan: Standart, Litsenziyali Pro, VIP Maktab"
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  style={inputFieldStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Ommaboplik Belgisi</label>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginTop: 6,
+                  padding: '9px 12px',
+                  borderRadius: 12,
+                  backgroundColor: form.popular ? THEME.primaryLight : '#F8FAFC',
+                  border: `1px solid ${form.popular ? THEME.primary : THEME.border}`,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: form.popular ? THEME.primary : THEME.textDark,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={form.popular}
+                    onChange={e => setForm({ ...form, popular: e.target.checked })}
+                    style={{ cursor: 'pointer', width: 16, height: 16 }}
+                  />
+                  ⭐ Eng Ommabop
+                </label>
+              </div>
+            </div>
+
+            {/* Ranglar palitrasi */}
+            <div>
+              <label style={labelStyle}>Tarif Kartasi Rangi</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6, flexWrap: 'wrap' }}>
+                {PRESET_COLORS.map(p => (
+                  <button
+                    key={p.color}
+                    type="button"
+                    onClick={() => setForm({ ...form, color: p.color })}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '5px 10px',
+                      borderRadius: 10,
+                      border: form.color === p.color ? `2px solid ${p.color}` : `1px solid ${THEME.border}`,
+                      backgroundColor: form.color === p.color ? `${p.color}15` : '#FFFFFF',
+                      cursor: 'pointer',
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      color: THEME.textDark,
+                    }}>
+                    <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: p.color }} />
+                    {p.label}
+                  </button>
+                ))}
+                <input
+                  type="color"
+                  value={form.color || '#6C5CE7'}
+                  onChange={e => setForm({ ...form, color: e.target.value })}
+                  style={{ width: 34, height: 32, borderRadius: 8, border: `1px solid ${THEME.border}`, cursor: 'pointer', padding: 2 }}
+                  title="Boshqa rang tanlash"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Narxlar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: THEME.textDark, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              2. Narxlar va To‘lov Modeli
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Oylik Obuna To‘lovi *</label>
+                <input
+                  required
+                  placeholder="2 500 000 so‘m / oy"
+                  value={form.pricePerMonth}
+                  onChange={e => setForm({ ...form, pricePerMonth: e.target.value })}
+                  style={inputFieldStyle}
+                />
+                <span style={{ fontSize: 11, color: THEME.textMuted }}>Katta shriftda asosiy oylik to‘lov bo‘lib ko‘rinadi</span>
+              </div>
+              <div>
+                <label style={labelStyle}>Har Bir O‘quvchi Uchun Narx *</label>
+                <input
+                  required
+                  placeholder="5 000 so‘m / o‘quvchi"
+                  value={form.perStudent}
+                  onChange={e => setForm({ ...form, perStudent: e.target.value })}
+                  style={inputFieldStyle}
+                />
+                <span style={{ fontSize: 11, color: THEME.textMuted }}>O‘quvchilar soniga nisbatan tarif qiymati</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Tizim Cheklovlari (Kvotalar) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: THEME.textDark, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              3. Tizim Cheklovlari (Kvotalar)
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Maks. O‘quvchilar Soni</label>
+                <input
+                  type="number"
+                  min="50"
+                  max="50000"
+                  value={form.maxStudents}
+                  onChange={e => setForm({ ...form, maxStudents: Number(e.target.value) || 0 })}
+                  style={inputFieldStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Xonalar Sig‘imi (Sinf/Xona)</label>
+                <input
+                  type="number"
+                  min="5"
+                  max="1000"
+                  value={form.maxRooms}
+                  onChange={e => setForm({ ...form, maxRooms: Number(e.target.value) || 0 })}
+                  style={inputFieldStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Cloud S3 Xotira (GB)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="5000"
+                  value={form.storageGb}
+                  onChange={e => setForm({ ...form, storageGb: Number(e.target.value) || 0 })}
+                  style={inputFieldStyle}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Tizim Modullari va Ruxsatlar (NIMALARNI QILA OLISHI) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: 12.5, fontWeight: 800, color: THEME.textDark, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  4. Ruxsat Berilgan Modullar (Nimalarni qila olishi)
+                </span>
+                <p style={{ margin: '2px 0 0 0', fontSize: 11.5, color: THEME.textMuted }}>
+                  Ushbu tarifdagi maktablar quyidagi modullardan foydalanishi mumkin bo‘ladi:
+                </p>
+              </div>
+              <span style={{ padding: '3px 9px', borderRadius: 10, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800, fontSize: 11 }}>
+                {activeModulesCount} / {MODULE_DEFINITIONS.length} Faol
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {MODULE_DEFINITIONS.map(mod => {
+                const isEnabled = Boolean(form.modules[mod.key]);
+                return (
+                  <div
+                    key={mod.key}
+                    onClick={() => handleToggleModule(mod.key)}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: 16,
+                      border: `1.5px solid ${isEnabled ? form.color || THEME.primary : THEME.border}`,
+                      backgroundColor: isEnabled ? `${form.color || THEME.primary}0D` : '#FAFAFA',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                    }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>{mod.icon}</span>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark }}>
+                            {mod.title}
+                          </div>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: THEME.textMuted }}>
+                            {mod.badge}
+                          </span>
+                        </div>
+                      </div>
+                      <span style={{
+                        padding: '3px 8px',
+                        borderRadius: 8,
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        backgroundColor: isEnabled ? (form.color || THEME.primary) : '#E2E8F0',
+                        color: isEnabled ? '#FFFFFF' : '#64748B',
+                        flexShrink: 0,
+                      }}>
+                        {isEnabled ? 'YOQILGAN ✅' : 'O‘CHIQ'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, lineHeight: 1.35 }}>
+                      {mod.desc}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 5. Mijozga Ko'rsatiladigan Imkoniyatlar (Bullet points) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: THEME.textDark, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              5. Tarif Xususiyatlari (Ro‘yxatdagi bandlar)
+            </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {form.features.map((feat, idx) => (
+                <span
+                  key={idx}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 12,
+                    backgroundColor: '#F1F5F9',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: THEME.textDark,
+                  }}>
+                  <Check size={13} color={THEME.green} />
+                  {feat}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFeature(idx)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#94A3B8',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      padding: 0,
+                      marginLeft: 2,
+                    }}>
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                placeholder="Yangi xususiyat matnini yozing..."
+                value={newFeatureText}
+                onChange={e => setNewFeatureText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddFeature(e);
+                  }
+                }}
+                style={{ ...inputFieldStyle, flex: 1, marginTop: 0 }}
+              />
+              <button
+                type="button"
+                onClick={handleAddFeature}
+                style={{ ...secondaryBtnStyle, padding: '9px 16px', fontWeight: 700 }}>
+                + Qo‘shish
+              </button>
+            </div>
+          </div>
+
+          {/* Modal Tugmalari */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 12,
+            marginTop: 6,
+            paddingTop: 16,
+            borderTop: `1px solid ${THEME.border}`,
+          }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ ...secondaryBtnStyle, padding: '11px 20px', justifyContent: 'center' }}>
+              Bekor qilish
+            </button>
+            <button
+              type="submit"
+              style={{
+                ...primaryBtnStyle,
+                padding: '11px 26px',
+                justifyContent: 'center',
+                background: form.color ? `linear-gradient(135deg, ${form.color} 0%, #4338CA 100%)` : THEME.gradient,
+              }}>
+              ✅ Tarif Rejasini Saqlash
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function SidebarNavBtn({ active, onClick, icon, label, badge }) {
   return (
     <button
@@ -2713,6 +3483,19 @@ const pillBadgeStyle = {
   color: THEME.primary,
   fontWeight: 700,
   fontSize: 11,
+};
+
+const tierBadgeStyle = {
+  padding: '3px 8px',
+  borderRadius: 8,
+  backgroundColor: '#FFFFFF',
+  color: THEME.textDark,
+  border: `1px solid ${THEME.border}`,
+  fontWeight: 700,
+  fontSize: 10.5,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 3,
 };
 
 const primaryBtnStyle = {

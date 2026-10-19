@@ -3,7 +3,8 @@ from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView,
                     ScanAttendanceView, TodayLessonsView, LessonRoomView, 
                     SubmitHomeworkView, TeacherLiveLessonSummaryView, AddGradeView, 
                     TeacherManagePasswordsView, GradesListView, FinishAttendanceView, CompleteLessonView,
-                    SchoolClassesListView, StudentManagementView, TeacherManagementView, SchoolConfigView)
+                    SchoolClassesListView, StudentManagementView, TeacherManagementView, SchoolConfigView,
+                    ClassScheduleManagementView, StudentDashboardSummaryView)
 
 urlpatterns = [
     path('auth/passport-login/', PassportLoginView.as_view(), name='passport_login'),
@@ -11,6 +12,7 @@ urlpatterns = [
     path('qr/generate/', GenerateDynamicQRView.as_view(), name='generate_qr'),
     path('attendance/scan/', ScanAttendanceView.as_view(), name='scan_attendance'),
     path('lessons/today/', TodayLessonsView.as_view(), name='today_lessons'),
+    path('student/dashboard-summary/', StudentDashboardSummaryView.as_view(), name='student_dashboard_summary'),
     path('lessons/<int:lesson_id>/room/', LessonRoomView.as_view(), name='lesson_room'),
     path('lessons/<int:lesson_id>/finish-attendance/', FinishAttendanceView.as_view(), name='finish_attendance'),
     path('lessons/<int:lesson_id>/complete/', CompleteLessonView.as_view(), name='complete_lesson'),
@@ -26,4 +28,7 @@ urlpatterns = [
     path('teachers/', TeacherManagementView.as_view(), name='teacher_management'),
     path('teachers/<int:pk>/', TeacherManagementView.as_view(), name='teacher_detail_management'),
     path('school-config/', SchoolConfigView.as_view(), name='school_config'),
+    path('schedule/', ClassScheduleManagementView.as_view(), name='schedule_management'),
+    path('schedule/<int:pk>/', ClassScheduleManagementView.as_view(), name='schedule_detail_management'),
 ]
+

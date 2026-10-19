@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 import secrets
+import datetime
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -80,6 +81,13 @@ class SchoolConfig(models.Model):
     location_address = models.CharField(max_length=255, blank=True, default='')
     radius_meters = models.IntegerField(default=150)
 
+    # Dars vaqti va qo'ng'iroqlar jadvali konfiguratsiyasi (Daqiqalarda)
+    lesson_duration_minutes = models.IntegerField(default=45) # Masalan: 45, 60, 80, 90 yoki erkin daqiqa
+    break_duration_minutes = models.IntegerField(default=10) # Tanaffus: 5, 10, 15 daqiqa
+    first_lesson_start_time = models.CharField(max_length=10, default="08:30") # Birinchi dars boshlanish vaqti
+    big_break_after_lesson = models.IntegerField(default=0) # 0 = Yo'q, 2 = 2-darsdan keyin, 3 = 3-darsdan keyin
+    big_break_duration_minutes = models.IntegerField(default=20) # Katta tanaffus / tushlik
+
     DEFAULT_SCHOOLS = {
         '1': {
             'school_name': "1-sonli Ixtisoslashtirilgan Maktab-Kollej",
@@ -90,6 +98,9 @@ class SchoolConfig(models.Model):
             'group_term': 'SINF',
             'lesson_term': 'DARS',
             'student_term': 'OQUVCHI',
+            'lesson_duration_minutes': 45,
+            'break_duration_minutes': 10,
+            'first_lesson_start_time': "08:30",
         },
         '2': {
             'school_name': "45-sonli Umumta'lim Maktabi",
@@ -100,6 +111,9 @@ class SchoolConfig(models.Model):
             'group_term': 'SINF',
             'lesson_term': 'DARS',
             'student_term': 'OQUVCHI',
+            'lesson_duration_minutes': 45,
+            'break_duration_minutes': 10,
+            'first_lesson_start_time': "08:30",
         },
         '3': {
             'school_name': "Al-Xorazmiy nomidagi IT Maktabi",
@@ -110,6 +124,9 @@ class SchoolConfig(models.Model):
             'group_term': 'GURUH',
             'lesson_term': 'PARA',
             'student_term': 'OQUVCHI',
+            'lesson_duration_minutes': 80,
+            'break_duration_minutes': 10,
+            'first_lesson_start_time': "08:30",
         },
         '4': {
             'school_name': "Prezident Maktabi (Toshkent)",
@@ -120,6 +137,9 @@ class SchoolConfig(models.Model):
             'group_term': 'SINF',
             'lesson_term': 'DARS',
             'student_term': 'OQUVCHI',
+            'lesson_duration_minutes': 45,
+            'break_duration_minutes': 10,
+            'first_lesson_start_time': "08:30",
         },
     }
 
@@ -145,8 +165,85 @@ class SchoolConfig(models.Model):
             group_term=preset.get('group_term', 'SINF'),
             lesson_term=preset.get('lesson_term', 'DARS'),
             student_term=preset.get('student_term', 'OQUVCHI'),
+            lesson_duration_minutes=preset.get('lesson_duration_minutes', 45),
+            break_duration_minutes=preset.get('break_duration_minutes', 10),
+            first_lesson_start_time=preset.get('first_lesson_start_time', "08:30"),
         )
         return obj
+
+    def calculate_lesson_slots(self, total_slots=7):
+        """
+        Dars vaqti (lesson_duration_minutes), tanaffus (break_duration_minutes),
+        katta tanaffus va birinchi dars boshlanish vaqti (first_lesson_start_time)
+        asosida barcha para/darslarning aniq boshlanish va tugash vaqtlarini hisoblab beradi.
+        """
+        duration = max(15, min(240, int(self.lesson_duration_minutes or 45)))
+        break_min = max(0, min(120, int(self.break_duration_minutes or 10)))
+        big_break_after = int(self.big_break_after_lesson or 0)
+        big_break_min = max(break_min, min(120, int(self.big_break_duration_minutes or 20)))
+        
+        start_str = str(self.first_lesson_start_time or "08:30").strip()
+        try:
+            parts = start_str.split(':')
+            cur_hour = int(parts[0])
+            cur_min = int(parts[1])
+        except Exception:
+            cur_hour, cur_min = 8, 30
+
+        slots = []
+        current_dt = datetime.datetime(2026, 1, 1, cur_hour, cur_min)
+
+        for order in range(1, total_slots + 1):
+            end_dt = current_dt + datetime.timedelta(minutes=duration)
+            slots.append({
+                'order': order,
+                'start': current_dt.strftime("%H:%M"),
+                'end': end_dt.strftime("%H:%M"),
+                'duration_minutes': duration,
+            })
+            applied_break = big_break_min if (big_break_after > 0 and order == big_break_after) else break_min
+            current_dt = end_dt + datetime.timedelta(minutes=applied_break)
+
+        return slots
+
+    def apply_timing_to_schedules(self):
+        """
+        Ushbu maktabdagi barcha sinflar/guruhlarning ClassSchedule yozuvlariga
+        yangilangan slot vaqtlarini tartib raqamiga (lesson_order) ko'ra avtomatik tatbiq qiladi.
+        Bugungi Lesson yozuvlarini ham sinxronlaydi.
+        """
+        slots = self.calculate_lesson_slots(10)
+        slot_map = {s['order']: s for s in slots}
+        
+        schedules = ClassSchedule.objects.filter(school_id=self.school_id)
+        updated_count = 0
+        for cs in schedules:
+            if cs.lesson_order in slot_map:
+                new_start = slot_map[cs.lesson_order]['start']
+                new_end = slot_map[cs.lesson_order]['end']
+                if cs.start_time != new_start or cs.end_time != new_end:
+                    cs.start_time = new_start
+                    cs.end_time = new_end
+                    cs.save(update_fields=['start_time', 'end_time'])
+                    updated_count += 1
+        
+        # Bugungi Lesson yozuvlarini ham yangilash
+        today = timezone.now().date()
+        today_schedules = schedules.filter(day_of_week=today.isoweekday())
+        for sc in today_schedules:
+            if sc.lesson_order in slot_map:
+                try:
+                    st = datetime.datetime.strptime(slot_map[sc.lesson_order]['start'], "%H:%M").time()
+                    et = datetime.datetime.strptime(slot_map[sc.lesson_order]['end'], "%H:%M").time()
+                    Lesson.objects.filter(
+                        school_class=sc.school_class,
+                        subject__name__iexact=sc.subject_name.strip(),
+                        date=today
+                    ).update(start_time=st, end_time=et)
+                except Exception:
+                    pass
+
+        return updated_count
 
     def format_group_name(self, raw_name):
         base = str(raw_name or '').strip()
@@ -183,6 +280,12 @@ class SchoolConfig(models.Model):
             'location_address': self.location_address or self.address or '',
             'radius_meters': self.radius_meters or 150,
             'is_location_set': bool(self.latitude is not None and self.longitude is not None),
+            'lesson_duration_minutes': self.lesson_duration_minutes or 45,
+            'break_duration_minutes': self.break_duration_minutes or 10,
+            'first_lesson_start_time': self.first_lesson_start_time or "08:30",
+            'big_break_after_lesson': self.big_break_after_lesson or 0,
+            'big_break_duration_minutes': self.big_break_duration_minutes or 20,
+            'lesson_slots': self.calculate_lesson_slots(7),
             'updated_by': self.updated_by,
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M') if self.updated_at else '',
             'labels': {
@@ -320,3 +423,34 @@ class Grade(models.Model):
 
     def __str__(self):
         return f"{self.student.get_full_name()} - {self.score} ({self.grade_type})"
+
+
+class ClassSchedule(models.Model):
+    DAY_CHOICES = (
+        (1, 'Dushanba'),
+        (2, 'Seshanba'),
+        (3, 'Chorshanba'),
+        (4, 'Payshanba'),
+        (5, 'Juma'),
+        (6, 'Shanba'),
+    )
+    school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='schedules')
+    school_id = models.CharField(max_length=64, db_index=True, default='1')
+    day_of_week = models.IntegerField(choices=DAY_CHOICES, default=1)
+    lesson_order = models.IntegerField(default=1)
+    subject_name = models.CharField(max_length=150)
+    teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='teaching_schedules')
+    teacher_name = models.CharField(max_length=150, blank=True, default="")
+    room_number = models.CharField(max_length=50, blank=True, default="")
+    start_time = models.CharField(max_length=10, default="08:30")
+    end_time = models.CharField(max_length=10, default="09:15")
+    topic = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['day_of_week', 'lesson_order', 'start_time']
+
+    def __str__(self):
+        return f"{self.school_class.name} | {self.get_day_of_week_display()} {self.lesson_order}-dars: {self.subject_name}"
+

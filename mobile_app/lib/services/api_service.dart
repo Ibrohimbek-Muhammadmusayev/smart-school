@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -136,6 +135,40 @@ class ApiService {
       }
     }
     return data;
+  }
+
+  // 1.2 O'quvchi bosh sahifasi (Bugungi darslar, real vaqt statusi, statistika, haftalik jadval)
+  static Future<Map<String, dynamic>?> getStudentDashboardSummary() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/student/dashboard-summary/'), headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data is Map<String, dynamic>) {
+          if (data['school_config'] != null) {
+            schoolConfig = Map<String, dynamic>.from(data['school_config']);
+          }
+          return data;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // Haftalik dars jadvali
+  static Future<List<dynamic>> getWeeklySchedule({int? classId}) async {
+    try {
+      final summary = await getStudentDashboardSummary();
+      if (summary != null && summary['weekly_schedules'] != null) {
+        return summary['weekly_schedules'] as List<dynamic>;
+      }
+      final url = classId != null ? '$baseUrl/schedule/?class_id=$classId' : '$baseUrl/schedule/';
+      final response = await http.get(Uri.parse(url), headers: headers);
+      if (response.statusCode == 200) {
+        final list = jsonDecode(utf8.decode(response.bodyBytes));
+        if (list is List) return list;
+      }
+    } catch (_) {}
+    return [];
   }
 
   // 1.2 Bugungi darslar
@@ -390,4 +423,13 @@ class ApiService {
     }
     return [];
   }
+
+  // 3.8 Tizimdan chiqish (Logout)
+  static void logout() {
+    accessToken = null;
+    refreshToken = null;
+    currentUser = null;
+    schoolConfig = null;
+  }
 }
+

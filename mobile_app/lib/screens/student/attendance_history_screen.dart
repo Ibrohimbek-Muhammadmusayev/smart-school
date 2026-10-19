@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 import '../../theme.dart';
 
 class AttendanceHistoryScreen extends StatefulWidget {
@@ -12,11 +13,23 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
   late TabController _tabController;
   String _selectedSemester = '1-semestr (Kuzgi)';
   String _selectedShift = '1-smena (08:30)';
+  List<dynamic> _weeklySchedules = [];
+  bool _loadingSchedule = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _fetchSchedule();
+  }
+
+  Future<void> _fetchSchedule() async {
+    setState(() => _loadingSchedule = true);
+    try {
+      final list = await ApiService.getWeeklySchedule();
+      if (mounted) setState(() => _weeklySchedules = list);
+    } catch (_) {}
+    if (mounted) setState(() => _loadingSchedule = false);
   }
 
   @override
@@ -195,7 +208,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: subjects.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (ctx, i) {
               final sub = subjects[i];
               final percent = sub['percent'] as int;
@@ -307,7 +320,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: turniketLogs.length,
-              separatorBuilder: (_, __) => const Divider(height: 20),
+              separatorBuilder: (context, index) => const Divider(height: 20),
               itemBuilder: (ctx, i) {
                 final log = turniketLogs[i];
                 return Row(
@@ -353,181 +366,213 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
   // 2.3. "Haftalik Jadval" Tabi (To‘liq reja)
   // =========================================================================
   Widget _buildWeeklyScheduleTab() {
-    final scheduleDays = [
-      {
-        "day": "Dushanba",
-        "date": "14-oktyabr",
-        "lessons": [
-          {"pair": "1-para (08:30 - 09:50)", "subject": "Oliy Matematika", "room": "302-auditoriya", "teacher": "Dots. Rahimov A.", "building": "1-o'quv binosi"},
-          {"pair": "2-para (10:00 - 11:20)", "subject": "Fizika (Amaliy)", "room": "204-lab", "teacher": "Prof. Saidov J.", "building": "2-laboratoriya binosi"},
-          {"pair": "3-para (11:40 - 13:00)", "subject": "Informatika & Python", "room": "105-kompyuter zali", "teacher": "Katta o'qit. Mirzayev B.", "building": "IT Hub"},
-        ]
-      },
-      {
-        "day": "Seshanba",
-        "date": "15-oktyabr",
-        "lessons": [
-          {"pair": "1-para (08:30 - 09:50)", "subject": "Ma'lumotlar Tuzilmasi", "room": "401-auditoriya", "teacher": "Dots. Xoliqov N.", "building": "1-o'quv binosi"},
-          {"pair": "2-para (10:00 - 11:20)", "subject": "Ingliz tili (IELTS prep)", "room": "210-xona", "teacher": "Senior Lecturer Smith J.", "building": "Til markazi"},
-        ]
-      },
-      {
-        "day": "Chorshanba",
-        "date": "16-oktyabr",
-        "lessons": [
-          {"pair": "1-para (08:30 - 09:50)", "subject": "Differensial Tenglamalar", "room": "305-auditoriya", "teacher": "Dots. Rahimov A.", "building": "1-o'quv binosi"},
-          {"pair": "2-para (10:00 - 11:20)", "subject": "Falsafa va Mantiq", "room": "Katta majlislar zali", "teacher": "Prof. Aliyev Sh.", "building": "Bosh bino"},
-          {"pair": "3-para (11:40 - 13:00)", "subject": "Jismoniy Tarbiya", "room": "Sport majmuasi", "teacher": "Murabbiy Qosimov T.", "building": "Stadion"},
-        ]
-      },
-    ];
+    if (_loadingSchedule) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Smena tanlagich va E'lon
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedShift,
-                      isExpanded: true,
-                      icon: const Icon(Icons.schedule_rounded, color: AppTheme.primary),
-                      items: ["1-smena (08:30)", "2-smena (13:30)"].map((e) {
-                        return DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)));
-                      }).toList(),
-                      onChanged: (v) => setState(() => _selectedShift = v!),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+    // Agar bazadan dars jadvali kelgan bo'lsa
+    final List<dynamic> daysList = _weeklySchedules.isNotEmpty
+        ? _weeklySchedules
+        : [
+            {"day_name": "Dushanba", "lessons": []},
+            {"day_name": "Seshanba", "lessons": []},
+            {"day_name": "Chorshanba", "lessons": []},
+            {"day_name": "Payshanba", "lessons": []},
+            {"day_name": "Juma", "lessons": []},
+            {"day_name": "Shanba", "lessons": []},
+          ];
 
-          // E'lon / Dars o'zgarishi kartasi
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF9E6),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.secondaryOrange.withValues(alpha: 0.3)),
-            ),
-            child: const Row(
+    return RefreshIndicator(
+      onRefresh: _fetchSchedule,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Smena tanlagich va E'lon
+            Row(
               children: [
-                Icon(Icons.campaign_rounded, color: AppTheme.secondaryOrange, size: 26),
-                SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Dars o'zgarishi haqida e'lon", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF996500))),
-                      SizedBox(height: 2),
-                      Text("Chorshanba kungi 2-para majlislar zalida ochiq ma'ruza shaklida o'tkaziladi.", style: TextStyle(fontSize: 11.5, color: Color(0xFF7A5200))),
-                    ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedShift,
+                        isExpanded: true,
+                        icon: const Icon(Icons.schedule_rounded, color: AppTheme.primary),
+                        items: ["1-smena (08:30)", "2-smena (13:30)"].map((e) {
+                          return DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)));
+                        }).toList(),
+                        onChanged: (v) => setState(() => _selectedShift = v!),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
-          // Kunlar bo'yicha paralar
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: scheduleDays.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 20),
-            itemBuilder: (ctx, i) {
-              final d = scheduleDays[i];
-              final lessons = d['lessons'] as List<Map<String, String>>;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // E'lon / Dars o'zgarishi kartasi
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF9E6),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.secondaryOrange.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text("${d['day']}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                      ),
-                      const SizedBox(width: 10),
-                      Text("${d['date']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMuted)),
-                    ],
+                  Icon(Icons.campaign_rounded, color: AppTheme.secondaryOrange, size: 26),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Dars jadvali to'g'ridan-to'g'ri maktab bazasidan sinxronlangan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF996500))),
+                        SizedBox(height: 2),
+                        Text("Ma'muriyat tomonidan kiritilgan barcha darslar va xonalar real vaqtda yangilanadi.", style: TextStyle(fontSize: 11.5, color: Color(0xFF7A5200))),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 10),
-
-                  ...lessons.map((les) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                les['pair']!,
-                                style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryLight,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(les['room']!, style: const TextStyle(color: AppTheme.primary, fontSize: 11, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            les['subject']!,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.person_outline, size: 13, color: AppTheme.textMuted),
-                              const SizedBox(width: 4),
-                              Text(les['teacher']!, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                              const Spacer(),
-                              const Icon(Icons.location_on_outlined, size: 13, color: AppTheme.textMuted),
-                              const SizedBox(width: 4),
-                              Text(les['building']!, style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
                 ],
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Kunlar bo'yicha paralar
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: daysList.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 20),
+              itemBuilder: (ctx, i) {
+                final d = daysList[i];
+                final dayTitle = d['day_name'] ?? 'Kun';
+                final lessons = (d['lessons'] as List?) ?? [];
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(dayTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          lessons.isNotEmpty ? "${lessons.length} ta ${ApiService.lessonTermPlural.toLowerCase()}" : "Dam olish",
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMuted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (lessons.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+                        ),
+                        child: const Text("Ushbu kunga darslar belgilanmagan", style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                      )
+                    else
+                      ...lessons.map((les) {
+                        final order = les['order'] ?? les['lesson_order'] ?? 1;
+                        final sTime = les['start_time'] ?? '';
+                        final eTime = les['end_time'] ?? '';
+                        final room = les['room_number'] ?? les['room'] ?? '101-xona';
+                        final subject = les['subject_name'] ?? 'Fan';
+                        final teacher = les['teacher_name'] ?? 'Ustoz';
+                        final topic = les['topic'] ?? '';
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "$order-${ApiService.lessonTermSingular.toLowerCase()} ($sTime - $eTime)",
+                                    style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryLight,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(room, style: const TextStyle(color: AppTheme.primary, fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                subject,
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                              ),
+                              if (topic.toString().trim().isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  topic,
+                                  style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted, fontStyle: FontStyle.italic),
+                                ),
+                              ],
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.person_outline, size: 13, color: AppTheme.textMuted),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      teacher, 
+                                      maxLines: 1, 
+                                      overflow: TextOverflow.ellipsis, 
+                                      style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
 }
+

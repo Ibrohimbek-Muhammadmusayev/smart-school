@@ -8,7 +8,7 @@ import {
   Sliders, Layers, Server, Database, LogOut, UserPlus, BookOpen,
   Calendar, CheckCircle, UserX, QrCode, GraduationCap, Clock,
   FolderOpen, EyeOff, Sparkles, Smartphone, ChevronDown, Check,
-  Edit, Trash2
+  Edit, Trash2, Copy, ZoomIn, ExternalLink
 } from 'lucide-react';
 import SuperAdminDashboardView from './SuperAdminDashboard';
 import SchoolMapPicker from './components/SchoolMapPicker';
@@ -181,6 +181,48 @@ function buildSchoolTerms(cfg) {
   };
 }
 
+function generateLessonSlots(cfg, totalSlots = 7) {
+  const duration = Math.max(15, Math.min(240, Number(cfg?.lesson_duration_minutes || (cfg?.lesson_term === 'PARA' ? 80 : 45))));
+  const breakMin = Math.max(0, Math.min(120, Number(cfg?.break_duration_minutes ?? 10)));
+  const bigBreakAfter = Number(cfg?.big_break_after_lesson || 0);
+  const bigBreakMin = Math.max(breakMin, Math.min(120, Number(cfg?.big_break_duration_minutes ?? 20)));
+
+  const startStr = String(cfg?.first_lesson_start_time || '08:30').trim();
+  let startHour = 8, startMinute = 30;
+  if (startStr.includes(':')) {
+    const parts = startStr.split(':');
+    startHour = parseInt(parts[0], 10) || 8;
+    startMinute = parseInt(parts[1], 10) || 0;
+  }
+
+  const slots = [];
+  let currentTotalMin = startHour * 60 + startMinute;
+
+  for (let order = 1; order <= totalSlots; order++) {
+    const startH = Math.floor(currentTotalMin / 60) % 24;
+    const startM = currentTotalMin % 60;
+    const endTotalMin = currentTotalMin + duration;
+    const endH = Math.floor(endTotalMin / 60) % 24;
+    const endM = endTotalMin % 60;
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const startFmt = `${pad(startH)}:${pad(startM)}`;
+    const endFmt = `${pad(endH)}:${pad(endM)}`;
+
+    slots.push({
+      order,
+      start: startFmt,
+      end: endFmt,
+      duration_minutes: duration,
+    });
+
+    const currentBreak = (bigBreakAfter > 0 && order === bigBreakAfter) ? bigBreakMin : breakMin;
+    currentTotalMin = endTotalMin + currentBreak;
+  }
+
+  return slots;
+}
+
 export default function App() {
   const [schoolsList, setSchoolsList] = useState(() => {
     try {
@@ -240,7 +282,24 @@ export default function App() {
   }, []);
 
   // Super Admin biror maktabning ichki kabinetiga o'tganda saqlanadigan state
-  const [impersonatedSchool, setImpersonatedSchool] = useState(null);
+  const [impersonatedSchool, setImpersonatedSchoolState] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('smart_super_admin_impersonated_school');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return null;
+  });
+
+  const setImpersonatedSchool = (school) => {
+    try {
+      if (school) {
+        sessionStorage.setItem('smart_super_admin_impersonated_school', JSON.stringify(school));
+      } else {
+        sessionStorage.removeItem('smart_super_admin_impersonated_school');
+      }
+    } catch (_) {}
+    setImpersonatedSchoolState(school);
+  };
 
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -314,7 +373,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('smart_auth_session');
+    sessionStorage.clear();
     setImpersonatedSchool(null);
     setCurrentUser(null);
   };
@@ -405,11 +464,13 @@ export default function App() {
 function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
   const [loginError, setLoginError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError(null);
-    const { username, password } = loginForm;
+    const username = (loginForm.username || '').trim();
+    const password = (loginForm.password || '').trim();
 
     // 1. Asosiy Super Admin (Barcha maktablar boshqaruvi)
     if (username === 'admin' && password === 'admin123') {
@@ -445,13 +506,50 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
       return;
     }
 
-    // 3. O'qituvchi / Ustoz Dashbordi
-    if (username === 'teacher' && password === 'teacher123') {
+    // 3. O'qituvchi / Ustoz Dashbordi (5 xonali unikal ID yoki teacher orqali)
+    setLoading(true);
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/teachers/?all_schools=1');
+      if (res.ok) {
+        const teachers = await res.json();
+        const matchedTeacher = (Array.isArray(teachers) ? teachers : []).find(
+          t => (
+            String(t.teacher_id) === username || 
+            String(t.username) === username || 
+            (username === 'teacher' && (String(t.username) === '20101' || t.id === 1))
+          ) && (
+            (t.initial_password && t.initial_password === password) ||
+            password === 'teacher123'
+          )
+        );
+        if (matchedTeacher) {
+          onLoginSuccess({
+            role: 'TEACHER',
+            schoolId: String(matchedTeacher.school_id || '1'),
+            schoolName: matchedTeacher.school_name || "1-sonli Ixtisoslashtirilgan Maktab-Kollej",
+            username: matchedTeacher.username,
+            teacherId: matchedTeacher.teacher_id || matchedTeacher.username,
+            name: matchedTeacher.name,
+            assignedGroup: matchedTeacher.group,
+            subject: matchedTeacher.subject,
+          });
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Backend teacher verification check failed, fallback to offline check", err);
+    } finally {
+      setLoading(false);
+    }
+
+    // Offline / Standart Test O'qituvchi hisobi
+    if ((username === 'teacher' || username === '20101') && (password === 'teacher123' || password === 'admin123')) {
       onLoginSuccess({
         role: 'TEACHER',
         schoolId: '1',
         schoolName: "1-sonli Ixtisoslashtirilgan Maktab-Kollej",
-        username: 'teacher',
+        username: '20101',
+        teacherId: '20101',
         name: 'Akmal Rahimov (Matematika & IT)',
         assignedGroup: '9-A',
         subject: 'Oliy Matematika',
@@ -459,7 +557,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
       return;
     }
 
-    setLoginError("Login yoki parol noto'g'ri! Quyidagi hisoblardan birini tanlang:");
+    setLoginError("Login yoki parol noto'g'ri! O'qituvchilar maktab dashbordida ko'rsatilgan 5 xonali unikal ID (masalan: 20101) va parolidan foydalanishi kerak.");
   };
 
   return (
@@ -481,10 +579,10 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Foydalanuvchi Logini</label>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Foydalanuvchi Logini (yoki 5 xonali O'qituvchi ID)</label>
             <input 
               required
-              placeholder="admin, maktab1, maktab2 yoki teacher"
+              placeholder="admin, maktab1 yoki 5 xonali ID (masalan: 20101)"
               value={loginForm.username}
               onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value.trim() })}
               style={{ width: '100%', padding: '13px 16px', borderRadius: 16, border: `1px solid #E2E8F0`, marginTop: 6, boxSizing: 'border-box', fontSize: 14, outline: 'none' }}
@@ -505,8 +603,9 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
 
           <button 
             type="submit" 
-            style={{ width: '100%', padding: 15, background: THEME.gradient, color: 'white', borderRadius: 18, border: 'none', fontWeight: 800, fontSize: 15, cursor: 'pointer', marginTop: 10, boxShadow: '0 10px 20px rgba(108, 92, 231, 0.3)' }}>
-            Tizimga Kirish  ➔
+            disabled={loading}
+            style={{ width: '100%', padding: 15, background: THEME.gradient, color: 'white', borderRadius: 18, border: 'none', fontWeight: 800, fontSize: 15, cursor: loading ? 'wait' : 'pointer', marginTop: 10, boxShadow: '0 10px 20px rgba(108, 92, 231, 0.3)', opacity: loading ? 0.7 : 1 }}>
+            {loading ? "Tekshirilmoqda..." : "Tizimga Kirish  ➔"}
           </button>
         </form>
 
@@ -535,10 +634,10 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
           </button>
           <button
             type="button"
-            onClick={() => setLoginForm({ username: 'teacher', password: 'teacher123' })}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === 'teacher' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
-            <span>👨‍🏫 <b>O'qituvchi Kabineti:</b></span>
-            <code>teacher / teacher123</code>
+            onClick={() => setLoginForm({ username: '20101', password: 'teacher123' })}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === '20101' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
+            <span>👨‍🏫 <b>O'qituvchi (5 xonali ID):</b></span>
+            <code>20101 / teacher123</code>
           </button>
         </div>
       </div>
@@ -597,12 +696,21 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudentForModal, setSelectedStudentForModal] = useState(null);
+  const [selectedTeacherForModal, setSelectedTeacherForModal] = useState(null);
   const [editingStudent, setEditingStudent] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showAddGroupModal, setShowAddGroupModal] = useState(false);
   const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+
+  // Dars jadvali (Schedule) boshqaruvi holatlari
+  const [schedulesList, setSchedulesList] = useState([]);
+  const [selectedScheduleClassId, setSelectedScheduleClassId] = useState(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [showAddLessonModal, setShowAddLessonModal] = useState(false);
+  const [editingLessonSchedule, setEditingLessonSchedule] = useState(null);
 
   const appendGlobalAudit = (action, target, detail) => {
     try {
@@ -645,18 +753,22 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
     subject: '',
     phone: '+998 ',
     group: '',
-    rooms: ''
+    rooms: '',
+    password: '',
+    photo: null,
+    photoPreview: null,
   });
 
   const fetchBackendData = async () => {
     setLoading(true);
     try {
       const q = `school_id=${encodeURIComponent(schoolId)}`;
-      const [cfgRes, stuRes, clsRes, tchRes] = await Promise.all([
+      const [cfgRes, stuRes, clsRes, tchRes, schRes] = await Promise.all([
         fetch(`http://127.0.0.1:8000/api/school-config/?${q}`),
         fetch(`http://127.0.0.1:8000/api/students/?${q}`),
         fetch(`http://127.0.0.1:8000/api/classes/?${q}`),
         fetch(`http://127.0.0.1:8000/api/teachers/?${q}`),
+        fetch(`http://127.0.0.1:8000/api/schedule/?${q}`),
       ]);
       if (cfgRes.ok) {
         const cfgData = await cfgRes.json();
@@ -678,6 +790,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         );
         setClassesList(sortedClasses);
         if (sortedClasses.length > 0) {
+          setSelectedScheduleClassId(prev => prev || sortedClasses[0].id);
           setNewStudent(prev => ({
             ...prev,
             classId: sortedClasses.some(item => String(item.id) === String(prev.classId))
@@ -698,10 +811,134 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         const t = await tchRes.json();
         setTeachersList(Array.isArray(t) ? t : []);
       }
+      if (schRes.ok) {
+        const s = await schRes.json();
+        setSchedulesList(Array.isArray(s.schedules) ? s.schedules : []);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSchedules = async (targetClassId) => {
+    try {
+      setScheduleLoading(true);
+      let url = `http://127.0.0.1:8000/api/schedule/?school_id=${encodeURIComponent(schoolId)}`;
+      if (targetClassId) {
+        url += `&class_id=${encodeURIComponent(targetClassId)}`;
+      }
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setSchedulesList(Array.isArray(data.schedules) ? data.schedules : []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  const handleSaveScheduleItem = async (formData) => {
+    try {
+      const isEdit = Boolean(formData.id);
+      const url = isEdit 
+        ? `http://127.0.0.1:8000/api/schedule/${formData.id}/`
+        : `http://127.0.0.1:8000/api/schedule/`;
+      const res = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          school_id: schoolId,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Dars jadvalini saqlashda xatolik yuz berdi");
+      }
+      const result = await res.json();
+      await fetchSchedules();
+      setShowAddLessonModal(false);
+      setEditingLessonSchedule(null);
+      appendGlobalAudit(
+        isEdit ? 'UPDATE_SCHEDULE' : 'CREATE_SCHEDULE',
+        `${formData.subject_name || 'Dars'}`,
+        `${schoolName} — dars jadvaliga dars ${isEdit ? "yangilandi" : "kiritildi"}`
+      );
+      alert(result.message || "✅ Dars jadvali muvaffaqiyatli saqlandi!");
+    } catch (err) {
+      alert("Xatolik: " + err.message);
+    }
+  };
+
+  const handleDeleteSchedule = async (scheduleId, label) => {
+    if (!window.confirm(`Haqiqatan ham "${label || 'ushbu dars'}"ni dars jadvalidan o'chirmoqchimisiz?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/schedule/${scheduleId}/`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error("Darsni o'chirishda xatolik");
+      setSchedulesList(prev => prev.filter(s => s.id !== scheduleId));
+      appendGlobalAudit('DELETE_SCHEDULE', label || 'Dars', `${schoolName} jadvalidan dars o'chirildi`);
+    } catch (err) {
+      alert("Xatolik: " + err.message);
+    }
+  };
+
+  const handleQuickSeedSchedule = async (classId, className) => {
+    if (!window.confirm(`"${className || 'Ushbu sinf'}" uchun avtomatik namunaviy haftalik dars jadvalini yuklashni xohlaysizmi?\n\n(Dushanbadan Shanbagacha barcha asosiy fanlar va maktab o'qituvchilari biriktiriladi)`)) {
+      return;
+    }
+    try {
+      setScheduleLoading(true);
+      const res = await fetch(`http://127.0.0.1:8000/api/schedule/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'QUICK_SEED',
+          class_id: classId,
+          school_id: schoolId,
+        }),
+      });
+      if (!res.ok) throw new Error("Namuna jadvalni yuklashda xatolik yuz berdi");
+      const result = await res.json();
+      await fetchSchedules();
+      appendGlobalAudit('SEED_SCHEDULE', className || 'Sinf', `${schoolName} — ${className} uchun haftalik dars jadvali avtomatik yaratildi`);
+      alert(result.message || "✅ Haftalik dars jadvali to'liq to'ldirildi!");
+    } catch (err) {
+      alert("Xatolik: " + err.message);
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  const handleClearClassSchedule = async (classId, className) => {
+    if (!window.confirm(`Diqqat! "${className || 'Ushbu sinf'}"ning barcha haftalik dars jadvalini tozalashni tasdiqlaysizmi?`)) {
+      return;
+    }
+    try {
+      setScheduleLoading(true);
+      const res = await fetch(`http://127.0.0.1:8000/api/schedule/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CLEAR_CLASS',
+          class_id: classId,
+          school_id: schoolId,
+        }),
+      });
+      if (!res.ok) throw new Error("Jadvalni tozalashda xatolik yuz berdi");
+      await fetchSchedules();
+      appendGlobalAudit('CLEAR_SCHEDULE', className || 'Sinf', `${schoolName} — ${className} dars jadvali tozalandi`);
+    } catch (err) {
+      alert("Xatolik: " + err.message);
+    } finally {
+      setScheduleLoading(false);
     }
   };
 
@@ -861,20 +1098,42 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       return;
     }
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/teachers/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let body;
+      let headers = {};
+      if (newTeacher.photo) {
+        const fd = new FormData();
+        fd.append('name', newTeacher.name.trim());
+        fd.append('subject', newTeacher.subject.trim());
+        fd.append('phone', newTeacher.phone?.trim() || "+998 90 000-00-00");
+        fd.append('group', newTeacher.group?.trim() || "Fan o'qituvchisi");
+        fd.append('rooms', newTeacher.rooms?.trim() || "Asosiy bino");
+        fd.append('password', newTeacher.password?.trim() || "teacher123");
+        fd.append('school_id', schoolId);
+        fd.append('school_name', schoolName);
+        fd.append('created_by', actorLabel);
+        fd.append('created_by_role', actorRole);
+        fd.append('photo_3x4', newTeacher.photo);
+        body = fd;
+      } else {
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify({
           name: newTeacher.name.trim(),
           subject: newTeacher.subject.trim(),
           phone: newTeacher.phone.trim() || "+998 90 000-00-00",
           group: newTeacher.group.trim() || "Fan o'qituvchisi",
           rooms: newTeacher.rooms.trim() || "Asosiy bino",
+          password: newTeacher.password?.trim() || "teacher123",
           school_id: schoolId,
           school_name: schoolName,
           created_by: actorLabel,
           created_by_role: actorRole,
-        }),
+        });
+      }
+
+      const res = await fetch('http://127.0.0.1:8000/api/teachers/', {
+        method: 'POST',
+        headers,
+        body,
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -884,8 +1143,13 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       setTeachersList([createdTeacher, ...teachersList]);
       appendGlobalAudit('CREATE_TEACHER', createdTeacher.name, `${schoolName} bazasiga ustoz "${createdTeacher.name}" (${createdTeacher.subject}) qo'shildi`);
       setShowAddTeacherModal(false);
-      setNewTeacher({ name: '', subject: '', phone: '+998 ', group: '', rooms: '' });
-      alert(`✅ Ustoz "${createdTeacher.name}" faqat "${schoolName}" bazasiga muvaffaqiyatli qo'shildi!`);
+      setNewTeacher({ name: '', subject: '', phone: '+998 ', group: '', rooms: '', password: '', photo: null, photoPreview: null });
+      alert(
+        `✅ Ustoz "${createdTeacher.name}" faqat "${schoolName}" bazasiga muvaffaqiyatli qo'shildi!\n\n` +
+        `🔑 5 xonali Kirish ID raqami: ${createdTeacher.teacher_id || createdTeacher.username}\n` +
+        `🔒 Maxfiy Parol: ${createdTeacher.initial_password || newTeacher.password?.trim() || 'teacher123'}\n\n` +
+        `O'qituvchi ushbu 5 xonali unikal ID va parol orqali veb-kabinetga hamda mobil ilovaga kirishi mumkin.`
+      );
     } catch (err) {
       alert("Xatolik: " + err.message);
     }
@@ -901,6 +1165,9 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       });
       if (!res.ok) throw new Error("O'qituvchini o'chirishda xatolik");
       setTeachersList(teachersList.filter(t => t.id !== teacherId));
+      if (selectedTeacherForModal && selectedTeacherForModal.id === teacherId) {
+        setSelectedTeacherForModal(null);
+      }
       appendGlobalAudit('DELETE_TEACHER', teacherName, `${schoolName} bazasidan ustoz "${teacherName}" o'chirildi`);
     } catch (err) {
       alert("Xatolik: " + err.message);
@@ -1054,6 +1321,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         {/* Navigation Menus */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <NavButton active={activeTab === 'matrix'} onClick={() => setActiveTab('matrix')} icon={<Calendar size={18} />} label={`${terms.lessonSingular} Matritsasi`} badge="Jonli" />
+          <NavButton active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} icon={<Calendar size={18} />} label={`${terms.lessonSingular} Jadvali`} badge={schedulesList.length > 0 ? `${schedulesList.length} ta` : undefined} />
           <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<FolderOpen size={18} />} label={`${terms.groupPlural} Boshqaruvi`} badge={`${classesList.length} ta`} />
           <NavButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} icon={<Users size={18} />} label={terms.studentPlural} badge={`${realStudents.length} ta`} />
           <NavButton active={activeTab === 'teachers'} onClick={() => setActiveTab('teachers')} icon={<GraduationCap size={18} />} label="O'qituvchilar" badge={`${teachersList.length} ta`} />
@@ -1124,6 +1392,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: 20, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
                 {activeTab === 'matrix' && `${terms.lessonSingular} Matritsasi & Davomat Jadvali`}
+                {activeTab === 'schedule' && `${terms.groupPlural} Bo'yicha ${terms.lessonSingular} Jadvali & Rejasi`}
                 {activeTab === 'groups' && `Maktab ${terms.groupPlural}i & Ularning ${terms.studentPlural}i`}
                 {activeTab === 'students' && `Maktab ${terms.studentPlural} Bazasi & Yaratilganlik Tarixi`}
                 {activeTab === 'teachers' && "Maktab O'qituvchilari Ro'yxati"}
@@ -1177,6 +1446,18 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                 onClick={() => handleExportCSV('matrix')} 
                 style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)' }}>
                 <Download size={16} /> Matritsani Yuklash (CSV)
+              </button>
+            )}
+
+            {/* DARS JADVALI SAHIFASI TUGMASI */}
+            {activeTab === 'schedule' && (
+              <button 
+                onClick={() => {
+                  setEditingLessonSchedule(null);
+                  setShowAddLessonModal(true);
+                }} 
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)' }}>
+                <Plus size={16} /> + Yangi {terms.lessonSingular} Kiritish
               </button>
             )}
 
@@ -1324,10 +1605,40 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             />
           )}
 
+          {/* TAB 1.5: DARS JADVALI */}
+          {activeTab === 'schedule' && (
+            <ScheduleManagementSection
+              classesList={classesList}
+              teachersList={teachersList}
+              schedulesList={schedulesList}
+              schoolId={schoolId}
+              schoolName={schoolName}
+              schoolConfig={schoolConfig}
+              terms={terms}
+              selectedClassId={selectedScheduleClassId}
+              onSelectClassId={setSelectedScheduleClassId}
+              onRefreshSchedules={() => fetchSchedules(selectedScheduleClassId)}
+              onOpenAddModal={(prefill) => {
+                setEditingLessonSchedule(prefill || null);
+                setShowAddLessonModal(true);
+              }}
+              onEditSchedule={(item) => {
+                setEditingLessonSchedule(item);
+                setShowAddLessonModal(true);
+              }}
+              onDeleteSchedule={handleDeleteSchedule}
+              onQuickSeed={handleQuickSeedSchedule}
+              onClearClass={handleClearClassSchedule}
+              onGoToSettings={() => setActiveTab('settings')}
+              loading={scheduleLoading}
+            />
+          )}
+
           {/* TAB 2: GURUHLAR VA ULARNING O'QUVCHILARI */}
           {activeTab === 'groups' && (
             <GroupsManagementSection 
               classesList={classesList} 
+              teachersList={teachersList}
               realStudents={realStudents}
               schoolName={schoolName}
               terms={terms}
@@ -1341,6 +1652,11 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               onOpenCreateGroup={() => setShowAddGroupModal(true)}
               onEditGroup={setEditingGroup}
               onDeleteGroup={handleDeleteGroup}
+              onPreviewImage={setPreviewImage}
+              onOpenScheduleForGroup={(classId) => {
+                setSelectedScheduleClassId(classId);
+                setActiveTab('schedule');
+              }}
               onAddStudentToClass={(classObj) => {
                 if (classObj && classObj.id) {
                   setNewStudent(prev => ({ ...prev, classId: classObj.id }));
@@ -1362,6 +1678,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               onEditStudent={setEditingStudent}
               onDeleteStudent={handleDeleteStudent}
               onAddStudent={() => setShowAddStudentModal(true)}
+              onPreviewImage={setPreviewImage}
             />
           )}
 
@@ -1371,8 +1688,10 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               teachers={teachersList}
               schoolName={schoolName}
               terms={terms}
+              onTeacherClick={setSelectedTeacherForModal}
               onAddTeacher={() => setShowAddTeacherModal(true)}
               onDeleteTeacher={handleDeleteTeacher}
+              onPreviewImage={setPreviewImage}
             />
           )}
 
@@ -1395,14 +1714,36 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         </div>
       </main>
 
+      {/* Dars jadvalini kiritish va tahrirlash modali */}
+      {showAddLessonModal && (
+        <AddEditLessonModal
+          initialData={editingLessonSchedule}
+          classesList={classesList}
+          teachersList={teachersList}
+          selectedClassId={selectedScheduleClassId}
+          schoolConfig={schoolConfig}
+          terms={terms}
+          onClose={() => {
+            setShowAddLessonModal(false);
+            setEditingLessonSchedule(null);
+          }}
+          onSave={handleSaveScheduleItem}
+        />
+      )}
+
       {/* Yangi Guruh / Sinf yaratish modali */}
       {showAddGroupModal && (
         <AddGroupModal
           newGroup={newGroup}
           setNewGroup={setNewGroup}
+          teachersList={teachersList}
           terms={terms}
           onClose={() => setShowAddGroupModal(false)}
           onSubmit={handleAddGroup}
+          onOpenAddTeacher={() => {
+            setShowAddGroupModal(false);
+            setShowAddTeacherModal(true);
+          }}
         />
       )}
 
@@ -1410,9 +1751,13 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       {editingGroup && (
         <EditGroupModal
           group={editingGroup}
+          teachersList={teachersList}
           terms={terms}
           onClose={() => setEditingGroup(null)}
           onSave={handleUpdateGroup}
+          onOpenAddTeacher={() => {
+            setShowAddTeacherModal(true);
+          }}
         />
       )}
 
@@ -1456,6 +1801,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         <StudentDetailDrawer 
           student={selectedStudentForModal} 
           terms={terms}
+          onPreviewImage={setPreviewImage}
           onClose={() => setSelectedStudentForModal(null)} 
           onEdit={() => {
             const st = selectedStudentForModal;
@@ -1467,6 +1813,30 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             const name = `${selectedStudentForModal.first_name} ${selectedStudentForModal.last_name}`;
             handleDeleteStudent(id, name);
           }}
+        />
+      )}
+
+      {/* O'qituvchi Ma'lumotlari Modali (Tarix & Ko'rish bosilganda) */}
+      {selectedTeacherForModal && (
+        <TeacherDetailDrawer 
+          teacher={selectedTeacherForModal} 
+          terms={terms}
+          schoolName={schoolName}
+          onPreviewImage={setPreviewImage}
+          onClose={() => setSelectedTeacherForModal(null)} 
+          onDelete={() => {
+            const id = selectedTeacherForModal.id;
+            const name = selectedTeacherForModal.name;
+            handleDeleteTeacher(id, name);
+          }}
+        />
+      )}
+
+      {/* 5.0 KATTALASHTIRILGAN RASM MODALI (LIGHTBOX) */}
+      {previewImage && (
+        <ImagePreviewModal
+          image={previewImage}
+          onClose={() => setPreviewImage(null)}
         />
       )}
     </div>
@@ -1594,6 +1964,7 @@ function AttendanceMatrixSection({ realStudents, schoolName, terms = buildSchool
 // =========================================================================
 function GroupsManagementSection({
   classesList,
+  teachersList = [],
   realStudents,
   schoolName,
   terms = buildSchoolTerms({}),
@@ -1607,7 +1978,9 @@ function GroupsManagementSection({
   onOpenCreateGroup,
   onEditGroup,
   onDeleteGroup,
+  onOpenScheduleForGroup,
   onAddStudentToClass,
+  onPreviewImage,
 }) {
   const [groupSearch, setGroupSearch] = useState('');
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
@@ -1637,6 +2010,11 @@ function GroupsManagementSection({
     createdBy: currentClassObj?.created_by || "Maktab Ma'muriyati",
     createdAt: currentClassObj?.created_at || "",
   };
+
+  const matchedAdvisorTeacher = (teachersList || []).find(t => 
+    t.name && (t.name.toLowerCase() === (activeAdvisor.teacher || '').toLowerCase() || 
+    (activeAdvisor.teacher || '').toLowerCase().includes(t.name.toLowerCase()))
+  );
 
   return (
     <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', minHeight: 'calc(100vh - 175px)' }}>
@@ -1977,7 +2355,54 @@ function GroupsManagementSection({
                 </span>
               </div>
               <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 5, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                <span>👨‍🏫 {terms.advisorLabel}: <b style={{ color: THEME.textDark }}>{activeAdvisor.teacher}</b></span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                  <span>👨‍🏫 {terms.advisorLabel}: <b style={{ color: THEME.textDark }}>{activeAdvisor.teacher}</b></span>
+                  {matchedAdvisorTeacher && (
+                    <span style={{ padding: '2px 8px', borderRadius: 8, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 700, fontSize: 11 }}>
+                      {matchedAdvisorTeacher.subject}
+                    </span>
+                  )}
+                  {currentClassObj && currentClassObj.id && onEditGroup && (
+                    <button
+                      onClick={() => onEditGroup(currentClassObj)}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: 8,
+                        border: '1px solid #CBD5E1',
+                        backgroundColor: '#FFFFFF',
+                        color: THEME.primary,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                      title={`${terms.groupLeader}ni o'zgartirish yoki biriktirish`}>
+                      <Edit size={11} /> O'zgartirish
+                    </button>
+                  )}
+                  {currentClassObj && currentClassObj.id && onOpenScheduleForGroup && (
+                    <button
+                      onClick={() => onOpenScheduleForGroup(currentClassObj.id)}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: 8,
+                        border: `1px solid ${THEME.primary}`,
+                        backgroundColor: THEME.primaryLight,
+                        color: THEME.primary,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                      title={`${currentClassObj.name} dars jadvalini ko'rish va kiritish`}>
+                      <Calendar size={11} /> {terms.lessonSingular} Jadvali
+                    </button>
+                  )}
+                </span>
                 {activeAdvisor.room && <span>📍 Xona: <b style={{ color: THEME.textDark }}>{activeAdvisor.room}</b></span>}
                 <span>📅 O'quv yili: <b style={{ color: THEME.textDark }}>{currentClassObj?.academic_year || '2026-2027'}</b></span>
                 {currentClassObj?.created_by && (
@@ -2151,7 +2576,22 @@ function GroupsManagementSection({
                   onMouseLeave={e => (e.currentTarget.style.borderColor = THEME.border)}>
                   {/* 3x4 Photo */}
                   <div
-                    onClick={() => onSelectStudent(st)}
+                    onClick={(e) => {
+                      if (st.photo_3x4 && onPreviewImage) {
+                        e.stopPropagation();
+                        onPreviewImage({
+                          url: st.photo_3x4,
+                          title: `${st.last_name} ${st.first_name}`,
+                          subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
+                          badge: terms.studentSingular,
+                          idNumber: st.student_id,
+                          schoolName: st.school_name || schoolName,
+                        });
+                      } else {
+                        onSelectStudent(st);
+                      }
+                    }}
+                    title={st.photo_3x4 ? "Rasmni kattalashtirib ko'rish (bosing)" : "Ma'lumotlarni ko'rish"}
                     style={{
                       width: 52,
                       height: 68,
@@ -2160,10 +2600,19 @@ function GroupsManagementSection({
                       backgroundColor: '#F1F5F9',
                       border: `1px solid ${THEME.border}`,
                       flexShrink: 0,
-                      cursor: 'pointer',
-                    }}>
+                      cursor: st.photo_3x4 ? 'zoom-in' : 'pointer',
+                      position: 'relative',
+                      transition: 'transform 0.18s ease',
+                    }}
+                    onMouseEnter={(e) => { if (st.photo_3x4) e.currentTarget.style.transform = 'scale(1.06)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
                     {st.photo_3x4 ? (
-                      <img src={st.photo_3x4} alt={st.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <>
+                        <img src={st.photo_3x4} alt={st.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 4, padding: 2, display: 'flex' }}>
+                          <ZoomIn size={10} />
+                        </div>
+                      </>
                     ) : (
                       <div
                         style={{
@@ -2284,29 +2733,61 @@ function GroupsManagementSection({
                   <tr key={st.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
                     <td style={{ padding: '12px 10px', fontWeight: 700, color: THEME.textMuted }}>{idx + 1}</td>
                     <td style={{ padding: '12px 14px' }}>
-                      {st.photo_3x4 ? (
-                        <img
-                          src={st.photo_3x4}
-                          alt={st.full_name}
-                          style={{ width: 38, height: 48, objectFit: 'cover', borderRadius: 8, border: `1px solid ${THEME.border}` }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: 38,
-                            height: 48,
-                            backgroundColor: THEME.primaryLight,
-                            borderRadius: 8,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: THEME.primary,
-                            fontSize: 11,
-                            fontWeight: 800,
-                          }}>
-                          {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
-                        </div>
-                      )}
+                      <div
+                        onClick={(e) => {
+                          if (st.photo_3x4 && onPreviewImage) {
+                            e.stopPropagation();
+                            onPreviewImage({
+                              url: st.photo_3x4,
+                              title: `${st.last_name} ${st.first_name}`,
+                              subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
+                              badge: terms.studentSingular,
+                              idNumber: st.student_id,
+                              schoolName: st.school_name || schoolName,
+                            });
+                          } else {
+                            onSelectStudent(st);
+                          }
+                        }}
+                        title={st.photo_3x4 ? "Rasmni kattalashtirib ko'rish (bosing)" : ""}
+                        style={{
+                          width: 38,
+                          height: 48,
+                          borderRadius: 8,
+                          overflow: 'hidden',
+                          border: `1px solid ${THEME.border}`,
+                          backgroundColor: THEME.primaryLight,
+                          cursor: st.photo_3x4 ? 'zoom-in' : 'pointer',
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'transform 0.18s ease',
+                        }}
+                        onMouseEnter={(e) => { if (st.photo_3x4) e.currentTarget.style.transform = 'scale(1.08)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                        {st.photo_3x4 ? (
+                          <>
+                            <img
+                              src={st.photo_3x4}
+                              alt={st.full_name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 3, padding: 1, display: 'flex' }}>
+                              <ZoomIn size={9} />
+                            </div>
+                          </>
+                        ) : (
+                          <div
+                            style={{
+                              color: THEME.primary,
+                              fontSize: 11,
+                              fontWeight: 800,
+                            }}>
+                            {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td
                       onClick={() => onSelectStudent(st)}
@@ -2407,9 +2888,177 @@ function GroupsManagementSection({
 }
 
 // =========================================================================
+// 5.0 KATTALASHTIRILGAN RASM KO'RISH MODALI (LIGHTBOX MODAL)
+// =========================================================================
+function ImagePreviewModal({ image, onClose }) {
+  if (!image) return null;
+
+  const url = typeof image === 'string' ? image : image.url;
+  const title = typeof image === 'string' ? "Fotosurat" : (image.title || "Fotosurat");
+  const subtitle = typeof image === 'string' ? "" : (image.subtitle || "");
+  const badge = typeof image === 'string' ? "" : (image.badge || "");
+  const idNumber = typeof image === 'string' ? "" : (image.idNumber || "");
+  const schoolName = typeof image === 'string' ? "" : (image.schoolName || "");
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.85)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 250,
+        padding: 20,
+      }}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          backgroundColor: '#FFFFFF',
+          borderRadius: 26,
+          padding: 20,
+          maxWidth: 580,
+          width: '100%',
+          maxHeight: '94vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+          overflow: 'hidden',
+        }}>
+        {/* Yuqori Panel: Ism, ID, Badge va Yopish */}
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ minWidth: 0, flex: 1, paddingRight: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+              {badge && (
+                <span style={{ padding: '3px 9px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
+                  {badge}
+                </span>
+              )}
+              {idNumber && (
+                <span style={{ padding: '3px 8px', backgroundColor: '#F1F5F9', color: THEME.textDark, borderRadius: 8, fontSize: 11.5, fontWeight: 900, fontFamily: 'monospace' }}>
+                  ID: {idNumber}
+                </span>
+              )}
+              {schoolName && (
+                <span style={{ fontSize: 11.5, color: THEME.textMuted }}>
+                  • {schoolName}
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 900, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {title}
+            </div>
+            {subtitle && (
+              <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
+                {subtitle}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {url && (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Asl nusxasini yangi oynada ochish"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: '#F1F5F9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: THEME.textDark,
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  border: 'none',
+                }}>
+                <ExternalLink size={17} />
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              title="Yopish (Esc)"
+              style={{
+                background: '#F1F5F9',
+                border: 'none',
+                borderRadius: 10,
+                width: 36,
+                height: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: THEME.textDark,
+              }}>
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Kattalashtirilgan Rasm Konteyneri */}
+        <div style={{
+          width: '100%',
+          borderRadius: 20,
+          overflow: 'hidden',
+          backgroundColor: '#0F172A',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 320,
+          maxHeight: 'calc(94vh - 160px)',
+          border: `2px solid ${THEME.primary}`,
+          boxShadow: '0 12px 30px rgba(108, 92, 231, 0.25)',
+        }}>
+          {url ? (
+            <img
+              src={url}
+              alt={title}
+              style={{
+                width: '100%',
+                maxHeight: 'calc(94vh - 160px)',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <div style={{ color: '#94A3B8', fontSize: 14, fontWeight: 700, padding: 40 }}>
+              Fotosurat mavjud emas
+            </div>
+          )}
+        </div>
+
+        {/* Pastki ma'lumot va maslahat */}
+        <div style={{ width: '100%', marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11.5, color: THEME.textMuted }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: THEME.green }}></span>
+            <span>Face ID & Biometrik 3x4 standarti</span>
+          </div>
+          <span style={{ fontSize: 11, color: '#94A3B8' }}>Yopish uchun <b>Esc</b> yoki chetga bosing</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =========================================================================
 // 5. O'QUVCHI MA'LUMOTLARI DRAWER/MODAL (3x4 RASMI, TARIXI VA REKVIZITLARI)
 // =========================================================================
-function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onClose, onEdit, onDelete }) {
+function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onPreviewImage, onClose, onEdit, onDelete }) {
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: 20 }}>
       <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 500, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
@@ -2423,9 +3072,43 @@ function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onClose, o
 
         {/* 3x4 Rasm & Ism Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: 18, backgroundColor: THEME.bgSoft, borderRadius: 22, marginBottom: 20 }}>
-          <div style={{ width: 68, height: 86, borderRadius: 14, overflow: 'hidden', backgroundColor: '#FFF', border: `2px solid ${THEME.primary}`, boxShadow: '0 6px 14px rgba(108, 92, 231, 0.15)' }}>
+          <div 
+            onClick={() => {
+              if (student.photo_3x4 && onPreviewImage) {
+                onPreviewImage({
+                  url: student.photo_3x4,
+                  title: `${student.last_name} ${student.first_name}`,
+                  subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(student.class_name)}`,
+                  badge: terms.studentSingular,
+                  idNumber: student.student_id,
+                  schoolName: student.school_name || `Maktab #${student.school_id}`,
+                });
+              }
+            }}
+            title={student.photo_3x4 ? "Rasmni kattalashtirib ko'rish (bosing)" : ""}
+            style={{ 
+              width: 68, 
+              height: 86, 
+              borderRadius: 14, 
+              overflow: 'hidden', 
+              backgroundColor: '#FFF', 
+              border: `2px solid ${THEME.primary}`, 
+              boxShadow: '0 6px 14px rgba(108, 92, 231, 0.15)',
+              cursor: student.photo_3x4 ? 'zoom-in' : 'default',
+              position: 'relative',
+              flexShrink: 0,
+              transition: 'transform 0.18s ease',
+            }}
+            onMouseEnter={(e) => { if (student.photo_3x4) e.currentTarget.style.transform = 'scale(1.05)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
             {student.photo_3x4 ? (
-              <img src={student.photo_3x4} alt={student.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <>
+                <img src={student.photo_3x4} alt={student.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', bottom: 3, right: 3, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 4, padding: 2, display: 'flex' }}>
+                  <ZoomIn size={12} />
+                </div>
+              </>
             ) : (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: THEME.textMuted, fontSize: 11, fontWeight: 'bold' }}>
                 3x4 Rasm
@@ -2498,9 +3181,1064 @@ function DetailRow({ label, value, isCode }) {
 }
 
 // =========================================================================
+// 5.1 O'QITUVCHI MA'LUMOTLARI DRAWER/MODAL (TARIXI VA REKVIZITLARI)
+// =========================================================================
+function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName, onPreviewImage, onClose, onDelete }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
+
+  if (!teacher) return null;
+
+  const copyToClipboard = (text, key) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    }
+  };
+
+  const teacherId = String(teacher.teacher_id || teacher.username);
+  const teacherPwd = teacher.initial_password || 'teacher123';
+  const isSuperCreator = (teacher.created_by_role || '').includes('SUPER') || (teacher.created_by || '').toLowerCase().includes('super');
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: 20 }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 520, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>Ustoz Pasporti va Yaratilganlik Tarixi</div>
+          <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Bosh harf / Foto & Ism Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: 18, backgroundColor: THEME.bgSoft, borderRadius: 22, marginBottom: 20 }}>
+          <div
+            onClick={() => {
+              if (teacher.photo_3x4 && onPreviewImage) {
+                onPreviewImage({
+                  url: teacher.photo_3x4,
+                  title: teacher.name,
+                  subtitle: `${teacher.subject || "Fan o'qituvchisi"} • ${teacher.group || ''}`,
+                  badge: "O'qituvchi",
+                  idNumber: teacherId,
+                  schoolName: teacher.school_name || schoolName,
+                });
+              }
+            }}
+            title={teacher.photo_3x4 ? "Rasmni kattalashtirib ko'rish (bosing)" : ""}
+            style={{ 
+              width: 68, 
+              height: 86, 
+              borderRadius: 16, 
+              background: teacher.photo_3x4 ? '#FFF' : THEME.gradient, 
+              color: '#FFF', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              fontWeight: 900, 
+              fontSize: 24, 
+              boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', 
+              flexShrink: 0,
+              overflow: 'hidden',
+              cursor: teacher.photo_3x4 ? 'zoom-in' : 'default',
+              position: 'relative',
+              border: teacher.photo_3x4 ? `2px solid ${THEME.primary}` : 'none',
+              transition: 'transform 0.18s ease',
+            }}
+            onMouseEnter={(e) => { if (teacher.photo_3x4) e.currentTarget.style.transform = 'scale(1.04)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
+            {teacher.photo_3x4 ? (
+              <>
+                <img src={teacher.photo_3x4} alt={teacher.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', bottom: 3, right: 3, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 4, padding: 2, display: 'flex' }}>
+                  <ZoomIn size={12} />
+                </div>
+              </>
+            ) : (
+              teacher.name ? teacher.name[0] : 'U'
+            )}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 17, fontWeight: 900, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {teacher.name}
+            </div>
+            <div style={{ fontSize: 12.5, color: THEME.primary, fontWeight: 800, marginTop: 4 }}>
+              {teacher.subject} • {teacher.school_name || schoolName}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+              <span style={{ padding: '3px 8px', backgroundColor: '#ECFDF5', color: THEME.green, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
+                Mobil QR faol ✅
+              </span>
+              <span style={{ padding: '3px 8px', backgroundColor: isSuperCreator ? '#FFF0F3' : '#F1F0FF', color: isSuperCreator ? '#E11D48' : THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
+                {isSuperCreator ? 'SUPER ADMIN' : 'MAKTAB ADMINI'}
+              </span>
+              <span style={{ padding: '3px 8px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
+                Maktab ID #{teacher.school_id || '1'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tafsilotlar jadvali */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+          {/* Kirish ID */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#F8FAFC', borderRadius: 14 }}>
+            <span style={{ fontSize: 12.5, color: THEME.textMuted, fontWeight: 600 }}>Kirish ID (5 xonali):</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <code style={{ fontSize: 14, fontWeight: 900, color: THEME.primary, backgroundColor: THEME.primaryLight, padding: '3px 10px', borderRadius: 8, fontFamily: 'monospace', letterSpacing: '0.06em' }}>
+                {teacherId}
+              </code>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(teacherId, 'modal-id')}
+                title="ID nusxalash"
+                style={{ border: 'none', backgroundColor: copiedKey === 'modal-id' ? '#DCFCE7' : '#F1F0FF', color: copiedKey === 'modal-id' ? '#15803D' : THEME.primary, padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Copy size={12} />
+                {copiedKey === 'modal-id' ? 'Nusxalandi!' : 'Nusxa'}
+              </button>
+            </div>
+          </div>
+
+          {/* Parol */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#F8FAFC', borderRadius: 14 }}>
+            <span style={{ fontSize: 12.5, color: THEME.textMuted, fontWeight: 600 }}>Mobil & Web Paroli:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <code style={{ fontSize: 13, fontWeight: 800, color: THEME.textDark, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}`, padding: '3px 8px', borderRadius: 8, minWidth: 80, textAlign: 'center' }}>
+                {showPassword ? teacherPwd : '••••••••'}
+              </code>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? "Parolni yashirish" : "Parolni ko'rish"}
+                style={{ border: 'none', backgroundColor: '#F1F5F9', color: THEME.textDark, padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                {showPassword ? "Yashirish" : "Ko'rish"}
+              </button>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(teacherPwd, 'modal-pwd')}
+                title="Parolni nusxalash"
+                style={{ border: 'none', backgroundColor: copiedKey === 'modal-pwd' ? '#DCFCE7' : '#F1F0FF', color: copiedKey === 'modal-pwd' ? '#15803D' : THEME.primary, padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Copy size={12} />
+                {copiedKey === 'modal-pwd' ? 'Nusxalandi!' : 'Nusxa'}
+              </button>
+            </div>
+          </div>
+
+          <DetailRow label="Fan Yo'nalishi" value={teacher.subject} />
+          <DetailRow label={`Biriktirilgan ${terms.groupSingular}`} value={terms.formatGroupBadge(teacher.group)} />
+          <DetailRow label="Auditoriya / Xona" value={teacher.rooms} />
+          <DetailRow label="Telefon Raqami" value={teacher.phone} />
+          <DetailRow label="Tegishli Maktab Bazasi" value={teacher.school_name || schoolName} />
+          <DetailRow label="Kim tomonidan yaratilgan" value={teacher.created_by || "Maktab Direktori"} />
+          <DetailRow label="Yaratilgan vaqti (Tarix)" value={teacher.created_at || "2026-10-18"} />
+          <DetailRow label="Tizim Holati" value="Faol (Mobil ilova va Veb kabinetga ulanish ochiq)" />
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          {onDelete && (
+            <button 
+              onClick={onDelete} 
+              style={{ padding: '13px 18px', background: '#FEE2E2', color: '#EF4444', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Trash2 size={16} /> O'chirish
+            </button>
+          )}
+          <button 
+            onClick={onClose} 
+            style={{ flex: 1, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+            Yopish
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =========================================================================
+// 5.5. DARS JADVALI BOSHQARUVI (SCHEDULE MANAGEMENT SECTION)
+// =========================================================================
+function ScheduleManagementSection({
+  classesList = [],
+  teachersList = [],
+  schedulesList = [],
+  schoolId,
+  schoolName,
+  schoolConfig,
+  terms = buildSchoolTerms({}),
+  selectedClassId,
+  onSelectClassId,
+  onRefreshSchedules,
+  onOpenAddModal,
+  onEditSchedule,
+  onDeleteSchedule,
+  onQuickSeed,
+  onClearClass,
+  onGoToSettings,
+  loading = false,
+}) {
+  const currentDayNum = Math.min(6, Math.max(1, new Date().getDay() === 0 ? 1 : new Date().getDay()));
+  const [activeDay, setActiveDay] = useState(currentDayNum);
+  const [viewMode, setViewMode] = useState('day');
+
+  const currentClass = classesList.find(c => String(c.id) === String(selectedClassId)) || classesList[0] || null;
+
+  const classSchedules = currentClass
+    ? schedulesList.filter(s => String(s.school_class) === String(currentClass.id))
+    : [];
+
+  const daysList = [
+    { id: 1, name: "Dushanba" },
+    { id: 2, name: "Seshanba" },
+    { id: 3, name: "Chorshanba" },
+    { id: 4, name: "Payshanba" },
+    { id: 5, name: "Juma" },
+    { id: 6, name: "Shanba" },
+  ];
+
+  const standardSlots = (schoolConfig?.lesson_slots && schoolConfig.lesson_slots.length > 0)
+    ? schoolConfig.lesson_slots
+    : generateLessonSlots(schoolConfig, 7);
+
+  const getSubjectColor = (name = '') => {
+    const s = name.toLowerCase();
+    if (s.includes('matem') || s.includes('algeb') || s.includes('geom')) return { bg: '#EEF2FF', text: '#4F46E5', border: '#C7D2FE', badge: '📐' };
+    if (s.includes('fizik')) return { bg: '#E0F2FE', text: '#0284C7', border: '#BAE6FD', badge: '⚡' };
+    if (s.includes('kimyo')) return { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A', badge: '🧪' };
+    if (s.includes('biolog')) return { bg: '#ECFDF5', text: '#059669', border: '#A7F3D0', badge: '🌿' };
+    if (s.includes('ingliz') || s.includes('rus') || s.includes('til')) return { bg: '#FDF4FF', text: '#C026D3', border: '#F5D0FE', badge: '🌐' };
+    if (s.includes('adabiyot') || s.includes('ona tili')) return { bg: '#FFF1F2', text: '#E11D48', border: '#FECDD3', badge: '📖' };
+    if (s.includes('tarix') || s.includes('huquq')) return { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A', badge: '🏛️' };
+    if (s.includes('inform') || s.includes('it') || s.includes('dastur')) return { bg: '#ECFEFF', text: '#0891B2', border: '#A5F3FC', badge: '💻' };
+    if (s.includes('jismoniy') || s.includes('sport')) return { bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0', badge: '⚽' };
+    return { bg: '#F1F5F9', text: '#475569', border: '#CBD5E1', badge: '📚' };
+  };
+
+  if (classesList.length === 0) {
+    return (
+      <div style={{ backgroundColor: '#FFFFFF', padding: 48, borderRadius: 26, border: `1px solid ${THEME.border}`, textAlign: 'center' }}>
+        <FolderOpen size={48} color={THEME.primary} style={{ opacity: 0.4, marginBottom: 12 }} />
+        <div style={{ fontSize: 18, fontWeight: 900, color: THEME.textDark }}>Hozircha birorta ham {terms.groupSingularLower} mavjud emas</div>
+        <div style={{ fontSize: 13, color: THEME.textMuted, marginTop: 6, marginBottom: 20 }}>
+          {terms.lessonSingular} jadvalini kiritish uchun avval kamida bitta {terms.groupSingularLower} yarating.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      
+      {/* 1. YUQORI SINF/GURUH TANLASH VA BOSHQARUV PANELİ */}
+      <div style={{ backgroundColor: '#FFFFFF', padding: 22, borderRadius: 26, border: `1px solid ${THEME.border}`, boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 16 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 14, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Calendar size={20} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 17, color: THEME.textDark }}>
+                  {terms.groupPlural} Bo'yicha {terms.lessonSingular} Jadvali
+                </div>
+                <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
+                  Sinfni tanlang, haftalik rejadagi darslarni kiriting, o'zgartiring yoki namunaviy jadval yuklang
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* O'ng tomon amallar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => onOpenAddModal({ class_id: currentClass?.id, day_of_week: activeDay === 'ALL' ? 1 : activeDay })}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px',
+                borderRadius: 14, border: 'none', background: THEME.gradient,
+                color: '#FFF', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                boxShadow: '0 6px 18px rgba(108, 92, 231, 0.28)'
+              }}>
+              <Plus size={16} /> + {terms.lessonSingular} Qo'shish
+            </button>
+
+            {currentClass && (
+              <button
+                onClick={() => onQuickSeed(currentClass.id, currentClass.name)}
+                title="Barcha asosiy fanlar va o'qituvchilarni biriktirgan holda to'liq haftalik jadvalni yaratish"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px',
+                  borderRadius: 14, border: `1px solid ${THEME.orange}`,
+                  backgroundColor: '#FFF9F2', color: THEME.orange,
+                  fontWeight: 800, fontSize: 12.5, cursor: 'pointer'
+                }}>
+                <Sparkles size={15} /> ⚡ Namuna Jadval Yuklash
+              </button>
+            )}
+
+            {currentClass && classSchedules.length > 0 && (
+              <button
+                onClick={() => onClearClass(currentClass.id, currentClass.name)}
+                title="Ushbu sinfning barcha dars jadvallarini tozalash"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px',
+                  borderRadius: 14, border: '1px solid #FCA5A5',
+                  backgroundColor: '#FEF2F2', color: '#DC2626',
+                  fontWeight: 800, fontSize: 12.5, cursor: 'pointer'
+                }}>
+                <Trash2 size={15} /> Tozalash
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Sinflar / Guruhlar Gorizontal Tanlagichi (Tabs) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 6 }}>
+          {classesList.map(c => {
+            const isSelected = String(c.id) === String(currentClass?.id);
+            const count = schedulesList.filter(s => String(s.school_class) === String(c.id)).length;
+            return (
+              <button
+                key={c.id}
+                onClick={() => onSelectClassId(c.id)}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: 14,
+                  border: `1.5px solid ${isSelected ? THEME.primary : THEME.border}`,
+                  background: isSelected ? THEME.primaryLight : '#FFFFFF',
+                  color: isSelected ? THEME.primary : THEME.textDark,
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s',
+                  boxShadow: isSelected ? '0 4px 12px rgba(108, 92, 231, 0.12)' : 'none',
+                }}>
+                <span>{c.name}</span>
+                <span
+                  style={{
+                    padding: '2px 7px',
+                    borderRadius: 8,
+                    backgroundColor: isSelected ? THEME.primary : '#F1F5F9',
+                    color: isSelected ? '#FFFFFF' : THEME.textMuted,
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}>
+                  {count} dars
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Faol Sinf Ma'lumotlari Qatori */}
+        {currentClass && (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${THEME.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 12.5, color: THEME.textMuted }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+              <span>Tanlangan {terms.groupSingularLower}: <b style={{ color: THEME.primary, fontSize: 14 }}>{currentClass.name}</b></span>
+              <span>👨‍🏫 {terms.advisorLabel}: <b style={{ color: THEME.textDark }}>{currentClass.advisor_teacher || "Belgilanmagan"}</b></span>
+              <span>📍 Xona: <b style={{ color: THEME.textDark }}>{currentClass.room_number || "Asosiy bino"}</b></span>
+              <span>⏱️ Dars me'yori: <b style={{ color: THEME.primary }}>{schoolConfig?.lesson_duration_minutes || 45} daqiqa</b> ({schoolConfig?.first_lesson_start_time || '08:30'} dan)</span>
+              {onGoToSettings && (
+                <button
+                  onClick={onGoToSettings}
+                  style={{
+                    background: '#F1F5F9',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: 8,
+                    padding: '3px 8px',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: THEME.primary,
+                    cursor: 'pointer'
+                  }}>
+                  ⚙️ Vaqtni Sozlash
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontWeight: 800, color: THEME.primary }}>
+                Jami haftalik: {classSchedules.length} ta {terms.lessonSingularLower}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2. KUNLAR VA KO'RINISH TANLAGICHI */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+        {/* Kunlar Tablari */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {daysList.map(d => {
+            const isDaySelected = activeDay === d.id;
+            const dayLessonsCount = classSchedules.filter(s => s.day_of_week === d.id).length;
+            const isToday = d.id === currentDayNum;
+            return (
+              <button
+                key={d.id}
+                onClick={() => {
+                  setActiveDay(d.id);
+                  if (viewMode === 'grid') setViewMode('day');
+                }}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: 14,
+                  border: `1px solid ${isDaySelected && viewMode === 'day' ? THEME.primary : THEME.border}`,
+                  background: isDaySelected && viewMode === 'day' ? THEME.gradient : '#FFFFFF',
+                  color: isDaySelected && viewMode === 'day' ? '#FFFFFF' : THEME.textDark,
+                  fontWeight: 800,
+                  fontSize: 12.5,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  boxShadow: isDaySelected && viewMode === 'day' ? '0 4px 14px rgba(108, 92, 231, 0.25)' : 'none',
+                }}>
+                <span>{d.name}</span>
+                {isToday && (
+                  <span style={{ fontSize: 9.5, padding: '1px 5px', borderRadius: 6, backgroundColor: isDaySelected ? 'rgba(255,255,255,0.3)' : '#ECFDF5', color: isDaySelected ? '#FFF' : THEME.green }}>
+                    Bugun
+                  </span>
+                )}
+                <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 700 }}>
+                  ({dayLessonsCount})
+                </span>
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => setViewMode('grid')}
+            style={{
+              padding: '9px 16px',
+              borderRadius: 14,
+              border: `1px solid ${viewMode === 'grid' ? THEME.primary : THEME.border}`,
+              background: viewMode === 'grid' ? THEME.gradient : '#FFFFFF',
+              color: viewMode === 'grid' ? '#FFFFFF' : THEME.textDark,
+              fontWeight: 800,
+              fontSize: 12.5,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: viewMode === 'grid' ? '0 4px 14px rgba(108, 92, 231, 0.25)' : 'none',
+            }}>
+            <Calendar size={14} /> Barcha Kunlar (Haftalik Matritsa)
+          </button>
+        </div>
+      </div>
+
+      {/* 3. ASOSIY DARS JADVALI KO'RINISHLARI */}
+      {viewMode === 'day' ? (
+        /* KUNLIK BATAFSIL KO'RINISH */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {(() => {
+            const currentDayObj = daysList.find(d => d.id === activeDay) || daysList[0];
+            const dayLessons = classSchedules.filter(s => s.day_of_week === activeDay).sort((a, b) => a.lesson_order - b.lesson_order);
+
+            return (
+              <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 26, border: `1px solid ${THEME.border}`, boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <div>
+                    <div style={{ fontSize: 17, fontWeight: 900, color: THEME.textDark }}>
+                      {currentClass?.name} • {currentDayObj.name} kungi darslar
+                    </div>
+                    <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
+                      Jami {dayLessons.length} ta dars rejalashtirilgan
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onOpenAddModal({ class_id: currentClass?.id, day_of_week: activeDay })}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                      borderRadius: 12, border: `1px solid ${THEME.primary}`,
+                      backgroundColor: THEME.primaryLight, color: THEME.primary,
+                      fontWeight: 800, fontSize: 12, cursor: 'pointer'
+                    }}>
+                    <Plus size={14} /> + Bu kunga dars qo'shish
+                  </button>
+                </div>
+
+                {/* Dars soatlari ro'yxati */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {standardSlots.map(slot => {
+                    const lesson = dayLessons.find(l => l.lesson_order === slot.order);
+                    const colorScheme = lesson ? getSubjectColor(lesson.subject_name) : null;
+
+                    if (lesson) {
+                      return (
+                        <div
+                          key={lesson.id}
+                          style={{
+                            padding: 18,
+                            borderRadius: 18,
+                            border: `1.5px solid ${colorScheme.border}`,
+                            backgroundColor: colorScheme.bg,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 14,
+                            transition: 'all 0.2s',
+                          }}>
+                          {/* Chap: Tartib & Fan */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                            <div
+                              style={{
+                                width: 46,
+                                height: 46,
+                                borderRadius: 14,
+                                backgroundColor: '#FFFFFF',
+                                color: colorScheme.text,
+                                border: `1px solid ${colorScheme.border}`,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 900,
+                                fontSize: 12,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                              }}>
+                              <span style={{ fontSize: 13 }}>{slot.order}</span>
+                              <span style={{ fontSize: 9.5, opacity: 0.8 }}>dars</span>
+                            </div>
+
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 16 }}>{colorScheme.badge}</span>
+                                <span style={{ fontWeight: 900, fontSize: 16, color: THEME.textDark }}>
+                                  {lesson.subject_name}
+                                </span>
+                                <span
+                                  style={{
+                                    padding: '2px 8px',
+                                    borderRadius: 8,
+                                    backgroundColor: '#FFFFFF',
+                                    color: colorScheme.text,
+                                    fontWeight: 800,
+                                    fontSize: 11,
+                                    border: `1px solid ${colorScheme.border}`
+                                  }}>
+                                  {lesson.start_time} - {lesson.end_time}
+                                </span>
+                              </div>
+
+                              {lesson.topic && (
+                                <div style={{ fontSize: 12, color: THEME.textDark, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <span>📝 Mavzu:</span>
+                                  <b>{lesson.topic}</b>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* O'rta: O'qituvchi & Xona */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF', padding: '6px 12px', borderRadius: 12, border: `1px solid ${colorScheme.border}` }}>
+                              <div style={{ width: 26, height: 26, borderRadius: '50%', backgroundColor: THEME.primaryLight, color: THEME.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11 }}>
+                                👨‍🏫
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark }}>
+                                  {lesson.teacher_full_name || lesson.teacher_name || "O'qituvchi tayinlanmagan"}
+                                </div>
+                                <div style={{ fontSize: 10.5, color: THEME.textMuted }}>
+                                  Fan o'qituvchisi
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ backgroundColor: '#FFFFFF', padding: '8px 12px', borderRadius: 12, border: `1px solid ${colorScheme.border}`, fontWeight: 800, fontSize: 12, color: THEME.textDark }}>
+                              📍 {lesson.room_number || currentClass?.room_number || "Xona belgilanmagan"}
+                            </div>
+                          </div>
+
+                          {/* O'ng: Amallar */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <button
+                              onClick={() => onEditSchedule(lesson)}
+                              title="Tahrirlash"
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor: '#FFFFFF',
+                                border: '1px solid #CBD5E1',
+                                borderRadius: 10,
+                                color: THEME.primary,
+                                fontWeight: 700,
+                                fontSize: 12,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}>
+                              <Edit size={13} /> Tahrirlash
+                            </button>
+                            <button
+                              onClick={() => onDeleteSchedule(lesson.id, `${lesson.subject_name} (${slot.order}-dars)`)}
+                              title="O'chirish"
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor: '#FEE2E2',
+                                border: '1px solid #FCA5A5',
+                                borderRadius: 10,
+                                color: '#EF4444',
+                                fontWeight: 700,
+                                fontSize: 12,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}>
+                              <Trash2 size={13} /> O'chirish
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      /* Bo'sh slot */
+                      return (
+                        <div
+                          key={`empty-${slot.order}`}
+                          onClick={() => onOpenAddModal({ class_id: currentClass?.id, day_of_week: activeDay, lesson_order: slot.order, start_time: slot.start, end_time: slot.end })}
+                          style={{
+                            padding: '14px 20px',
+                            borderRadius: 16,
+                            border: '1.5px dashed #CBD5E1',
+                            backgroundColor: '#F8FAFC',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = THEME.primary}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = '#CBD5E1'}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span style={{ fontWeight: 800, fontSize: 13, color: THEME.textMuted }}>
+                              {slot.order}-dars • {slot.start} - {slot.end}
+                            </span>
+                            <span style={{ fontSize: 12, color: THEME.textMuted }}>
+                              (Bo'sh soat — dars rejalashtirilmagan)
+                            </span>
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Plus size={14} /> Dars kiritish
+                          </span>
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      ) : (
+        /* HAFTALIK MATRITSA JADVALI */
+        <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 26, border: `1px solid ${THEME.border}`, overflowX: 'auto', boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: 17, color: THEME.textDark }}>
+                {currentClass?.name} — To'liq Haftalik Dars Jadvali
+              </div>
+              <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
+                Dushanbadan Shanbagacha barcha soatlar kesimidagi to'liq reja
+              </div>
+            </div>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}` }}>
+                <th style={{ padding: '12px 14px', textAlign: 'left', color: THEME.textMuted, width: 130 }}>Soat / Vaqt</th>
+                {daysList.map(d => (
+                  <th key={d.id} style={{ padding: '12px 10px', color: THEME.textDark, fontWeight: 900, fontSize: 13 }}>
+                    {d.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {standardSlots.map(slot => (
+                <tr key={slot.order} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
+                  <td style={{ padding: '14px 10px', textAlign: 'left' }}>
+                    <div style={{ fontWeight: 900, color: THEME.textDark }}>{slot.order}-dars</div>
+                    <div style={{ fontSize: 10.5, color: THEME.textMuted }}>{slot.start} - {slot.end}</div>
+                  </td>
+                  {daysList.map(d => {
+                    const item = classSchedules.find(s => s.day_of_week === d.id && s.lesson_order === slot.order);
+                    const colorScheme = item ? getSubjectColor(item.subject_name) : null;
+
+                    return (
+                      <td key={d.id} style={{ padding: '8px 6px', verticalAlign: 'top' }}>
+                        {item ? (
+                          <div
+                            style={{
+                              padding: '10px 8px',
+                              borderRadius: 12,
+                              backgroundColor: colorScheme.bg,
+                              border: `1px solid ${colorScheme.border}`,
+                              textAlign: 'left',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 4,
+                            }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontWeight: 900, color: THEME.textDark, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {colorScheme.badge} {item.subject_name}
+                              </span>
+                              <div style={{ display: 'flex', gap: 3 }}>
+                                <button
+                                  onClick={() => onEditSchedule(item)}
+                                  style={{ padding: 2, background: 'transparent', border: 'none', cursor: 'pointer', color: THEME.primary }}
+                                  title="Tahrirlash">
+                                  <Edit size={11} />
+                                </button>
+                                <button
+                                  onClick={() => onDeleteSchedule(item.id, item.subject_name)}
+                                  style={{ padding: 2, background: 'transparent', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                                  title="O'chirish">
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: 10.5, color: THEME.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              👨‍🏫 {item.teacher_full_name || item.teacher_name || "Ustoz"}
+                            </div>
+                            <div style={{ fontSize: 10, color: colorScheme.text, fontWeight: 700 }}>
+                              📍 {item.room_number || currentClass?.room_number || "Xona"}
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => onOpenAddModal({ class_id: currentClass?.id, day_of_week: d.id, lesson_order: slot.order, start_time: slot.start, end_time: slot.end })}
+                            style={{
+                              padding: 10,
+                              borderRadius: 10,
+                              border: '1px dashed #E2E8F0',
+                              color: '#94A3B8',
+                              cursor: 'pointer',
+                              fontSize: 11,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: 60,
+                            }}
+                            title="Dars kiritish">
+                            +
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =========================================================================
+// 5.6. DARS JADVALINI QO'SHISH VA TAHRIRLASH MODALI
+// =========================================================================
+function AddEditLessonModal({
+  initialData,
+  classesList = [],
+  teachersList = [],
+  selectedClassId,
+  schoolConfig,
+  terms = buildSchoolTerms({}),
+  onClose,
+  onSave,
+}) {
+  const isEdit = Boolean(initialData && initialData.id);
+
+  const activeSlots = (schoolConfig?.lesson_slots && schoolConfig.lesson_slots.length > 0)
+    ? schoolConfig.lesson_slots
+    : generateLessonSlots(schoolConfig, 7);
+
+  const standardTimes = {};
+  activeSlots.forEach(s => {
+    standardTimes[s.order] = { start: s.start, end: s.end };
+  });
+
+  const [classId, setClassId] = useState(
+    initialData?.school_class || initialData?.class_id || selectedClassId || (classesList[0]?.id || '')
+  );
+  const [dayOfWeek, setDayOfWeek] = useState(initialData?.day_of_week || 1);
+  const [lessonOrder, setLessonOrder] = useState(initialData?.lesson_order || 1);
+  const [subjectName, setSubjectName] = useState(initialData?.subject_name || '');
+  const [teacherId, setTeacherId] = useState(initialData?.teacher || initialData?.teacher_id || '');
+  const [teacherName, setTeacherName] = useState(initialData?.teacher_name || '');
+  const [roomNumber, setRoomNumber] = useState(initialData?.room_number || '');
+  const [startTime, setStartTime] = useState(
+    initialData?.start_time || standardTimes[initialData?.lesson_order || 1]?.start || '08:30'
+  );
+  const [endTime, setEndTime] = useState(
+    initialData?.end_time || standardTimes[initialData?.lesson_order || 1]?.end || '09:15'
+  );
+  const [topic, setTopic] = useState(initialData?.topic || '');
+  const [submitting, setSubmitting] = useState(false);
+
+  const days = [
+    { id: 1, name: "Dushanba" },
+    { id: 2, name: "Seshanba" },
+    { id: 3, name: "Chorshanba" },
+    { id: 4, name: "Payshanba" },
+    { id: 5, name: "Juma" },
+    { id: 6, name: "Shanba" },
+  ];
+
+  const handleLessonOrderChange = (order) => {
+    setLessonOrder(order);
+    if (standardTimes[order]) {
+      setStartTime(standardTimes[order].start);
+      setEndTime(standardTimes[order].end);
+    }
+  };
+
+  const popularSubjects = [
+    "Matematika", "Algebra", "Geometriya", "Ona tili", "Adabiyot",
+    "Fizika", "Kimyo", "Biologiya", "Ingliz tili", "Informatika",
+    "O'zbekiston tarixi", "Jahon tarixi", "Geografiya", "Jismoniy tarbiya", "Musiqa"
+  ];
+
+  const handleTeacherSelect = (tid) => {
+    setTeacherId(tid);
+    const found = teachersList.find(t => String(t.id) === String(tid));
+    if (found) {
+      setTeacherName(found.name);
+      if (!roomNumber && found.rooms) {
+        setRoomNumber(found.rooms);
+      }
+    } else {
+      setTeacherName('');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!classId) return alert("Iltimos, sinfni tanlang!");
+    if (!subjectName.trim()) return alert("Iltimos, fan nomini kiriting!");
+
+    setSubmitting(true);
+    await onSave({
+      id: initialData?.id,
+      class_id: classId,
+      day_of_week: Number(dayOfWeek),
+      lesson_order: Number(lessonOrder),
+      subject_name: subjectName.trim(),
+      teacher_id: teacherId || null,
+      teacher_name: teacherName.trim(),
+      room_number: roomNumber.trim(),
+      start_time: startTime.trim(),
+      end_time: endTime.trim(),
+      topic: topic.trim(),
+    });
+    setSubmitting(false);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, maxWidth: 540, width: '100%', maxHeight: '92vh', overflowY: 'auto', padding: 30, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+        
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Calendar size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: THEME.textDark }}>
+                {isEdit ? `${terms.lessonSingular}ni Tahrirlash` : `Yangi ${terms.lessonSingular} Kiritish`}
+              </div>
+              <div style={{ fontSize: 12, color: THEME.textMuted }}>
+                Haftalik dars jadvaliga dars va ustozni biriktirish
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <X size={18} color={THEME.textMuted} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          
+          {/* 1. Sinf & Hafta kuni */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>{terms.groupSingular}ni Tanlang *</label>
+              <select
+                value={classId}
+                onChange={e => setClassId(e.target.value)}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
+                {classesList.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Hafta Kuni *</label>
+              <select
+                value={dayOfWeek}
+                onChange={e => setDayOfWeek(Number(e.target.value))}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
+                {days.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 2. Dars tartibi & Vaqtlari */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>{terms.lessonSingular} Tartibi *</label>
+              <select
+                value={lessonOrder}
+                onChange={e => handleLessonOrderChange(Number(e.target.value))}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
+                {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                  <option key={num} value={num}>{num}-{terms.lessonSingularLower}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Boshlanish</label>
+              <input
+                type="text"
+                placeholder="08:30"
+                value={startTime}
+                onChange={e => setStartTime(e.target.value)}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Tugash</label>
+              <input
+                type="text"
+                placeholder="09:15"
+                value={endTime}
+                onChange={e => setEndTime(e.target.value)}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+
+          {/* 3. Fan nomi va Tezkor teglar */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Fan Nomi *</label>
+              <span style={{ fontSize: 11, color: THEME.textMuted }}>yoki pastdagi teglardan birini bosing</span>
+            </div>
+            <input
+              type="text"
+              placeholder="Masalan: Matematika, Fizika, Kimyo..."
+              value={subjectName}
+              onChange={e => setSubjectName(e.target.value)}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700, boxSizing: 'border-box' }}
+            />
+            {/* Tezkor teglar */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {popularSubjects.map(sub => (
+                <button
+                  key={sub}
+                  type="button"
+                  onClick={() => setSubjectName(sub)}
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: 8,
+                    border: '1px solid #E2E8F0',
+                    backgroundColor: subjectName === sub ? THEME.primaryLight : '#F8FAFC',
+                    color: subjectName === sub ? THEME.primary : THEME.textDark,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}>
+                  {sub}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 4. O'qituvchini tanlash */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Dars O'qituvchisi (Ustoz)</label>
+            <select
+              value={teacherId}
+              onChange={e => handleTeacherSelect(e.target.value)}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 600 }}>
+              <option value="">-- Maktab o'qituvchilaridan tanlang ({teachersList.length} nafar) --</option>
+              {teachersList.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.subject} • ID: {t.teacher_id || t.username})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 5. Xona raqami va Mavzu */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Xona Raqami</label>
+              <input
+                type="text"
+                placeholder="204-xona"
+                value={roomNumber}
+                onChange={e => setRoomNumber(e.target.value)}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Rejadagi Mavzu (Ixtiyoriy)</label>
+              <input
+                type="text"
+                placeholder="Mavzu nomi..."
+                value={topic}
+                onChange={e => setTopic(e.target.value)}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              Bekor qilish
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}>
+              {submitting ? "Saqlanmoqda..." : (isEdit ? "O'zgarishlarni Saqlash" : "Jadvalga Kiritish")}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+
+// =========================================================================
 // 6. O'QUVCHILAR RO'YXATI VA YARATILGANLIK TARIXI SAHIFASI
 // =========================================================================
-function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerms({}), searchTerm, setSearchTerm, onStudentClick, onEditStudent, onDeleteStudent, onAddStudent }) {
+function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerms({}), searchTerm, setSearchTerm, onStudentClick, onEditStudent, onDeleteStudent, onAddStudent, onPreviewImage }) {
   return (
     <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 26, border: `1px solid ${THEME.border}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
@@ -2565,13 +4303,50 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
                 return (
                   <tr key={st.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
                     <td style={{ padding: '12px 14px' }}>
-                      {st.photo_3x4 ? (
-                        <img src={st.photo_3x4} alt={st.full_name} style={{ width: 40, height: 50, objectFit: 'cover', borderRadius: 8, border: `1px solid ${THEME.border}` }} />
-                      ) : (
-                        <div style={{ width: 40, height: 50, backgroundColor: THEME.primaryLight, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: THEME.primary, fontSize: 11, fontWeight: 800 }}>
-                          {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
-                        </div>
-                      )}
+                      <div
+                        onClick={(e) => {
+                          if (st.photo_3x4 && onPreviewImage) {
+                            e.stopPropagation();
+                            onPreviewImage({
+                              url: st.photo_3x4,
+                              title: `${st.last_name} ${st.first_name}`,
+                              subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
+                              badge: terms.studentSingular,
+                              idNumber: st.student_id,
+                              schoolName: st.school_name || schoolName,
+                            });
+                          }
+                        }}
+                        title={st.photo_3x4 ? "Rasmni kattalashtirib ko'rish (bosing)" : ""}
+                        style={{
+                          width: 40,
+                          height: 50,
+                          borderRadius: 8,
+                          overflow: 'hidden',
+                          cursor: st.photo_3x4 ? 'zoom-in' : 'default',
+                          position: 'relative',
+                          border: `1px solid ${THEME.border}`,
+                          backgroundColor: THEME.primaryLight,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'transform 0.18s ease',
+                        }}
+                        onMouseEnter={(e) => { if (st.photo_3x4) e.currentTarget.style.transform = 'scale(1.08)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                        {st.photo_3x4 ? (
+                          <>
+                            <img src={st.photo_3x4} alt={st.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 3, padding: 1, display: 'flex' }}>
+                              <ZoomIn size={10} />
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ color: THEME.primary, fontSize: 11, fontWeight: 800 }}>
+                            {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td style={{ padding: '14px', fontWeight: 800, color: THEME.textDark }}>
                       {st.last_name} {st.first_name}
@@ -2645,96 +4420,252 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
 }
 
 // =========================================================================
-// 7. O'QITUVCHILAR RO'YXATI SAHIFASI
+// 7. O'QITUVCHILAR RO'YXATI VA YARATILGANLIK TARIXI SAHIFASI
 // =========================================================================
-function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTerms({}), onAddTeacher, onDeleteTeacher }) {
+function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTerms({}), onTeacherClick, onAddTeacher, onDeleteTeacher, onPreviewImage }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [visiblePasswords, setVisiblePasswords] = useState({});
+  const [copiedKey, setCopiedKey] = useState(null);
+
+  const togglePasswordVisibility = (id) => {
+    setVisiblePasswords(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const copyToClipboard = (text, key) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    }
+  };
+
+  const filteredTeachers = teachers.filter(t => {
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) return true;
+    const full = `${t.name || ''} ${t.teacher_id || t.username || ''} ${t.subject || ''} ${t.group || ''} ${t.rooms || ''} ${t.phone || ''} ${t.created_by || ''}`.toLowerCase();
+    return full.includes(q);
+  });
+
   return (
     <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 26, border: `1px solid ${THEME.border}` }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      {/* Sarlavha va Qidiruv (Xuddi O'quvchilar sahifasidek) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: 900, color: THEME.textDark, margin: 0 }}>{schoolName} — O'qituvchilar Tarkibi</h3>
+          <h3 style={{ fontSize: 18, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
+            {schoolName} — O'qituvchilar Bazasi va Yaratilganlik Tarixi
+          </h3>
           <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 4 }}>
-            Faqat ushbu maktabga biriktirilgan va mobil kabinet orqali davomat oluvchi ustozlar
+            Ushbu maktab bazasida jami <b>{teachers.length} nafar</b> o'qituvchi ro'yxatga olingan (boshqa maktablarga ko'rinmaydi)
           </p>
         </div>
-        <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800, fontSize: 12 }}>
-          {teachers.length} nafar o'qituvchi
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', border: `1px solid ${THEME.border}`, borderRadius: 14, width: 280, backgroundColor: THEME.bgSoft }}>
+            <Search size={16} color={THEME.textMuted} />
+            <input 
+              placeholder="Ism, 5 xonali ID yoki yaratgan shaxs..." 
+              value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)} 
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: 13 }} 
+            />
+          </div>
+          {onAddTeacher && (
+            <button
+              onClick={onAddTeacher}
+              style={{ padding: '10px 18px', borderRadius: 14, border: 'none', background: THEME.gradient, color: '#FFF', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', whiteSpace: 'nowrap' }}>
+              <Plus size={16} /> + O'qituvchi Qo'shish
+            </button>
+          )}
+        </div>
       </div>
 
       {teachers.length === 0 ? (
         <div style={{ padding: 48, textAlign: 'center', color: THEME.textMuted }}>
           <GraduationCap size={42} color={THEME.primary} style={{ opacity: 0.35, marginBottom: 10 }} />
           <div style={{ fontWeight: 800, fontSize: 16, color: THEME.textDark }}>
-            Ushbu maktabda hozircha o'qituvchilar ro'yxatga olinmagan
+            Ushbu maktab bazasida hozircha o'qituvchilar yo'q
           </div>
           <div style={{ fontSize: 12.5, marginTop: 6, marginBottom: 16 }}>
-            Maktab o'qituvchilarini qo'shish uchun yuqoridagi yoki quyidagi tugmani bosing.
+            Har bir maktab o'z o'qituvchilarini mustaqil ro'yxatga oladi va har biriga 5 xonali unikal ID hamda maxfiy parol biriktiriladi.
           </div>
           {onAddTeacher && (
             <button
               onClick={onAddTeacher}
               style={{ padding: '10px 20px', borderRadius: 14, border: 'none', background: THEME.gradient, color: '#FFF', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-              + O'qituvchi Qo'shish
+              + Yangi O'qituvchi Yaratish
             </button>
           )}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>
-          {teachers.map(t => (
-            <div key={t.id} style={{ padding: 20, borderRadius: 22, border: `1px solid ${THEME.border}`, backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  <div style={{ width: 46, height: 46, borderRadius: 14, background: THEME.gradient, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 16, flexShrink: 0 }}>
-                    {t.name ? t.name[0] : 'U'}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
-                    <div style={{ fontSize: 12, color: THEME.primary, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.subject}</div>
-                  </div>
-                </div>
-                {onDeleteTeacher && (
-                  <button
-                    onClick={() => onDeleteTeacher(t.id, t.name)}
-                    title="O'qituvchini o'chirish"
-                    style={{ padding: 8, borderRadius: 10, border: 'none', backgroundColor: '#FEE2E2', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted, textTransform: 'uppercase', fontSize: 11 }}>
+              <th style={{ padding: '12px 14px' }}>Ustoz</th>
+              <th style={{ padding: '12px 14px' }}>Familiya & Ism</th>
+              <th style={{ padding: '12px 14px' }}>Fan Yo'nalishi</th>
+              <th style={{ padding: '12px 14px' }}>Biriktirilgan {terms.groupSingular}</th>
+              <th style={{ padding: '12px 14px' }}>Kirish ID (5 xonali)</th>
+              <th style={{ padding: '12px 14px' }}>Parol</th>
+              <th style={{ padding: '12px 14px' }}>Yaratilganlik Tarixi (Kim & Qachon)</th>
+              <th style={{ padding: '12px 14px' }}>Maktab Bazasi</th>
+              <th style={{ padding: '12px 14px', textAlign: 'right' }}>Amallar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTeachers.map(t => {
+              const isSuperCreator = (t.created_by_role || '').includes('SUPER') || (t.created_by || '').toLowerCase().includes('super');
+              const teacherId = String(t.teacher_id || t.username);
+              const teacherPwd = t.initial_password || 'teacher123';
+              const isPwdVisible = !!visiblePasswords[t.id];
 
-              <div style={{ padding: 12, backgroundColor: THEME.bgSoft, borderRadius: 14, fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: THEME.textMuted }}>Maktab bazasi:</span>
-                  <span style={{ fontWeight: 700, color: THEME.primary }}>{t.school_name || schoolName}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: THEME.textMuted }}>Biriktirilgan {terms.groupSingularLower}:</span>
-                  <span style={{ fontWeight: 700, color: THEME.textDark }}>{t.group}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: THEME.textMuted }}>Auditoriya:</span>
-                  <span style={{ fontWeight: 700, color: THEME.textDark }}>{t.rooms}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: THEME.textMuted }}>Aloqa:</span>
-                  <span style={{ fontWeight: 700, color: THEME.textDark }}>{t.phone}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px dashed ${THEME.border}`, paddingTop: 6, marginTop: 2 }}>
-                  <span style={{ color: THEME.textMuted }}>Kim qo'shgan:</span>
-                  <span style={{ fontWeight: 700, color: THEME.textDark, fontSize: 11 }}>{t.created_by || "Maktab Direktori"}</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5, color: THEME.green, fontWeight: 700 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Smartphone size={14} /> Mobil QR skanerga ulangan
-                </span>
-                <span style={{ fontSize: 10.5, color: THEME.textMuted }}>{t.created_at || ''}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+              return (
+                <tr key={t.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
+                  <td style={{ padding: '12px 14px' }}>
+                    <div 
+                      onClick={(e) => {
+                        if (t.photo_3x4 && onPreviewImage) {
+                          e.stopPropagation();
+                          onPreviewImage({
+                            url: t.photo_3x4,
+                            title: t.name,
+                            subtitle: `${t.subject} • ${terms.formatGroupBadge(t.group)}`,
+                            badge: "O'qituvchi",
+                            idNumber: teacherId,
+                            schoolName: t.school_name || schoolName,
+                          });
+                        }
+                      }}
+                      title={t.photo_3x4 ? "Rasmni kattalashtirib ko'rish (bosing)" : ""}
+                      style={{ 
+                        width: 42, 
+                        height: 52, 
+                        borderRadius: 12, 
+                        background: t.photo_3x4 ? '#FFF' : THEME.gradient, 
+                        color: '#FFF', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        fontWeight: 'bold', 
+                        fontSize: 15, 
+                        boxShadow: '0 4px 10px rgba(108, 92, 231, 0.2)',
+                        overflow: 'hidden',
+                        cursor: t.photo_3x4 ? 'zoom-in' : 'default',
+                        position: 'relative',
+                        border: t.photo_3x4 ? `1.5px solid ${THEME.border}` : 'none',
+                        transition: 'transform 0.18s ease',
+                      }}
+                      onMouseEnter={(e) => { if (t.photo_3x4) e.currentTarget.style.transform = 'scale(1.08)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                    >
+                      {t.photo_3x4 ? (
+                        <>
+                          <img src={t.photo_3x4} alt={t.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 3, padding: 1, display: 'flex' }}>
+                            <ZoomIn size={10} />
+                          </div>
+                        </>
+                      ) : (
+                        t.name ? t.name[0] : 'U'
+                      )}
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px', fontWeight: 800, color: THEME.textDark }}>
+                    {t.name}
+                  </td>
+                  <td style={{ padding: '14px' }}>
+                    <span style={{ padding: '4px 10px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontWeight: 800, fontSize: 11.5 }}>
+                      {t.subject}
+                    </span>
+                  </td>
+                  <td style={{ padding: '14px' }}>
+                    <span style={{ padding: '4px 8px', backgroundColor: '#F8FAFC', border: `1px solid ${THEME.border}`, color: THEME.textDark, borderRadius: 8, fontWeight: 700, fontSize: 11 }}>
+                      {terms.formatGroupBadge(t.group)}
+                    </span>
+                  </td>
+                  <td style={{ padding: '14px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <code style={{ padding: '4px 8px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontFamily: 'monospace', fontWeight: 900, fontSize: 13, letterSpacing: '0.06em' }}>
+                        {teacherId}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(teacherId, `id-${t.id}`)}
+                        title="5 xonali ID dan nusxa olish"
+                        style={{ border: 'none', backgroundColor: copiedKey === `id-${t.id}` ? '#DCFCE7' : '#F1F0FF', color: copiedKey === `id-${t.id}` ? '#15803D' : THEME.primary, padding: '3px 6px', borderRadius: 6, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Copy size={11} />
+                        {copiedKey === `id-${t.id}` ? 'OK' : ''}
+                      </button>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <code style={{ padding: '3px 8px', backgroundColor: '#F1F5F9', borderRadius: 6, fontSize: 12, fontFamily: isPwdVisible ? 'monospace' : 'inherit' }}>
+                        {isPwdVisible ? teacherPwd : '••••••••'}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility(t.id)}
+                        title={isPwdVisible ? "Parolni yashirish" : "Parolni ko'rish"}
+                        style={{ border: 'none', backgroundColor: '#F8FAFC', color: THEME.textDark, padding: '3px 6px', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        {isPwdVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(teacherPwd, `pwd-${t.id}`)}
+                        title="Paroldan nusxa olish"
+                        style={{ border: 'none', backgroundColor: copiedKey === `pwd-${t.id}` ? '#DCFCE7' : '#F1F0FF', color: copiedKey === `pwd-${t.id}` ? '#15803D' : THEME.primary, padding: '3px 6px', borderRadius: 6, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Copy size={11} />
+                        {copiedKey === `pwd-${t.id}` ? 'OK' : ''}
+                      </button>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{
+                        padding: '2px 7px',
+                        borderRadius: 6,
+                        fontSize: 10,
+                        fontWeight: 800,
+                        backgroundColor: isSuperCreator ? '#FFF0F3' : '#ECFDF5',
+                        color: isSuperCreator ? '#E11D48' : THEME.green,
+                      }}>
+                        {isSuperCreator ? 'SUPER ADMIN' : 'MAKTAB ADMINI'}
+                      </span>
+                      <span style={{ fontWeight: 700, fontSize: 12, color: THEME.textDark }}>
+                        {t.created_by || "Maktab Direktori"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 3 }}>
+                      🕒 Yaratilgan vaqti: <b>{t.created_at || '2026-10-18'}</b>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px' }}>
+                    <span style={{ padding: '4px 8px', backgroundColor: '#F8FAFC', border: `1px solid ${THEME.border}`, color: THEME.textDark, borderRadius: 8, fontWeight: 700, fontSize: 11 }}>
+                      🔒 {t.school_name || schoolName}
+                    </span>
+                  </td>
+                  <td style={{ padding: '14px', textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <button 
+                        onClick={() => onTeacherClick && onTeacherClick(t)}
+                        title="Batafsil va yaratilganlik tarixini ko'rish"
+                        style={{ padding: '7px 11px', background: THEME.primaryLight, border: 'none', color: THEME.primary, borderRadius: 10, fontWeight: 800, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        Tarix & Ko'rish
+                      </button>
+                      {onDeleteTeacher && (
+                        <button 
+                          onClick={() => onDeleteTeacher(t.id, t.name)}
+                          title="O'chirish"
+                          style={{ padding: '7px 9px', background: '#FEE2E2', border: 'none', color: '#EF4444', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
     </div>
   );
@@ -2816,6 +4747,12 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
     longitude: schoolConfig?.longitude ?? null,
     location_address: schoolConfig?.location_address || '',
     radius_meters: schoolConfig?.radius_meters || 150,
+    lesson_duration_minutes: schoolConfig?.lesson_duration_minutes || (schoolConfig?.lesson_term === 'PARA' ? 80 : 45),
+    break_duration_minutes: schoolConfig?.break_duration_minutes ?? 10,
+    first_lesson_start_time: schoolConfig?.first_lesson_start_time || '08:30',
+    big_break_after_lesson: schoolConfig?.big_break_after_lesson ?? 0,
+    big_break_duration_minutes: schoolConfig?.big_break_duration_minutes ?? 20,
+    sync_schedules: true,
   });
   const [saving, setSaving] = useState(false);
   const [saveBanner, setSaveBanner] = useState(null);
@@ -2840,6 +4777,12 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
         longitude: schoolConfig.longitude ?? null,
         location_address: schoolConfig.location_address || schoolConfig.address || '',
         radius_meters: schoolConfig.radius_meters || 150,
+        lesson_duration_minutes: schoolConfig.lesson_duration_minutes || (schoolConfig.lesson_term === 'PARA' ? 80 : 45),
+        break_duration_minutes: schoolConfig.break_duration_minutes ?? 10,
+        first_lesson_start_time: schoolConfig.first_lesson_start_time || '08:30',
+        big_break_after_lesson: schoolConfig.big_break_after_lesson ?? 0,
+        big_break_duration_minutes: schoolConfig.big_break_duration_minutes ?? 20,
+        sync_schedules: true,
       });
     }
   }, [schoolConfig]);
@@ -2854,6 +4797,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
         group_term: 'SINF',
         lesson_term: 'DARS',
         student_term: 'OQUVCHI',
+        lesson_duration_minutes: 45,
       }));
     } else if (presetType === 'GURUH_MODE') {
       setForm(prev => ({
@@ -2862,6 +4806,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
         group_term: 'GURUH',
         lesson_term: 'PARA',
         student_term: 'OQUVCHI',
+        lesson_duration_minutes: 80,
       }));
     } else if (presetType === 'TALABA_MODE') {
       setForm(prev => ({
@@ -2870,6 +4815,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
         group_term: 'GURUH',
         lesson_term: 'PARA',
         student_term: 'TALABA',
+        lesson_duration_minutes: 80,
       }));
     }
   };
@@ -3478,6 +5424,266 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 })}
               </div>
             </div>
+
+            {/* D) Dars Davomiyligi (Daqiqalarda) */}
+            <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1.5px solid #F1F5F9' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Clock size={16} color={THEME.primary} />
+                  D) Standart {liveTerms.lessonSingular} Davomiyligi (Daqiqada) *
+                </label>
+                <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 8, backgroundColor: '#EFF6FF', color: '#1D4ED8', fontWeight: 800 }}>
+                  Joriy me'yor: {form.lesson_duration_minutes} daqiqa
+                </span>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: 11.5, color: THEME.textMuted }}>
+                Ushbu parametr maktabdagi barcha darslarning standart davomiyligini belgilaydi va darslar jadvaliga to'g'ridan-to'g'ri ta'sir qiladi.
+              </p>
+
+              {/* Tezkor Tugmalar (45m, 60m, 80m, 90m) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+                {[
+                  { val: 45, label: "45 daqiqa", sub: "Maktab standarti" },
+                  { val: 60, label: "60 daqiqa", sub: "Akademik (1 soat)" },
+                  { val: 80, label: "80 daqiqa", sub: "Kollej (Para)" },
+                  { val: 90, label: "90 daqiqa", sub: "OTM (To'liq para)" },
+                ].map(item => {
+                  const isCur = Number(form.lesson_duration_minutes) === item.val;
+                  return (
+                    <button
+                      key={item.val}
+                      type="button"
+                      onClick={() => setForm({ ...form, lesson_duration_minutes: item.val })}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: 14,
+                        border: isCur ? `2px solid ${THEME.primary}` : '1.5px solid #E2E8F0',
+                        backgroundColor: isCur ? '#F5F3FF' : '#F8FAFC',
+                        color: isCur ? THEME.primary : THEME.textDark,
+                        fontWeight: 800,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.15s ease'
+                      }}>
+                      <div>{item.label}</div>
+                      <div style={{ fontSize: 9.5, color: THEME.textMuted, marginTop: 2, fontWeight: 600 }}>{item.sub}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Qo'lda ixtiyoriy daqiqa kiritish */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 14, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: THEME.textDark, whiteSpace: 'nowrap' }}>
+                  ✏️ Qo'lda ixtiyoriy daqiqa kiritish:
+                </span>
+                <input
+                  type="number"
+                  min={15}
+                  max={240}
+                  value={form.lesson_duration_minutes}
+                  onChange={e => {
+                    const v = parseInt(e.target.value, 10);
+                    setForm({ ...form, lesson_duration_minutes: isNaN(v) ? '' : v });
+                  }}
+                  placeholder="45"
+                  style={{
+                    width: 80,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    border: '1.5px solid #CBD5E1',
+                    fontWeight: 900,
+                    fontSize: 14,
+                    color: THEME.primary,
+                    textAlign: 'center'
+                  }}
+                />
+                <span style={{ fontSize: 12, color: THEME.textMuted }}>daqiqa (masalan: 30, 40, 50, 75 daqiqa)</span>
+              </div>
+            </div>
+
+            {/* E) Qo'ng'iroqlar Jadvali & Oraliq Tanaffus */}
+            <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1.5px solid #F1F5F9' }}>
+              <label style={{ fontSize: 13, fontWeight: 900, color: THEME.textDark, display: 'block', marginBottom: 10 }}>
+                🔔 E) Qo'ng'iroqlar Jadvali & Oraliq Tanaffuslar:
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                {/* 1-dars boshlanish vaqti */}
+                <div style={{ padding: 12, borderRadius: 14, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 6 }}>
+                    1-DARS BOSHLANISH VAQTI
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="time"
+                      value={form.first_lesson_start_time || '08:30'}
+                      onChange={e => setForm({ ...form, first_lesson_start_time: e.target.value })}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: 10,
+                        border: '1px solid #CBD5E1',
+                        fontWeight: 800,
+                        fontSize: 13,
+                        backgroundColor: '#FFF'
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {['08:00', '08:30', '09:00'].map(t => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setForm({ ...form, first_lesson_start_time: t })}
+                          style={{
+                            padding: '4px 6px',
+                            borderRadius: 6,
+                            border: form.first_lesson_start_time === t ? `1.5px solid ${THEME.primary}` : '1px solid #CBD5E1',
+                            backgroundColor: form.first_lesson_start_time === t ? THEME.primaryLight : '#FFF',
+                            fontSize: 10,
+                            fontWeight: 800,
+                            cursor: 'pointer'
+                          }}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Oraliq tanaffus */}
+                <div style={{ padding: 12, borderRadius: 14, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 6 }}>
+                    ODATIY TANAFFUS VAQTI
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="number"
+                      min={0}
+                      max={60}
+                      value={form.break_duration_minutes}
+                      onChange={e => {
+                        const v = parseInt(e.target.value, 10);
+                        setForm({ ...form, break_duration_minutes: isNaN(v) ? 0 : v });
+                      }}
+                      style={{
+                        width: 60,
+                        padding: '8px 10px',
+                        borderRadius: 10,
+                        border: '1px solid #CBD5E1',
+                        fontWeight: 800,
+                        fontSize: 13,
+                        backgroundColor: '#FFF',
+                        textAlign: 'center'
+                      }}
+                    />
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textDark }}>daq</span>
+                    <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+                      {[5, 10, 15].map(b => (
+                        <button
+                          key={b}
+                          type="button"
+                          onClick={() => setForm({ ...form, break_duration_minutes: b })}
+                          style={{
+                            padding: '4px 6px',
+                            borderRadius: 6,
+                            border: Number(form.break_duration_minutes) === b ? `1.5px solid ${THEME.primary}` : '1px solid #CBD5E1',
+                            backgroundColor: Number(form.break_duration_minutes) === b ? THEME.primaryLight : '#FFF',
+                            fontSize: 10,
+                            fontWeight: 800,
+                            cursor: 'pointer'
+                          }}>
+                          {b}m
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Katta tanaffus (Ixtiyoriy) */}
+              <div style={{ padding: 12, borderRadius: 14, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', marginBottom: 14 }}>
+                <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 6 }}>
+                  KATTA TANAFFUS / TUSHLIK (IXTIYORIY)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+                  <select
+                    value={form.big_break_after_lesson || 0}
+                    onChange={e => setForm({ ...form, big_break_after_lesson: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontSize: 12, fontWeight: 700, backgroundColor: '#FFF' }}>
+                    <option value={0}>Yo'q (Barcha tanaffuslar teng)</option>
+                    <option value={2}>2-darsdan keyin katta tanaffus</option>
+                    <option value={3}>3-darsdan keyin katta tanaffus (Tushlik)</option>
+                    <option value={4}>4-darsdan keyin katta tanaffus</option>
+                  </select>
+                  {Number(form.big_break_after_lesson) > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="number"
+                        min={10}
+                        max={90}
+                        value={form.big_break_duration_minutes}
+                        onChange={e => setForm({ ...form, big_break_duration_minutes: Number(e.target.value) || 20 })}
+                        style={{ width: 60, padding: '7px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontWeight: 800, fontSize: 12, textAlign: 'center' }}
+                      />
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textDark }}>daqiqa tanaffus</span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11, color: THEME.textMuted, display: 'flex', alignItems: 'center' }}>
+                      Barcha tanaffuslar {form.break_duration_minutes} daqiqadan
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* JONLI QO'NG'IROQLAR JADVALI PREVYUSI */}
+              <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#EFF6FF', border: '1.5px solid #BFDBFE' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Calendar size={14} /> JONLI QO'NG'IROQLAR VA DARS VAQTI PREVYUSI:
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: '#2563EB', backgroundColor: '#DBEAFE', padding: '2px 7px', borderRadius: 6 }}>
+                    Har biri {form.lesson_duration_minutes} daqiqa
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                  {generateLessonSlots(form, 6).map(slot => (
+                    <div
+                      key={slot.order}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: 10,
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #93C5FD',
+                        fontSize: 11,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                      <span style={{ fontWeight: 800, color: '#1E3A8A' }}>{slot.order}-{liveTerms.lessonSingularLower}:</span>
+                      <span style={{ fontWeight: 900, color: THEME.primary }}>{slot.start} – {slot.end}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sinxronlash Chekboksi */}
+              <div style={{ marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: '#F0FDF4', border: '1.5px solid #86EFAC', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <input
+                  type="checkbox"
+                  id="sync_schedules_cb"
+                  checked={Boolean(form.sync_schedules)}
+                  onChange={e => setForm({ ...form, sync_schedules: e.target.checked })}
+                  style={{ width: 18, height: 18, marginTop: 2, cursor: 'pointer', accentColor: THEME.green }}
+                />
+                <label htmlFor="sync_schedules_cb" style={{ fontSize: 12, fontWeight: 800, color: '#065F46', cursor: 'pointer', lineHeight: 1.45 }}>
+                  🔄 Mavjud barcha sinflarning haftalik dars jadvallari va bugungi darslar vaqtini yangi me'yor bo'yicha avtomatik yangilash (Tavsiya etiladi)
+                  <div style={{ fontSize: 10.5, fontWeight: 500, color: '#047857', marginTop: 2 }}>
+                    Saqlash tugmasi bosilganda barcha 1-{liveTerms.lessonSingularLower}, 2-{liveTerms.lessonSingularLower}... vaqtlari avtomatik ravishda yangi hisoblangan slotlarga sinxronlashtiriladi.
+                  </div>
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* LIVE PREVIEW CARD: Web + Mobile App */}
@@ -3501,6 +5707,9 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 3 }}>
                   • <b>Bugungi {liveTerms.lessonPlural.toLowerCase()}:</b> 1-{liveTerms.lessonSingular.toLowerCase()}, 2-{liveTerms.lessonSingular.toLowerCase()}
                 </div>
+                <div style={{ fontSize: 11.5, color: '#38BDF8', marginTop: 3 }}>
+                  • <b>Dars vaqti:</b> {form.lesson_duration_minutes || 45} daqiqa ({form.first_lesson_start_time || '08:30'} dan)
+                </div>
               </div>
 
               <div style={{ padding: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -3508,6 +5717,9 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 <div style={{ fontWeight: 800, fontSize: 13, color: '#FFF' }}>Mening {liveTerms.groupPlural.toLowerCase()}im</div>
                 <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 6 }}>
                   • <b>Jurnal:</b> {liveTerms.formatGroup('11-A')} ({liveTerms.studentPlural})
+                </div>
+                <div style={{ fontSize: 11.5, color: '#38BDF8', marginTop: 3 }}>
+                  • <b>Dars vaqti:</b> {form.lesson_duration_minutes || 45} daqiqa / dars
                 </div>
                 <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 3 }}>
                   • <b>Mas'ul:</b> {liveTerms.groupLeader}
@@ -3562,6 +5774,7 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
   const [classesList, setClassesList] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState('');
   const [schoolConfig, setSchoolConfig] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const schoolId = String(currentUser?.schoolId || '1');
 
   useEffect(() => {
@@ -3638,6 +5851,9 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
           <div>
             <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>{currentUser.name}</div>
             <div style={{ fontSize: 11, color: THEME.textMuted }}>{currentUser.subject}</div>
+            <div style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 8, backgroundColor: THEME.primaryLight, color: THEME.primary, fontSize: 11, fontWeight: 800 }}>
+              <Key size={11} /> 5 xonali ID: <span style={{ fontFamily: 'monospace' }}>{currentUser.teacherId || currentUser.username}</span>
+            </div>
           </div>
           <button onClick={handleLogout} title="Chiqish" style={{ background: '#F8F9FE', border: 'none', color: '#EF4444', padding: 8, borderRadius: 10, cursor: 'pointer' }}>
             <LogOut size={16} />
@@ -3674,11 +5890,47 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
               {groupStudents.map(st => (
                 <tr key={st.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
                   <td style={{ padding: '12px 14px' }}>
-                    {st.photo_3x4 ? (
-                      <img src={st.photo_3x4} alt="" style={{ width: 36, height: 46, borderRadius: 8, objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: 36, height: 46, borderRadius: 8, background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>Foto</div>
-                    )}
+                    <div
+                      onClick={() => {
+                        if (st.photo_3x4) {
+                          setPreviewImage({
+                            url: st.photo_3x4,
+                            title: `${st.last_name} ${st.first_name}`,
+                            subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
+                            badge: terms.studentSingular,
+                            idNumber: st.student_id,
+                            schoolName: displaySchoolName,
+                          });
+                        }
+                      }}
+                      title={st.photo_3x4 ? "Rasmni kattalashtirib ko'rish (bosing)" : ""}
+                      style={{
+                        width: 38,
+                        height: 48,
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        cursor: st.photo_3x4 ? 'zoom-in' : 'default',
+                        position: 'relative',
+                        border: `1px solid ${THEME.border}`,
+                        backgroundColor: THEME.primaryLight,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'transform 0.18s ease',
+                      }}
+                      onMouseEnter={(e) => { if (st.photo_3x4) e.currentTarget.style.transform = 'scale(1.08)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                      {st.photo_3x4 ? (
+                        <>
+                          <img src={st.photo_3x4} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 3, padding: 1, display: 'flex' }}>
+                            <ZoomIn size={9} />
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ color: THEME.primary, fontSize: 10, fontWeight: 800 }}>Foto</div>
+                      )}
+                    </div>
                   </td>
                   <td style={{ padding: '14px', fontWeight: 800 }}>{st.last_name} {st.first_name}</td>
                   <td style={{ padding: '14px' }}><code>{st.student_id}</code></td>
@@ -3697,6 +5949,14 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
           </table>
         </div>
       </main>
+
+      {/* Kattalashtirilgan Rasm Modali */}
+      {previewImage && (
+        <ImagePreviewModal
+          image={previewImage}
+          onClose={() => setPreviewImage(null)}
+        />
+      )}
     </div>
   );
 }
@@ -3999,10 +6259,31 @@ function EditStudentModal({ student, classesList, terms = buildSchoolTerms(), on
 // =========================================================================
 // 11. YANGI GURUH / SINF YARATISH MODALI
 // =========================================================================
-function AddGroupModal({ newGroup, setNewGroup, terms = buildSchoolTerms(), onClose, onSubmit }) {
+function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = buildSchoolTerms(), onClose, onSubmit, onOpenAddTeacher }) {
+  const [manualMode, setManualMode] = useState(false);
+
+  const matchedTeacher = (teachersList || []).find(t => t.name === newGroup.teacher);
+
+  const handleTeacherSelect = (teacherName) => {
+    if (!teacherName) {
+      setNewGroup(prev => ({ ...prev, teacher: '' }));
+      return;
+    }
+    const found = (teachersList || []).find(t => t.name === teacherName);
+    setNewGroup(prev => ({
+      ...prev,
+      teacher: teacherName,
+      room: prev.room || found?.rooms || '',
+    }));
+  };
+
+  const handleClearTeacher = () => {
+    setNewGroup(prev => ({ ...prev, teacher: '' }));
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 450, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 470, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
             <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>Yangi {terms.groupSingular} Yaratish</div>
@@ -4036,14 +6317,178 @@ function AddGroupModal({ newGroup, setNewGroup, terms = buildSchoolTerms(), onCl
             />
           </div>
 
+          {/* O'qituvchini mavjud o'qituvchilar bazasidan tanlash */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>{terms.groupLeader} (Ixtiyoriy)</label>
-            <input
-              placeholder="Masalan: Sardorbek Alimov"
-              value={newGroup.teacher}
-              onChange={e => setNewGroup({ ...newGroup, teacher: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                👨‍🏫 {terms.groupLeader} (O'qituvchi)
+              </label>
+              {teachersList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setManualMode(!manualMode)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: THEME.primary,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}>
+                  {manualMode ? "👨‍🏫 Mavjud bazadan tanlash" : "✍️ Qo'lda yozish"}
+                </button>
+              )}
+            </div>
+
+            {!manualMode && teachersList.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <select
+                  value={newGroup.teacher}
+                  onChange={e => handleTeacherSelect(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 14,
+                    border: `1.5px solid ${newGroup.teacher ? THEME.primary : '#CBD5E1'}`,
+                    backgroundColor: '#FFFFFF',
+                    boxSizing: 'border-box',
+                    fontSize: 13,
+                    outline: 'none',
+                    fontWeight: newGroup.teacher ? 700 : 500,
+                    color: newGroup.teacher ? THEME.textDark : '#64748B',
+                    cursor: 'pointer',
+                  }}>
+                  <option value="">-- O'qituvchini tanlang ({teachersList.length} nafar mavjud) --</option>
+                  {teachersList.map(t => (
+                    <option key={t.id} value={t.name}>
+                      👨‍🏫 {t.name} (ID: {t.teacher_id || t.username}) — {t.subject || "Fan o'qituvchisi"}{t.rooms ? ` (${t.rooms})` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {matchedTeacher && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    borderRadius: 14,
+                    backgroundColor: THEME.primaryLight,
+                    border: `1px solid ${THEME.primary}`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        background: THEME.gradient,
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 800,
+                        fontSize: 13,
+                        flexShrink: 0,
+                      }}>
+                        {matchedTeacher.name[0] || 'U'}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>
+                          {matchedTeacher.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>
+                          {matchedTeacher.subject} {matchedTeacher.phone ? `• ${matchedTeacher.phone}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearTeacher}
+                      style={{
+                        background: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 8,
+                        padding: '4px 8px',
+                        fontSize: 11,
+                        color: '#EF4444',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                      }}>
+                      ✕ Bekor qilish
+                    </button>
+                  </div>
+                )}
+
+                {onOpenAddTeacher && (
+                  <div style={{ fontSize: 11, color: THEME.textMuted, display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={onOpenAddTeacher}
+                      style={{ background: 'transparent', border: 'none', color: THEME.primary, cursor: 'pointer', fontWeight: 700, fontSize: 11 }}>
+                      + Ro'yxatda yo'q yangi o'qituvchini qo'shish
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : !manualMode && teachersList.length === 0 ? (
+              <div style={{
+                padding: '12px 14px',
+                borderRadius: 14,
+                backgroundColor: '#FEF3C7',
+                border: '1px solid #FDE68A',
+                fontSize: 12,
+                color: '#92400E',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}>
+                <div>⚠️ Maktab bazasida hali o'qituvchilar mavjud emas.</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {onOpenAddTeacher && (
+                    <button
+                      type="button"
+                      onClick={onOpenAddTeacher}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: THEME.gradient,
+                        color: '#FFF',
+                        fontWeight: 800,
+                        fontSize: 11.5,
+                        cursor: 'pointer',
+                      }}>
+                      + Yangi O'qituvchi Qo'shish
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setManualMode(true)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 10,
+                      border: '1px solid #D97706',
+                      backgroundColor: '#FFFFFF',
+                      color: '#92400E',
+                      fontWeight: 700,
+                      fontSize: 11.5,
+                      cursor: 'pointer',
+                    }}>
+                    Qo'lda kiritish
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <input
+                  placeholder="Masalan: Sardorbek Alimov"
+                  value={newGroup.teacher}
+                  onChange={e => setNewGroup({ ...newGroup, teacher: e.target.value })}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, boxSizing: 'border-box', fontSize: 13 }}
+                />
+              </div>
+            )}
           </div>
 
           <div>
@@ -4078,12 +6523,34 @@ function AddGroupModal({ newGroup, setNewGroup, terms = buildSchoolTerms(), onCl
 // =========================================================================
 // 11.B GURUH / SINF TAHRIRLASH MODALI (EDIT GROUP/CLASS CRUD)
 // =========================================================================
-function EditGroupModal({ group, terms = buildSchoolTerms(), onClose, onSave }) {
+function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), onClose, onSave, onOpenAddTeacher }) {
   const [name, setName] = useState(group?.name || '');
   const [academicYear, setAcademicYear] = useState(group?.academic_year || '2026-2027');
   const [teacher, setTeacher] = useState(group?.advisor_teacher || '');
   const [room, setRoom] = useState(group?.room_number || '');
   const [submitting, setSubmitting] = useState(false);
+  const [manualMode, setManualMode] = useState(() => {
+    if (!group?.advisor_teacher) return false;
+    return !teachersList.some(t => t.name.toLowerCase() === (group.advisor_teacher || '').toLowerCase());
+  });
+
+  const matchedTeacher = (teachersList || []).find(t => t.name.toLowerCase() === (teacher || '').toLowerCase());
+
+  const handleTeacherSelect = (teacherName) => {
+    if (!teacherName) {
+      setTeacher('');
+      return;
+    }
+    const found = (teachersList || []).find(t => t.name === teacherName);
+    setTeacher(teacherName);
+    if (!room && found?.rooms) {
+      setRoom(found.rooms);
+    }
+  };
+
+  const handleClearTeacher = () => {
+    setTeacher('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -4107,7 +6574,7 @@ function EditGroupModal({ group, terms = buildSchoolTerms(), onClose, onSave }) 
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 125, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 470, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
             <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>{terms.groupSingular}ni Tahrirlash (O'zgartirish)</div>
@@ -4141,14 +6608,178 @@ function EditGroupModal({ group, terms = buildSchoolTerms(), onClose, onSave }) 
             />
           </div>
 
+          {/* O'qituvchini mavjud o'qituvchilar bazasidan tanlash */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>{terms.groupLeader} (F.I.Sh.)</label>
-            <input
-              placeholder="Masalan: Sardorbek Alimov"
-              value={teacher}
-              onChange={e => setTeacher(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                👨‍🏫 {terms.groupLeader} (O'qituvchi)
+              </label>
+              {teachersList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setManualMode(!manualMode)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: THEME.primary,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}>
+                  {manualMode ? "👨‍🏫 Mavjud bazadan tanlash" : "✍️ Qo'lda yozish"}
+                </button>
+              )}
+            </div>
+
+            {!manualMode && teachersList.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <select
+                  value={matchedTeacher ? matchedTeacher.name : teacher}
+                  onChange={e => handleTeacherSelect(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 14,
+                    border: `1.5px solid ${teacher ? THEME.primary : '#CBD5E1'}`,
+                    backgroundColor: '#FFFFFF',
+                    boxSizing: 'border-box',
+                    fontSize: 13,
+                    outline: 'none',
+                    fontWeight: teacher ? 700 : 500,
+                    color: teacher ? THEME.textDark : '#64748B',
+                    cursor: 'pointer',
+                  }}>
+                  <option value="">-- O'qituvchini tanlang ({teachersList.length} nafar mavjud) --</option>
+                  {teachersList.map(t => (
+                    <option key={t.id} value={t.name}>
+                      👨‍🏫 {t.name} (ID: {t.teacher_id || t.username}) — {t.subject || "Fan o'qituvchisi"}{t.rooms ? ` (${t.rooms})` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {matchedTeacher && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    borderRadius: 14,
+                    backgroundColor: THEME.primaryLight,
+                    border: `1px solid ${THEME.primary}`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        background: THEME.gradient,
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 800,
+                        fontSize: 13,
+                        flexShrink: 0,
+                      }}>
+                        {matchedTeacher.name[0] || 'U'}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>
+                          {matchedTeacher.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>
+                          {matchedTeacher.subject} {matchedTeacher.phone ? `• ${matchedTeacher.phone}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearTeacher}
+                      style={{
+                        background: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 8,
+                        padding: '4px 8px',
+                        fontSize: 11,
+                        color: '#EF4444',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                      }}>
+                      ✕ Bekor qilish
+                    </button>
+                  </div>
+                )}
+
+                {onOpenAddTeacher && (
+                  <div style={{ fontSize: 11, color: THEME.textMuted, display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={onOpenAddTeacher}
+                      style={{ background: 'transparent', border: 'none', color: THEME.primary, cursor: 'pointer', fontWeight: 700, fontSize: 11 }}>
+                      + Ro'yxatda yo'q yangi o'qituvchini qo'shish
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : !manualMode && teachersList.length === 0 ? (
+              <div style={{
+                padding: '12px 14px',
+                borderRadius: 14,
+                backgroundColor: '#FEF3C7',
+                border: '1px solid #FDE68A',
+                fontSize: 12,
+                color: '#92400E',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}>
+                <div>⚠️ Maktab bazasida hali o'qituvchilar mavjud emas.</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {onOpenAddTeacher && (
+                    <button
+                      type="button"
+                      onClick={onOpenAddTeacher}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: THEME.gradient,
+                        color: '#FFF',
+                        fontWeight: 800,
+                        fontSize: 11.5,
+                        cursor: 'pointer',
+                      }}>
+                      + Yangi O'qituvchi Qo'shish
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setManualMode(true)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 10,
+                      border: '1px solid #D97706',
+                      backgroundColor: '#FFFFFF',
+                      color: '#92400E',
+                      fontWeight: 700,
+                      fontSize: 11.5,
+                      cursor: 'pointer',
+                    }}>
+                    Qo'lda kiritish
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <input
+                  placeholder="Masalan: Sardorbek Alimov"
+                  value={teacher}
+                  onChange={e => setTeacher(e.target.value)}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, boxSizing: 'border-box', fontSize: 13 }}
+                />
+              </div>
+            )}
           </div>
 
           <div>
@@ -4256,6 +6887,64 @@ function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = 
                 onChange={e => setNewTeacher({ ...newTeacher, phone: e.target.value })}
                 style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
               />
+            </div>
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Maxfiy Parol</label>
+              <span style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>Ixtiyoriy (Standart: teacher123)</span>
+            </div>
+            <input
+              type="text"
+              placeholder="Bo'sh qoldirilsa: teacher123"
+              value={newTeacher.password || ''}
+              onChange={e => setNewTeacher({ ...newTeacher, password: e.target.value })}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+            />
+            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Key size={12} color={THEME.primary} />
+              <span>5 xonali unikal Kirish ID tizim tomonidan avtomatik belgilanadi.</span>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>3x4 Foto (Ixtiyoriy — Face ID va profil uchun)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6 }}>
+              <div style={{ width: 56, height: 72, borderRadius: 10, border: '2px dashed #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', backgroundColor: '#F8FAFC' }}>
+                {newTeacher.photoPreview ? (
+                  <img src={newTeacher.photoPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: 10, color: THEME.textMuted, textAlign: 'center', padding: 4 }}>Foto yo'q</span>
+                )}
+              </div>
+              <div>
+                <input
+                  type="file"
+                  id="teacher-photo-input"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setNewTeacher({
+                        ...newTeacher,
+                        photo: file,
+                        photoPreview: URL.createObjectURL(file)
+                      });
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
+                <label
+                  htmlFor="teacher-photo-input"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, border: `1px solid ${THEME.border}`, backgroundColor: '#F8FAFC', fontSize: 12, fontWeight: 700, color: THEME.textDark, cursor: 'pointer' }}>
+                  <FolderOpen size={14} color={THEME.primary} />
+                  3x4 Rasmni tanlash
+                </label>
+                <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                  JPG, PNG formatida (pasport yoki rasmiy 3x4 rasm)
+                </div>
+              </div>
             </div>
           </div>
 

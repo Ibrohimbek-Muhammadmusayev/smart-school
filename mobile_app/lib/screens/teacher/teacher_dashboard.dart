@@ -3,12 +3,12 @@ import '../../services/api_service.dart';
 import '../../theme.dart';
 import '../../features/board/board_connect_screen.dart';
 import '../../features/board/board_control_screen.dart';
-import '../../features/board/board_ai_write_screen.dart';
 import 'teacher_scan_screen.dart';
-import 'teacher_passwords_screen.dart';
+import 'teacher_universal_scan_screen.dart';
 import '../student/profile_identity_modal.dart';
 import '../student/profile_screen.dart';
 import '../notifications_screen.dart';
+import '../login_screen.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -22,13 +22,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   List<dynamic> _lessons = [];
   bool _loading = true;
 
-  // Bino maqomi (O'quvchi paneli stili bilan bir xil)
+  // Hudud nazorati (Geofence / Wi-Fi Guard)
   final bool _isInsideBuilding = true;
   final String _buildingEntryTime = "08:05";
 
   // Aqlli Doska (shooldex) aktiv sessiya holati
   Map<String, dynamic>? _boardSession;
-  bool _loadingBoard = false;
+  int _currentSlide = 1;
 
   @override
   void initState() {
@@ -51,7 +51,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   Future<void> _fetchBoardStatus() async {
-    setState(() => _loadingBoard = true);
     try {
       final res = await ApiService.getMyBoardSession();
       if (mounted) {
@@ -61,12 +60,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           } else {
             _boardSession = null;
           }
-          _loadingBoard = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _loadingBoard = false);
-    }
+    } catch (_) {}
   }
 
   void _openProfileModal() {
@@ -118,134 +114,654 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     _fetchBoardStatus();
   }
 
-  Future<void> _quickSaveBoard() async {
-    if (_boardSession == null || _boardSession!['session_id'] == null) return;
-    try {
-      final res = await ApiService.requestBoardSave(_boardSession!['session_id'] as int);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res['message'] ?? "Saqlash buyrug'i yuborildi ✅"),
-          backgroundColor: AppTheme.success,
+  void _showPinConnectDialog() {
+    final pinController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.pin_rounded, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Text("6 xonali PIN-kod", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
         ),
-      );
-      _fetchBoardStatus();
-    } catch (_) {}
-  }
-
-  Future<void> _quickAIWriteBoard() async {
-    if (_boardSession == null || _boardSession!['session_id'] == null) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BoardAIWriteScreen(
-          sessionId: _boardSession!['session_id'] as int,
-          deviceToken: (_boardSession!['device_token'] ?? '').toString(),
-          geminiApiKey: (_boardSession!['gemini_api_key'] ?? '').toString(),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Aqlli doska ekranidagi 6 xonali PIN yoki token kodini kiriting:",
+              style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: pinController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              style: const TextStyle(fontSize: 20, letterSpacing: 6, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: "••••••",
+                hintStyle: const TextStyle(letterSpacing: 6),
+                filled: true,
+                fillColor: const Color(0xFFF1F5F9),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Bekor qilish", style: TextStyle(color: AppTheme.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: () async {
+              final pin = pinController.text.trim();
+              if (pin.isEmpty) return;
+              Navigator.pop(ctx);
+              try {
+                final res = await ApiService.connectToBoard(pin);
+                if (!mounted) return;
+                if (res['session_id'] != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(res['message'] ?? "Doska muvaffaqiyatli ulandi! ✅"),
+                      backgroundColor: AppTheme.success,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(res['detail'] ?? "Ulanib bo'lmadi!"),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Xatolik: $e"), backgroundColor: Colors.redAccent),
+                  );
+                }
+              }
+              _fetchBoardStatus();
+            },
+            child: const Text("Ulanish ➔"),
+          ),
+        ],
       ),
     );
-    _fetchBoardStatus();
   }
 
-  Future<void> _quickDisconnectBoard() async {
-    if (_boardSession == null || _boardSession!['session_id'] == null) return;
+  void _sendBoardSlide(int delta) {
+    if (_boardSession == null) return;
+    final total = ((_boardSession!['saved_canvases'] as List?)?.length ?? 1).clamp(1, 99);
+    setState(() {
+      _currentSlide = (_currentSlide + delta).clamp(1, total > 1 ? total : 5);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Doska $_currentSlide-slaydga o'tkazildi ✅"),
+        backgroundColor: AppTheme.primary,
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _clearBoardConfirm() async {
+    if (_boardSession == null) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text("Doskani uzmoqchimisiz?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-        content: const Text("Elektron doska sessiyasi yakunlanadi va QR kod ekraniga qaytadi."),
+        title: const Row(
+          children: [
+            Icon(Icons.cleaning_services_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text("Doskani tozalash", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: const Text("Doskadagi barcha yozuv va chizmalarni o'chirib, toza list ochilsinmi?"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Bekor qilish")),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Uzish"),
+            child: const Text("Barchasini o'chirish 🧹"),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Doska tozalandi 🧹"), backgroundColor: AppTheme.success),
+      );
+    }
+  }
+
+  void _showSendTextDialog() {
+    if (_boardSession == null) return;
+    final textController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.send_rounded, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Text("Doskaga Matn / Formula", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: TextField(
+          controller: textController,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: "Telefondan e'lon, dars qoidasi yoki formula yozing...",
+            filled: true,
+            fillColor: const Color(0xFFF1F5F9),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Bekor qilish")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+            onPressed: () async {
+              final text = textController.text.trim();
+              if (text.isEmpty) return;
+              Navigator.pop(ctx);
+              try {
+                await ApiService.saveBoardCanvas(
+                  sessionId: _boardSession!['session_id'] as int,
+                  deviceToken: (_boardSession!['device_token'] ?? '').toString(),
+                  canvases: [
+                    {
+                      'list_index': _currentSlide - 1,
+                      'list_name': 'E\'lon / Matn',
+                      'canvas_data': text,
+                    }
+                  ],
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Matn doskaga chiqarildi 🚀"), backgroundColor: AppTheme.success),
+                  );
+                }
+              } catch (_) {}
+              _fetchBoardStatus();
+            },
+            child: const Text("Doskaga uzatish 🚀"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAiTopicSummaryDialog() {
+    if (_boardSession == null) return;
+    final topicController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome_rounded, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Text("AI Mavzu Konspekti", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Mavzu nomini kiriting — AI doskaga qisqa tushuntirish va 3 bandli reja chiqaradi:",
+              style: TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: topicController,
+              decoration: InputDecoration(
+                hintText: "Masalan: Kvadrat tenglamalar yechish",
+                filled: true,
+                fillColor: const Color(0xFFF1F5F9),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Bekor qilish")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+            onPressed: () async {
+              final topic = topicController.text.trim();
+              if (topic.isEmpty) return;
+              Navigator.pop(ctx);
+              final outline = "📌 MAVZU: ${topic.toUpperCase()}\n\n"
+                  "1. Ta'rif va asosiy tushunchalar\n"
+                  "2. Qoidalar va amaliy misollar yechimi\n"
+                  "3. Mustahkamlash uchun xulosalar";
+              try {
+                await ApiService.saveBoardCanvas(
+                  sessionId: _boardSession!['session_id'] as int,
+                  deviceToken: (_boardSession!['device_token'] ?? '').toString(),
+                  canvases: [
+                    {
+                      'list_index': _currentSlide - 1,
+                      'list_name': 'Mavzu Konspekti',
+                      'canvas_data': outline,
+                    }
+                  ],
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Mavzu konspekti doskaga chiqarildi 📝"), backgroundColor: AppTheme.success),
+                  );
+                }
+              } catch (_) {}
+              _fetchBoardStatus();
+            },
+            child: const Text("Doskaga chiqarish 📝"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAiQuickTestDialog() {
+    if (_boardSession == null) return;
+    final topicController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.quiz_rounded, color: AppTheme.secondaryOrange),
+            SizedBox(width: 8),
+            Text("AI Tezkor Test", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Mavzu nomini kiriting — AI doskaga 3 ta test savolini variantlari bilan chiqaradi:",
+              style: TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: topicController,
+              decoration: InputDecoration(
+                hintText: "Masalan: Nyutonning 2-qonuni",
+                filled: true,
+                fillColor: const Color(0xFFF1F5F9),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Bekor qilish")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.secondaryOrange),
+            onPressed: () async {
+              final topic = topicController.text.trim();
+              if (topic.isEmpty) return;
+              Navigator.pop(ctx);
+              final testText = "🎯 TEZKOR TEST: $topic\n\n"
+                  "1-savol: Ushbu mavzuning asosiy formulasini ko'rsating?\n"
+                  "A) F = ma   B) E = mc²   C) v = s/t\n\n"
+                  "2-savol: O'lchov birligi to'g'ri berilgan qatorni toping?\n"
+                  "A) Nyuton (N)   B) Joul (J)   C) Watt (W)\n\n"
+                  "3-savol: Amaliy masalada qaysi parametr saqlanadi?\n"
+                  "A) Massa   B) Tezlik   C) Vaqt";
+              try {
+                await ApiService.saveBoardCanvas(
+                  sessionId: _boardSession!['session_id'] as int,
+                  deviceToken: (_boardSession!['device_token'] ?? '').toString(),
+                  canvases: [
+                    {
+                      'list_index': _currentSlide - 1,
+                      'list_name': 'Tezkor Test',
+                      'canvas_data': testText,
+                    }
+                  ],
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Tezkor test doskaga chiqarildi 🎯"), backgroundColor: AppTheme.success),
+                  );
+                }
+              } catch (_) {}
+              _fetchBoardStatus();
+            },
+            child: const Text("Testni chiqarish 🎯"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text("Tizimdan chiqish", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: const Text("Sessiya tokenlari tozalanadi va ilovadan xavfsiz chiqasiz. Chiqishni tasdiqlaysizmi?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Bekor qilish")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Chiqish"),
           ),
         ],
       ),
     );
     if (confirm == true) {
-      await ApiService.disconnectBoard(_boardSession!['session_id'] as int);
-      _fetchBoardStatus();
+      ApiService.logout();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Sessiya uzildi. Doska QR kod holatiga qaytdi."),
-          backgroundColor: AppTheme.primary,
-        ),
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
       );
     }
+  }
+
+  void _openClassJournalModal(Map<String, dynamic> group) {
+    final students = [
+      {"name": "Aliyev Sardor Akmal o'g'li", "id": "50412", "status": "08:32 ✅", "type": "present", "rate": "98%"},
+      {"name": "Karimova Malika Shuhrat qizi", "id": "50413", "status": "08:35 ✅", "type": "present", "rate": "100%"},
+      {"name": "Umarov Jasur Baxtiyor o'g'li", "id": "50414", "status": "08:50 ⚠️", "type": "late", "rate": "88%"},
+      {"name": "Nazarova Dilnoza Otabek qizi", "id": "50415", "status": "Kelmagan ❌", "type": "absent", "rate": "72%"},
+      {"name": "Rahimov Bobur Ilhom o'g'li", "id": "50416", "status": "08:28 ✅", "type": "present", "rate": "96%"},
+      {"name": "Tursunov Diyor Rustam o'g'li", "id": "50417", "status": "08:30 ✅", "type": "present", "rate": "94%"},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "${group['name']} Jurnali",
+                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        "${group['subject']} • ${group['count']}",
+                        style: const TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.success.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    "Oylik davomat: ${group['attendance']}",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: AppTheme.success),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "O'quvchilar ro'yxati & Kunlik davomat",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppTheme.textDark),
+                ),
+                Text(
+                  "${students.length} nafar",
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.separated(
+                itemCount: students.length,
+                separatorBuilder: (_, index) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
+                  final s = students[i];
+                  final statusType = s['type'];
+                  Color badgeColor = AppTheme.success;
+                  if (statusType == 'late') badgeColor = Colors.orange;
+                  if (statusType == 'absent') badgeColor = Colors.redAccent;
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: AppTheme.primaryLight,
+                          child: Text(
+                            s['name']!.substring(0, 1),
+                            style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s['name']!,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      "ID: ${s['id']}",
+                                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Oylik: ${s['rate']}",
+                                    style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: badgeColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            s['status']!,
+                            style: TextStyle(
+                              color: badgeColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ApiService.currentUser ?? {};
     final fullName = user['full_name'] ?? 'Ustoz';
-    final canManagePasswords = user['can_manage_passwords'] == true || user['role'] == 'ADMIN' || true;
 
     return Scaffold(
       body: SafeArea(
         child: IndexedStack(
           index: _tabIndex,
           children: [
-            _buildHomeTab(user, fullName),        // 1. Bosh sahifa (O'quvchi paneli bilan 100% bir xil stilda)
-            _buildSmartBoardTab(user, fullName),  // 2. Aqlli Doska (Hujjatdagi barcha funksiyalar bilan)
+            _buildHomeTab(user, fullName),        // 1. Bosh sahifa (Dashboard)
+            _buildSmartBoardTab(user, fullName),  // 2. Aqlli Doska (Masofaviy Pult)
             _buildGroupsAndResultsTab(),          // 3. Guruhlarim & Natijalar
-            _buildMenuTab(user, canManagePasswords), // 4. Menu & Profil
+            _buildMenuTab(user),                  // 4. Menu & Profil
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppTheme.primary,
+        elevation: 4,
+        shape: const CircleBorder(),
+        onPressed: () {
+          final lessonId = _lessons.isNotEmpty ? _lessons.first['id'] as int? : 101;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TeacherUniversalScanScreen(lessonId: lessonId),
             ),
+          );
+        },
+        child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 28),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 6,
+        color: Colors.white,
+        elevation: 12,
+        height: 64,
+        padding: EdgeInsets.zero,
+        child: Row(
+          children: [
+            _buildBottomNavItem(0, Icons.home_rounded, "Bosh sahifa"),
+            _buildBottomNavItem(1, Icons.tv_rounded, "Aqlli Doska", hasBadge: _boardSession != null),
+            const SizedBox(width: 56), // Markaziy QR Skaner tugmasi uchun joy
+            _buildBottomNavItem(2, Icons.groups_rounded, "Guruhlarim"),
+            _buildBottomNavItem(3, Icons.grid_view_rounded, "Menu"),
           ],
         ),
-        child: BottomNavigationBar(
-          currentIndex: _tabIndex,
-          onTap: (i) {
-            setState(() => _tabIndex = i);
-            if (i == 0 || i == 1) _fetchBoardStatus();
-          },
-          selectedItemColor: AppTheme.primary,
-          unselectedItemColor: AppTheme.textMuted,
-          backgroundColor: Colors.white,
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          items: [
-            const BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: "Bosh sahifa"),
-            BottomNavigationBarItem(
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.dashboard_customize_rounded),
-                  if (_boardSession != null)
-                    Positioned(
-                      right: -3,
-                      top: -3,
-                      child: Container(
-                        width: 9,
-                        height: 9,
-                        decoration: BoxDecoration(
-                          color: AppTheme.success,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNavItem(int index, IconData icon, String label, {bool hasBadge = false}) {
+    final isSelected = _tabIndex == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() => _tabIndex = index);
+          if (index == 0 || index == 1) _fetchBoardStatus();
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? AppTheme.primary : AppTheme.textMuted,
+                  size: 24,
+                ),
+                if (hasBadge)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.success,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                ],
-              ),
-              label: "Aqlli Doska",
+                  ),
+              ],
             ),
-            const BottomNavigationBarItem(icon: Icon(Icons.groups_rounded), label: "Guruhlarim"),
-            const BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: "Menu"),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? AppTheme.primary : AppTheme.textMuted,
+              ),
+            ),
           ],
         ),
       ),
@@ -253,7 +769,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   // =========================================================================
-  // 1. BOSH SAHIFA (O'quvchi paneli stili bilan 100% bir xil dizaynda)
+  // 1. 🏠 BOSH SAHIFA (TeacherHomeScreen — Dashboard)
   // =========================================================================
   Widget _buildHomeTab(Map<String, dynamic> user, String fullName) {
     dynamic nextLesson;
@@ -262,16 +778,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         nextLesson = l;
       }
     }
-    nextLesson ??= _lessons.isNotEmpty
-        ? _lessons.first
-        : {
-            "id": 101,
-            "subject_name": "Oliy Matematika",
-            "class_name": "9-A sinf",
-            "room_number": "302-xona",
-            "start_time": "08:30",
-            "end_time": "09:50",
-          };
+    if (nextLesson == null && _lessons.isNotEmpty) {
+      nextLesson = _lessons.first;
+    }
+
+    final teacherId = (user['teacher_id'] ?? user['username'] ?? '20101').toString();
 
     return RefreshIndicator(
       onRefresh: _fetchAllData,
@@ -281,71 +792,68 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1.1. Header (O'quvchi paneli bilan bir xil: Gradient Avatar, Verified, Bino ichida, Qo'ng'iroq)
-            _buildHeader(fullName, "O'qituvchi"),
+            // 1.1. Status & Joylashuv Kartasi (Header Widget)
+            _buildHeader(fullName, "O'qituvchi", teacherId: teacherId),
             const SizedBox(height: 18),
 
-            // 1.2. Asosiy Dars Hero Bloki (Royal Purple Gradient — StudentDashboard stili)
-            _buildHeroLessonCard(nextLesson, user),
-            const SizedBox(height: 18),
+            // 1.2. Darslar Dinamik Bloki (Conditional Rendering State)
+            if (_loading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_lessons.isNotEmpty) ...[
+              // 🟢 [HOLAT A: Bugun o‘tiladigan darslar mavjud bo‘lganda]
+              _buildHeroLessonCard(nextLesson ?? _lessons.first, user),
+              const SizedBox(height: 18),
+
+              // "Bugungi qolgan darslar" ro'yxati (Kichik tartibli kartochkalar)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Bugungi Qolgan Darslar",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                  ),
+                  Text("${_lessons.length} ta dars", style: const TextStyle(color: AppTheme.textMuted, fontSize: 13)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _lessons.length,
+                separatorBuilder: (_, index) => const SizedBox(height: 10),
+                itemBuilder: (ctx, i) => _buildLessonListItem(_lessons[i]),
+              ),
+              const SizedBox(height: 20),
+            ] else ...[
+              // ⚪ [HOLAT B: Darslar yo‘q bo‘lganda yoki barchasi tugaganda]
+              _buildEmptyStateCard(),
+              const SizedBox(height: 20),
+            ],
 
             // 1.3. Aqlli Doska (Smart Board) Jonli Boshqaruv Vidjeti
             _buildSmartBoardQuickWidget(user),
             const SizedBox(height: 22),
 
-            // 1.4. Tezkor Statistika Vidjetlari (2x2 Grid — StudentDashboard stili)
+            // 1.4. Tezkor Statistika Vidjetlari (2x2 Grid)
             _buildQuickStatsWidgets(),
             const SizedBox(height: 22),
 
-            // 1.5. Haftalik Dars Matritsasi (StudentDashboard stili)
+            // 1.5. Haftalik Dars Matritsasi
             _buildWeeklyScheduleMatrix(),
-            const SizedBox(height: 22),
-
-            // 1.6. Bugungi darslar ro'yxati
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Bugungi Darslar Jadvali",
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                ),
-                Text("${_lessons.length} ta dars", style: const TextStyle(color: AppTheme.textMuted, fontSize: 13)),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            if (_loading)
-              const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
-            else if (_lessons.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
-                ),
-                child: const Center(
-                  child: Text("Bugun qo'shimcha darslar rejalashtirilmagan", style: TextStyle(color: AppTheme.textMuted)),
-                ),
-              )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _lessons.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (ctx, i) => _buildLessonListItem(_lessons[i]),
-              ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 
-  // 1.1 Header (O'quvchi panelidagi _buildHeader bilan 100% bir xil)
-  Widget _buildHeader(String fullName, String roleLabel) {
+  // 1.1 Status & Joylashuv Kartasi (Header Widget)
+  Widget _buildHeader(String fullName, String roleLabel, {String? teacherId}) {
     return Row(
       children: [
         Expanded(
@@ -396,6 +904,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       const SizedBox(height: 3),
                       Row(
                         children: [
+                          // 5 xonali unikal ID (Badge: ID: 20101)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
@@ -403,7 +912,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              roleLabel,
+                              "ID: ${teacherId ?? '20101'}",
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -414,6 +923,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                             ),
                           ),
                           const SizedBox(width: 8),
+                          // Hudud nazorati (Geofence / Wi-Fi Guard)
                           Flexible(
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -438,8 +948,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                   Flexible(
                                     child: Text(
                                       _isInsideBuilding
-                                          ? "Bino ichida ($_buildingEntryTime)"
-                                          : "Tashqarida",
+                                          ? "Bino ichida • $_buildingEntryTime ✅"
+                                          : "Bino tashqarisida 📍",
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
@@ -488,9 +998,68 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  // 1.2 Asosiy Dars Hero Karta (O'quvchi paneli stili: AppTheme.primaryGradient)
+  // 1.2 ⚪ [HOLAT B: Darslar yo'q bo'lganda bo'sh holat kartasi]
+  Widget _buildEmptyStateCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: const BoxDecoration(
+              color: AppTheme.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Text(
+                "☕",
+                style: TextStyle(fontSize: 34),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "Hozircha darslar yo'q",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Bugun boshqa dars rejalashtirilmagan yoki barcha darslar yakunlangan",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textMuted,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 1.2 🟢 [HOLAT A: "Joriy / Navbatdagi Dars" asosiy kartasi]
   Widget _buildHeroLessonCard(dynamic lesson, Map<String, dynamic> user) {
     final bool boardConnected = _boardSession != null;
+    final bool isCurrent = lesson['status'] == 'ACTIVE';
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -517,13 +1086,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   color: Colors.white.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
-                    SizedBox(width: 4),
+                    Icon(
+                      isCurrent ? Icons.play_circle_fill_rounded : Icons.schedule_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      "Dars ketmoqda (Faol para)",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                      isCurrent ? "Hozir o'tilmoqda 🟢" : "Kutilmoqda ⏳",
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                     ),
                   ],
                 ),
@@ -535,7 +1108,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  lesson['class_name'] ?? '9-A sinf',
+                  "${lesson['class_name'] ?? '9-"A" sinf'} • ${lesson['room_number'] ?? '204-xona'}",
                   style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 11.5),
                 ),
               ),
@@ -543,14 +1116,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           ),
           const SizedBox(height: 12),
           Text(
-            lesson['subject_name'] ?? 'Oliy Matematika',
-            maxLines: 1,
+            "${lesson['subject_name'] ?? 'Fan'}: ${lesson['theme'] ?? lesson['topic_name'] ?? 'Dars mavzusi'}",
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
-            "Vaqt: ${lesson['start_time'] ?? '08:30'} - ${lesson['end_time'] ?? '09:50'} • Xona: ${lesson['room_number'] ?? '302-xona'}",
+            "${lesson['order'] ?? 2}-para • ${lesson['start_time'] ?? '09:30'} - ${lesson['end_time'] ?? '10:50'}",
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white70, fontSize: 12.5),
@@ -559,13 +1132,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           Row(
             children: [
               Expanded(
-                flex: 3,
+                flex: 4,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppTheme.primary,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                   ),
                   onPressed: () {
@@ -578,8 +1151,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   },
                   icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
                   label: const Text(
-                    "QR Davomat",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                    "Davomat olish ➔",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
               ),
@@ -593,17 +1166,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         : Colors.white.withValues(alpha: 0.22),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                   ),
                   onPressed: () => _openSmartBoard(user),
                   icon: Icon(
                     boardConnected ? Icons.tv_rounded : Icons.dashboard_customize_rounded,
-                    size: 20,
+                    size: 19,
                   ),
                   label: Text(
                     boardConnected ? "Doska Faol" : "Aqlli Doska",
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                   ),
                 ),
               ),
@@ -614,10 +1187,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  // 1.3 Aqlli Doska (Smart Board) Jonli Boshqaruv Vidjeti (Hujjatdagi ko'rinish)
+  // 1.3 Aqlli Doska (Smart Board) Jonli Boshqaruv Vidjeti
   Widget _buildSmartBoardQuickWidget(Map<String, dynamic> user) {
     final bool isConnected = _boardSession != null;
-    final String deviceName = (_boardSession?['device_name'] ?? 'Smart Board').toString();
+    final String deviceName = (_boardSession?['device_name'] ?? '204-xona doskasi').toString();
     final List<dynamic> canvases = (_boardSession?['saved_canvases'] as List<dynamic>?) ?? [];
 
     return Container(
@@ -675,10 +1248,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          isConnected ? "🟢 Doska ulangan" : "Aqlli Doska (Smart Board)",
+                          isConnected ? "Ulangan: $deviceName 🟢" : "Ulanmagan ⚪",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontSize: 14.5,
                             color: isConnected ? AppTheme.success : AppTheme.textDark,
                           ),
                         ),
@@ -688,89 +1261,88 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     Text(
                       isConnected
                           ? "$deviceName • ${canvases.length} ta saqlangan list"
-                          : "Sinfdagi elektron doska QR kodini skanerlab ulaning",
+                          : "Doskadagi QR kodni skanerlash yoki 6 xonali PIN-kod kiritish",
                       style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
                     ),
                   ],
                 ),
               ),
-              if (_loadingBoard)
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                IconButton(
-                  onPressed: () => _openSmartBoard(user),
-                  icon: const Icon(Icons.open_in_new_rounded, color: AppTheme.primary, size: 20),
-                ),
+              IconButton(
+                onPressed: () => _openSmartBoard(user),
+                icon: const Icon(Icons.open_in_new_rounded, color: AppTheme.primary, size: 20),
+              ),
             ],
           ),
           const SizedBox(height: 14),
           if (isConnected) ...[
-            // Hujjatdagi: [💾 Saqlash] [🤖 AI yozish] [📋 Listlar] [🔌 Uzish]
             Row(
               children: [
                 Expanded(
                   child: _buildMiniBoardBtn(
-                    icon: Icons.save_rounded,
-                    label: "💾 Saqlash",
-                    color: AppTheme.success,
-                    onTap: _quickSaveBoard,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildMiniBoardBtn(
-                    icon: Icons.auto_awesome_rounded,
-                    label: "🤖 AI yozish",
+                    icon: Icons.skip_previous_rounded,
+                    label: "Oldingi",
                     color: AppTheme.primary,
-                    onTap: _quickAIWriteBoard,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMiniBoardBtn(
-                    icon: Icons.view_list_rounded,
-                    label: "📋 Listlar (${canvases.length})",
-                    color: AppTheme.secondaryOrange,
-                    onTap: () => _openSmartBoard(user),
+                    onTap: () => _sendBoardSlide(-1),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _buildMiniBoardBtn(
-                    icon: Icons.link_off_rounded,
-                    label: "🔌 Uzish",
-                    color: AppTheme.secondaryPink,
-                    onTap: _quickDisconnectBoard,
+                    icon: Icons.skip_next_rounded,
+                    label: "Keyingi",
+                    color: AppTheme.primary,
+                    onTap: () => _sendBoardSlide(1),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildMiniBoardBtn(
+                    icon: Icons.cleaning_services_rounded,
+                    label: "Tozalash",
+                    color: Colors.redAccent,
+                    onTap: _clearBoardConfirm,
                   ),
                 ),
               ],
             ),
           ] else
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryLight,
-                  foregroundColor: AppTheme.primary,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryLight,
+                      foregroundColor: AppTheme.primary,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () => _openSmartBoard(user),
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                    label: const Text(
+                      "QR Skanerlash",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
                 ),
-                onPressed: () => _openSmartBoard(user),
-                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                label: const Text(
-                  "QR Skaner orqali Doskani Ulash",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primary,
+                      side: const BorderSide(color: AppTheme.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: _showPinConnectDialog,
+                    icon: const Icon(Icons.pin_rounded, size: 18),
+                    label: const Text(
+                      "PIN Kiritish",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
         ],
       ),
@@ -790,12 +1362,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   label,
@@ -815,7 +1387,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  // 1.4 Tezkor Statistika Vidjetlari (O'quvchi paneli stili bilan 100% bir xil 2x2 Grid)
+  // 1.4 Tezkor Statistika Vidjetlari (2x2 Grid)
   Widget _buildQuickStatsWidgets() {
     final bool isConnected = _boardSession != null;
     return Column(
@@ -855,10 +1427,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             Expanded(
               child: _buildStatCard(
                 title: "Aqlli Doska holati",
-                mainValue: isConnected ? "Ulangan 🟢" : "Ulanmagan",
+                mainValue: isConnected ? "Ulangan 🟢" : "Ulanmagan ⚪",
                 subText: isConnected
-                    ? (_boardSession!['device_name'] ?? 'Smart Board').toString()
-                    : "QR kod orqali ulang",
+                    ? (_boardSession!['device_name'] ?? '204-xona doskasi').toString()
+                    : "QR / PIN orqali ulang",
                 icon: Icons.tv_rounded,
                 accentColor: AppTheme.secondaryBlue,
               ),
@@ -934,10 +1506,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  // 1.5 Haftalik Dars Matritsasi (O'quvchi paneli stili bilan bir xil)
+  // 1.5 Haftalik Dars Matritsasi
   Widget _buildWeeklyScheduleMatrix() {
     final days = ["Dush", "Sesh", "Chor", "Pay", "Juma", "Shan"];
-    // 0: O'tilgan (Yashil), 1: Hozirgi/Jarayonda (Binafsha), 3: Kelgusi (Kulrang)
     final gridData = [
       [0, 0, 0],
       [0, 0, 0],
@@ -1073,7 +1644,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    "${lesson['class_name'] ?? '9-A'} • Xona: ${lesson['room_number'] ?? '302'}",
+                    "${lesson['class_name'] ?? '9-A'} • Xona: ${lesson['room_number'] ?? '204-xona'}",
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5),
@@ -1092,10 +1663,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   // =========================================================================
-  // 2. AQLLI DOSKA TABI (To'g'ridan-to'g'ri Boshqaruv va QR Ulanish)
+  // 2. 🖥️ AQLLI DOSKA (SmartBoardScreen — Masofaviy Pult)
   // =========================================================================
   Widget _buildSmartBoardTab(Map<String, dynamic> user, String fullName) {
     final bool isConnected = _boardSession != null;
+    final String deviceName = (_boardSession?['device_name'] ?? '204-xona doskasi').toString();
 
     return RefreshIndicator(
       onRefresh: _fetchBoardStatus,
@@ -1105,10 +1677,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(fullName, "Aqlli Doska Markazi"),
+            _buildHeader(fullName, "Aqlli Doska Pulti"),
             const SizedBox(height: 18),
 
-            // Hero Karta
+            // 2.1. Ulanish Moduli Hero Card
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
@@ -1135,7 +1707,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          isConnected ? "🟢 Doska ulangan" : "⚪ Doska ulanmagan",
+                          isConnected ? "Ulangan: $deviceName 🟢" : "Ulanmagan ⚪",
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11.5),
                         ),
                       ),
@@ -1152,100 +1724,286 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    isConnected
-                        ? (_boardSession!['device_name'] ?? 'Smart Board').toString()
-                        : "Elektron Doskaga Ulanish",
+                    isConnected ? deviceName : "Elektron Doskaga Ulanish",
                     style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     isConnected
-                        ? "Doskani masofadan saqlash, AI orqali mavzu yozish va listlarni boshqarish tayyor."
-                        : "Sinf xonasidagi elektron doska QR kodini skanerlab bir zumda bog'laning.",
+                        ? "Doskani masofadan boshqarish, slaydlar navigatsiyasi, tozalash va AI konspekt tayyor."
+                        : "Sinf xonasidagi elektron doska QR kodini skanerlang yoki 6 xonali PIN-kodni kiriting.",
                     style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.35),
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppTheme.primary,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                      ),
-                      onPressed: () => _openSmartBoard(user),
-                      icon: Icon(
-                        isConnected ? Icons.settings_remote_rounded : Icons.qr_code_scanner_rounded,
-                        size: 22,
-                      ),
-                      label: Text(
-                        isConnected ? "To'liq Boshqaruv Panelini Ochish" : "QR Kodni Skanerlash (Ulash)",
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  if (!isConnected)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: AppTheme.primary,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                            ),
+                            onPressed: () => _openSmartBoard(user),
+                            icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                            label: const Text(
+                              "QR Skanerlash",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white.withValues(alpha: 0.22),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                            ),
+                            onPressed: _showPinConnectDialog,
+                            icon: const Icon(Icons.pin_rounded, size: 20),
+                            label: const Text(
+                              "6 xonali PIN",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppTheme.primary,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        ),
+                        onPressed: () => _openSmartBoard(user),
+                        icon: const Icon(Icons.settings_remote_rounded, size: 20),
+                        label: const Text(
+                          "To'liq Boshqaruv Panelini Ochish ➔",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
             const SizedBox(height: 22),
 
-            // Tezkor Funksiyalar Kartalari
+            // 2.2. Doskani Masofadan Boshqarish Pulti
             const Text(
-              "Aqlli Doska Imkoniyatlari",
+              "2.2. Masofadan Boshqarish Pulti",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
             ),
             const SizedBox(height: 12),
 
-            _buildMenuItem(
-              icon: Icons.qr_code_scanner_rounded,
-              title: "1. Doskani Ulash (QR Skaner)",
-              subtitle: "Elektron doska ekranidagi QR kodni skanerlash",
-              color: AppTheme.primary,
-              onTap: () async {
-                await Navigator.push(context, MaterialPageRoute(builder: (_) => const BoardConnectScreen()));
-                _fetchBoardStatus();
-              },
+            // Slaydlar / Sahifalar navigatsiyasi [ ⬅️ Oldingi ] | [ Keyingi ➡️ ]
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Slaydlar / Sahifalar navigatsiyasi",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppTheme.textDark),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "Slayd $_currentSlide",
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: AppTheme.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF1F5F9),
+                            foregroundColor: AppTheme.textDark,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          onPressed: isConnected ? () => _sendBoardSlide(-1) : null,
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+                          label: const Text("⬅️ Oldingi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          onPressed: isConnected ? () => _sendBoardSlide(1) : null,
+                          icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                          label: const Text("Keyingi ➡️", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            _buildMenuItem(
-              icon: Icons.save_rounded,
-              title: "2. Doskani Saqlash (Request Save)",
-              subtitle: isConnected
-                  ? "Doskadagi yozuv va chizmalarni bazaga saqlash"
-                  : "Avval doskaga ulaning",
-              color: AppTheme.success,
-              onTap: isConnected ? _quickSaveBoard : () => _openSmartBoard(user),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionTile(
+                    icon: Icons.cleaning_services_rounded,
+                    title: "Barchasini o'chirish 🧹",
+                    subtitle: "Doskani tozalash",
+                    color: Colors.redAccent,
+                    onTap: isConnected ? _clearBoardConfirm : () => _openSmartBoard(user),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildActionTile(
+                    icon: Icons.send_rounded,
+                    title: "Matn uzatish 📤",
+                    subtitle: "Telefondan doskaga",
+                    color: AppTheme.secondaryBlue,
+                    onTap: isConnected ? _showSendTextDialog : () => _openSmartBoard(user),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 22),
+
+            // 2.3. 🤖 AI Yordamchi (O‘qituvchi assistenti)
+            const Text(
+              "2.3. 🤖 AI Yordamchi (O'qituvchi assistenti)",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+            ),
+            const SizedBox(height: 12),
             _buildMenuItem(
               icon: Icons.auto_awesome_rounded,
-              title: "3. AI Yordamchi (Gemini Doskaga Yozish)",
-              subtitle: "Savol yozing — Gemini AI javobni to'g'ridan-to'g'ri doskaga chiqaradi",
-              color: AppTheme.secondaryOrange,
-              onTap: isConnected ? _quickAIWriteBoard : () => _openSmartBoard(user),
+              title: "Mavzu Konspekti 📝",
+              subtitle: "Mavzuni kiritish orqali doskaga qisqa tushuntirish va reja chiqarish",
+              color: AppTheme.primary,
+              onTap: isConnected ? _showAiTopicSummaryDialog : () => _openSmartBoard(user),
             ),
-            if (isConnected)
-              _buildMenuItem(
-                icon: Icons.link_off_rounded,
-                title: "4. Sessiyani Uzish (Disconnect)",
-                subtitle: "Dars yakunlanganda doskani QR kod holatiga qaytarish",
-                color: AppTheme.secondaryPink,
-                onTap: _quickDisconnectBoard,
-              ),
+            _buildMenuItem(
+              icon: Icons.quiz_rounded,
+              title: "Tezkor Test Savollari 🎯",
+              subtitle: "Dars mavzusi bo'yicha doska ekraniga 3-5 ta test chiqarish",
+              color: AppTheme.secondaryOrange,
+              onTap: isConnected ? _showAiQuickTestDialog : () => _openSmartBoard(user),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // =========================================================================
-  // 3. GURUHLARIM & NATIJALARIM SAHIFASI
+  // 3. 👥 GURUHLARIM & NATIJALAR (GroupsScreen — Sinflar & Davomat)
   // =========================================================================
   Widget _buildGroupsAndResultsTab() {
     final groups = [
-      {"name": ApiService.formatClassName("9-A"), "subject": "Matematika & Geometriya", "count": "30 nafar", "room": "302-xona", "attendance": "96%"},
-      {"name": ApiService.formatClassName("9-B"), "subject": "Fizika & Astronomiya", "count": "28 nafar", "room": "204-laboratoriya", "attendance": "92%"},
-      {"name": ApiService.formatClassName("10-A"), "subject": "Informatika & Dasturlash", "count": "26 nafar", "room": "105-kompyuter", "attendance": "100%"},
+      {
+        "name": ApiService.formatClassName("9-A"),
+        "subject": "Matematika & Geometriya",
+        "count": "32 o'quvchi",
+        "room": "204-xona",
+        "attendance": "96.4%",
+      },
+      {
+        "name": ApiService.formatClassName("10-B"),
+        "subject": "Oliy Matematika",
+        "count": "28 o'quvchi",
+        "room": "302-xona",
+        "attendance": "94.2%",
+      },
+      {
+        "name": ApiService.formatClassName("9-B"),
+        "subject": "Algebra va Funksiyalar",
+        "count": "30 o'quvchi",
+        "room": "205-xona",
+        "attendance": "92.0%",
+      },
     ];
 
     return SingleChildScrollView(
@@ -1255,109 +2013,196 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         children: [
           Text(ApiService.myGroupsTitle, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
           const SizedBox(height: 4),
-          Text("Siz dars berayotgan ${ApiService.groupTermPlural.toLowerCase()} va davomat ko'rsatkichlari", style: const TextStyle(color: AppTheme.textMuted, fontSize: 13)),
+          const Text(
+            "Biriktirilgan sinflar va sinf jurnali ichki davomat ko'rsatkichlari",
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+          ),
           const SizedBox(height: 18),
+
+          // 3.1. Biriktirilgan Sinflar Ro‘yxati
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: groups.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, index) => const SizedBox(height: 12),
             itemBuilder: (ctx, i) {
               final g = groups[i];
-              return Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
+              return Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                child: InkWell(
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  onTap: () => _openClassJournalModal(g),
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: AppTheme.primaryLight, borderRadius: BorderRadius.circular(10)),
-                          child: Text(g['name']!, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 12.5)),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(color: AppTheme.primaryLight, borderRadius: BorderRadius.circular(10)),
+                              child: Text(
+                                g['name']!,
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 12.5),
+                              ),
+                            ),
+                            const Spacer(),
+                            const Icon(Icons.people_alt_rounded, size: 16, color: AppTheme.textMuted),
+                            const SizedBox(width: 4),
+                            Text(
+                              g['count']!,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textDark),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        const Icon(Icons.people_alt_rounded, size: 16, color: AppTheme.textMuted),
-                        const SizedBox(width: 4),
-                        Text(g['count']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textDark)),
+                        const SizedBox(height: 10),
+                        Text(
+                          g['subject']!,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15.5, color: AppTheme.textDark),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Xona: ${g['room']} • Davomat: ${g['attendance']}",
+                              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                            ),
+                            const Text(
+                              "Jurnalni ko'rish ➔",
+                              style: TextStyle(color: AppTheme.primary, fontSize: 11.5, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    Text(g['subject']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15.5, color: AppTheme.textDark)),
-                    const SizedBox(height: 4),
-                    Text("Xona: ${g['room']} • O'rtacha davomat: ${g['attendance']}", style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
-                  ],
+                  ),
                 ),
               );
             },
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
   // =========================================================================
-  // 4. MENU SAHIFASI (Aqlli Doska, Parollar, Profil, Bildirishnomalar)
+  // 4. ⚙️ MENU & PROFIL (ProfileSettingsScreen)
   // =========================================================================
-  Widget _buildMenuTab(Map<String, dynamic> user, bool canManagePasswords) {
+  Widget _buildMenuTab(Map<String, dynamic> user) {
+    final teacherId = (user['teacher_id'] ?? user['username'] ?? '20101').toString();
+    final fullName = (user['full_name'] ?? 'Nodira Karimova').toString();
+    final subject = (user['subject_name'] ?? 'Matematika & Geometriya').toString();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Menu & Qo'shimcha Xizmatlar", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+          const Text("Menu & Profil Sozlamalari", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
           const SizedBox(height: 4),
-          const Text("Aqlli doska, o'quvchilar parollari va shaxsiy sozlamalar", style: TextStyle(color: AppTheme.textMuted, fontSize: 13)),
+          const Text("Shaxsiy hisob va tizim sozlamalari", style: TextStyle(color: AppTheme.textMuted, fontSize: 13)),
+          const SizedBox(height: 18),
+
+          // 4.1. Shaxsiy Ma'lumotlar Kartasi
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.person_rounded, color: AppTheme.primary, size: 34),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fullName,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subject,
+                        style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "ID: $teacherId",
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
 
-          // Aqlli Doska (Hujjatdagi Navigation bandi)
-          _buildMenuItem(
-            icon: Icons.dashboard_customize_rounded,
-            title: "Aqlli Doska (Smart Board)",
-            subtitle: _boardSession != null
-                ? "🟢 Ulangan: ${_boardSession!['device_name'] ?? 'Smart Board'}"
-                : "QR kod orqali elektron doskaga ulanish va AI yozish",
-            color: AppTheme.primary,
-            onTap: () => _openSmartBoard(user),
+          // 4.2. Bildirishnomalar Markazi
+          const Text(
+            "4.2. Xabarnomalar & Sozlamalar",
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark),
           ),
-
-          if (canManagePasswords)
-            _buildMenuItem(
-              icon: Icons.vpn_key_rounded,
-              title: "O'quvchilar Parolini Tiklash",
-              subtitle: "Parolini unutgan o'quvchilarga yangi parol berish",
-              color: AppTheme.secondaryOrange,
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const TeacherPasswordsScreen()));
-              },
-            ),
-
+          const SizedBox(height: 10),
           _buildMenuItem(
-            icon: Icons.person_rounded,
+            icon: Icons.notifications_active_rounded,
+            title: "Bildirishnomalar Markazi",
+            subtitle: "Maktab ma'muriyati e'lonlari va jadval o'zgarishlari",
+            color: AppTheme.secondaryBlue,
+            onTap: _openNotifications,
+          ),
+          _buildMenuItem(
+            icon: Icons.person_outline_rounded,
             title: "Mening Profilim",
-            subtitle: "Shaxsiy ma'lumotlar va Face ID holati",
+            subtitle: "Face ID va shaxsiy ma'lumotlar",
             color: AppTheme.success,
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
             },
           ),
+          const SizedBox(height: 10),
 
+          // 4.3. Tizimdan Chiqish (Logout)
           _buildMenuItem(
-            icon: Icons.send_to_mobile_rounded,
-            title: "Telegram Xabarnomalar Jurnali",
-            subtitle: "Ota-onalarga yuborilgan xabarlar hisoboti",
-            color: AppTheme.secondaryBlue,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Barcha Telegram xabarlari yetkazilmoqda!")),
-              );
-            },
+            icon: Icons.logout_rounded,
+            title: "Tizimdan Chiqish (Logout)",
+            subtitle: "Sessiya tokenlarini tozalash va xavfsiz chiqish",
+            color: Colors.redAccent,
+            onTap: _confirmLogout,
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
