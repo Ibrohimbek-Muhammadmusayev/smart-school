@@ -1,10 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
 import '../../theme.dart';
 import '../login_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  Future<void> _refreshProfile() async {
+    try {
+      final summary = await ApiService.getStudentDashboardSummary();
+      if (summary != null) {
+        if (summary['student'] != null) {
+          ApiService.currentUser ??= {};
+          final sInfo = summary['student'] as Map<String, dynamic>;
+          if (sInfo['name'] != null) ApiService.currentUser!['full_name'] = sInfo['name'];
+          if (sInfo['stars_count'] != null) ApiService.currentUser!['stars_count'] = sInfo['stars_count'];
+          if (sInfo['student_id'] != null) ApiService.currentUser!['student_id'] = sInfo['student_id'];
+        }
+        if (summary['class_name'] != null && summary['class_name'].toString().isNotEmpty) {
+          ApiService.currentUser ??= {};
+          ApiService.currentUser!['class_name'] = summary['class_name'];
+        }
+      }
+      HapticFeedback.lightImpact();
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Text(
+                  "Profil ma'lumotlari yangilandi ✅",
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          ),
+        );
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,131 +72,138 @@ class ProfileScreen extends StatelessWidget {
       }
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          Center(
-            child: Stack(
-              children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryLight,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.primary, width: 2),
+    return RefreshIndicator(
+      color: AppTheme.primary,
+      backgroundColor: Colors.white,
+      displacement: 32,
+      onRefresh: _refreshProfile,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Center(
+              child: Stack(
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLight,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.primary, width: 2),
+                    ),
+                    child: ClipOval(
+                      child: photoUrl != null
+                          ? Image.network(
+                              photoUrl,
+                              fit: BoxFit.cover,
+                              width: 100,
+                              height: 100,
+                              errorBuilder: (ctx, err, stack) => const Icon(Icons.person, size: 54, color: AppTheme.primary),
+                            )
+                          : const Icon(Icons.person, size: 54, color: AppTheme.primary),
+                    ),
                   ),
-                  child: ClipOval(
-                    child: photoUrl != null
-                        ? Image.network(
-                            photoUrl,
-                            fit: BoxFit.cover,
-                            width: 100,
-                            height: 100,
-                            errorBuilder: (ctx, err, stack) => const Icon(Icons.person, size: 54, color: AppTheme.primary),
-                          )
-                        : const Icon(Icons.person, size: 54, color: AppTheme.primary),
+                  Positioned(
+                    bottom: 0,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(color: AppTheme.success, shape: BoxShape.circle),
+                      child: const Icon(Icons.check, size: 14, color: Colors.white),
+                    ),
                   ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: AppTheme.success, shape: BoxShape.circle),
-                    child: const Icon(Icons.check, size: 14, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            fullName,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Rol: ${role == 'TEACHER' ? 'O\'qituvchi' : 'O\'quvchi'} | Kirish ID: ${studentId.isNotEmpty ? studentId : passport}",
-            style: const TextStyle(color: AppTheme.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 20),
-
-          const SizedBox(height: 12),
-
-          // Shaxsiy ma'lumotlar bloki (Easy Learn Card Style)
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primary.withValues(alpha: 0.04),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _buildInfoTile(Icons.badge_outlined, "Hujjat seriya", passport),
-                const Divider(height: 24),
-                _buildInfoTile(Icons.lock_clock_outlined, "Biometrik sessiya", "10 kunlik xavfsiz token"),
-                const Divider(height: 24),
-                _buildInfoTile(Icons.verified_user_outlined, "Face ID holati", "Tasdiqlangan ✅"),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Parolni o'zgartirish (Face ID orqali)
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.textDark,
-                side: BorderSide(color: Colors.grey.shade300),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                ],
               ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Xavfsiz rejim: Face ID tekshiruviga yo'naltirilmoqda...")),
-                );
-              },
-              icon: const Icon(Icons.lock_reset_rounded, size: 20),
-              label: const Text("Parolni yangilash (Face ID)"),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            Text(
+              fullName,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Rol: ${role == 'TEACHER' ? 'O\'qituvchi' : 'O\'quvchi'} | Kirish ID: ${studentId.isNotEmpty ? studentId : passport}",
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 20),
 
-          // Chiqish
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            const SizedBox(height: 12),
+
+            // Shaxsiy ma'lumotlar bloki (Easy Learn Card Style)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primary.withValues(alpha: 0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              onPressed: () {
-                ApiService.accessToken = null;
-                ApiService.currentUser = null;
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              },
-              icon: const Icon(Icons.logout_rounded, size: 20),
-              label: const Text("Tizimdan chiqish (Logout)"),
+              child: Column(
+                children: [
+                  _buildInfoTile(Icons.badge_outlined, "Hujjat seriya", passport),
+                  const Divider(height: 24),
+                  _buildInfoTile(Icons.lock_clock_outlined, "Biometrik sessiya", "10 kunlik xavfsiz token"),
+                  const Divider(height: 24),
+                  _buildInfoTile(Icons.verified_user_outlined, "Face ID holati", "Tasdiqlangan ✅"),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+
+            // Parolni o'zgartirish (Face ID orqali)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.textDark,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Xavfsiz rejim: Face ID tekshiruviga yo'naltirilmoqda...")),
+                  );
+                },
+                icon: const Icon(Icons.lock_reset_rounded, size: 20),
+                label: const Text("Parolni yangilash (Face ID)"),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Chiqish
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {
+                  ApiService.accessToken = null;
+                  ApiService.currentUser = null;
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout_rounded, size: 20),
+                label: const Text("Tizimdan chiqish (Logout)"),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

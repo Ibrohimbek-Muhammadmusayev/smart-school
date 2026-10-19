@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../theme.dart';
@@ -20,13 +21,33 @@ class _GradesScreenState extends State<GradesScreen> {
     _fetchGrades();
   }
 
-  void _fetchGrades() async {
-    setState(() => _loading = true);
+  Future<void> _fetchGrades({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     try {
       final list = await ApiService.getMyGrades();
-      setState(() => _grades = list);
+      if (mounted) setState(() => _grades = list);
+      if (silent) HapticFeedback.lightImpact();
+      if (mounted && silent) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Text("Baholar jurnali yangilandi ✅", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              ],
+            ),
+            backgroundColor: AppTheme.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          ),
+        );
+      }
     } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+    if (mounted && !silent) setState(() => _loading = false);
   }
 
   @override
@@ -70,22 +91,33 @@ class _GradesScreenState extends State<GradesScreen> {
 
           // Baholar ro'yxati
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _grades.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.auto_stories_outlined, size: 64, color: Colors.grey.shade300),
-                            const SizedBox(height: 12),
-                            const Text("Hozircha baholar mavjud emas", style: TextStyle(color: AppTheme.textMuted)),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: _grades.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+            child: RefreshIndicator(
+              color: AppTheme.primary,
+              backgroundColor: Colors.white,
+              displacement: 32,
+              onRefresh: () async => _fetchGrades(silent: true),
+              child: (_loading && _grades.isEmpty)
+                  ? const Center(child: CircularProgressIndicator())
+                  : _grades.isEmpty
+                      ? SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Container(
+                            height: 350,
+                            alignment: Alignment.center,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.auto_stories_outlined, size: 64, color: Colors.grey.shade300),
+                                const SizedBox(height: 12),
+                                const Text("Hozircha baholar mavjud emas", style: TextStyle(color: AppTheme.textMuted)),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _grades.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (ctx, i) {
                           final g = _grades[i];
                           return Container(
@@ -142,6 +174,7 @@ class _GradesScreenState extends State<GradesScreen> {
                           );
                         },
                       ),
+            ),
           ),
         ],
       ),

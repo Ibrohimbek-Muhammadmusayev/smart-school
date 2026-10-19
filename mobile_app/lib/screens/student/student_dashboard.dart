@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../services/api_service.dart';
@@ -82,17 +83,25 @@ class _StudentDashboardState extends State<StudentDashboard> {
               _selectedScheduleDay = tw;
             }
           }
-          if (summary['today_iso_weekday'] != null) {
-            final tw = summary['today_iso_weekday'] as int;
-            if (tw <= 6) {
-              _selectedScheduleDay = tw;
-            }
-          }
-          if (_stats['turnstile_entry'] != null) {
+          if (_stats['turnstile_entry'] != null && _stats['turnstile_entry'] != '--:--') {
             _buildingEntryTime = _stats['turnstile_entry'];
+            _isInsideBuilding = (_stats['turnstile_exit'] == null || _stats['turnstile_exit'] == '--:--');
           }
           if (_lessons.any((l) => l['is_attended'] == true)) {
             _attendanceConfirmed = true;
+          }
+
+          // Real-time foydalanuvchi profilini sinxronlash
+          if (summary['student'] != null) {
+            ApiService.currentUser ??= {};
+            final sInfo = summary['student'] as Map<String, dynamic>;
+            if (sInfo['name'] != null) ApiService.currentUser!['full_name'] = sInfo['name'];
+            if (sInfo['stars_count'] != null) ApiService.currentUser!['stars_count'] = sInfo['stars_count'];
+            if (sInfo['student_id'] != null) ApiService.currentUser!['student_id'] = sInfo['student_id'];
+          }
+          if (summary['class_name'] != null && summary['class_name'].toString().isNotEmpty) {
+            ApiService.currentUser ??= {};
+            ApiService.currentUser!['class_name'] = summary['class_name'];
           }
         });
       } else {
@@ -102,6 +111,41 @@ class _StudentDashboardState extends State<StudentDashboard> {
     } catch (_) {
     } finally {
       if (mounted && !silent) setState(() => _loading = false);
+    }
+  }
+
+  // Sahifani tepadan pastga tortib yangilash (Pull-to-refresh)
+  Future<void> _handleUserPullToRefresh() async {
+    // 1. Agar sinov override qilingan bo'lsa, real-vaqt rejimiga qaytarish
+    _scenarioModeOverride = null;
+
+    // 2. Serverdan yangilash (silent: true - ichki animatsiya buzilmasligi uchun)
+    await _fetchDashboardSummary(silent: true);
+
+    // 3. Taktil sezish
+    HapticFeedback.lightImpact();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Text(
+                "Dars jadvali va davomat yangilandi ✅",
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        ),
+      );
     }
   }
 
@@ -382,7 +426,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
   // =========================================================================
   Widget _buildHomeTab(String fullName, String className) {
     return RefreshIndicator(
-      onRefresh: () async => _fetchDashboardSummary(),
+      color: AppTheme.primary,
+      backgroundColor: Colors.white,
+      displacement: 32,
+      onRefresh: _handleUserPullToRefresh,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),

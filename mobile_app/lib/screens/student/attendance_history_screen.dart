@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../theme.dart';
@@ -15,21 +16,57 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
   String _selectedShift = '1-smena (08:30)';
   List<dynamic> _weeklySchedules = [];
   bool _loadingSchedule = true;
+  Map<String, dynamic>? _dashboardSummary;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _fetchSchedule();
+    _fetchAllData();
   }
 
-  Future<void> _fetchSchedule() async {
-    setState(() => _loadingSchedule = true);
+  Future<void> _fetchAllData({bool silent = false}) async {
+    if (!silent) setState(() => _loadingSchedule = true);
     try {
-      final list = await ApiService.getWeeklySchedule();
-      if (mounted) setState(() => _weeklySchedules = list);
+      final results = await Future.wait([
+        ApiService.getWeeklySchedule(),
+        ApiService.getStudentDashboardSummary(),
+      ]);
+      if (mounted) {
+        setState(() {
+          if (results[0] is List) _weeklySchedules = results[0] as List;
+          if (results[1] is Map<String, dynamic>) _dashboardSummary = results[1] as Map<String, dynamic>;
+        });
+        if (silent) HapticFeedback.lightImpact();
+      }
     } catch (_) {}
-    if (mounted) setState(() => _loadingSchedule = false);
+    if (mounted && !silent) setState(() => _loadingSchedule = false);
+  }
+
+  Future<void> _handlePullToRefresh() async {
+    await _fetchAllData(silent: true);
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Text(
+                "Davomat va haftalik dars jadvali yangilandi ✅",
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        ),
+      );
+    }
   }
 
   @override
@@ -137,15 +174,25 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
       },
     ];
 
+    final stats = _dashboardSummary?['stats'] ?? {};
+    final todayEntry = stats['turnstile_entry'] ?? '08:05';
+    final todayExit = stats['turnstile_exit'] ?? '--:--';
+
     final turniketLogs = [
-      {"date": "Bugun, 14-okt", "entry": "08:14", "exit": "--:--", "gate": "Turniket #1 (Asosiy)"},
-      {"date": "Kecha, 13-okt", "entry": "08:22", "exit": "13:45", "gate": "Turniket #2 (Sharqiy)"},
+      {"date": "Bugun", "entry": todayEntry, "exit": todayExit, "gate": "Turniket #1 (Asosiy)"},
+      {"date": "Kecha", "entry": "08:22", "exit": "13:45", "gate": "Turniket #2 (Sharqiy)"},
       {"date": "12-okt (Juma)", "entry": "08:10", "exit": "14:05", "gate": "Turniket #1 (Asosiy)"},
       {"date": "11-okt (Pay)", "entry": "08:29", "exit": "13:30", "gate": "Turniket #3 (Kutubxona)"},
     ];
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    return RefreshIndicator(
+      color: AppTheme.primary,
+      backgroundColor: Colors.white,
+      displacement: 32,
+      onRefresh: _handlePullToRefresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -359,6 +406,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
           const SizedBox(height: 24),
         ],
       ),
+      ),
     );
   }
 
@@ -367,7 +415,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
   // =========================================================================
   Widget _buildWeeklyScheduleTab() {
     final todayWeekday = DateTime.now().weekday;
-    if (_loadingSchedule) {
+    if (_loadingSchedule && _weeklySchedules.isEmpty) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(40),
@@ -389,7 +437,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
           ];
 
     return RefreshIndicator(
-      onRefresh: _fetchSchedule,
+      onRefresh: _handlePullToRefresh,
+      color: AppTheme.primary,
+      backgroundColor: Colors.white,
+      displacement: 32,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

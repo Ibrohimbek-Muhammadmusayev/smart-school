@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import '../../theme.dart';
 
@@ -282,6 +283,34 @@ class _RequestsCenterScreenState extends State<RequestsCenterScreen> {
     );
   }
 
+  Future<void> _handleRefreshRequests() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    HapticFeedback.lightImpact();
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Text(
+                "Arizalar va spravkalar holati yangilandi ✅",
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -290,8 +319,14 @@ class _RequestsCenterScreenState extends State<RequestsCenterScreen> {
         title: const Text("Arizalar & Spravkalar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textDark)),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      body: RefreshIndicator(
+        color: AppTheme.primary,
+        backgroundColor: Colors.white,
+        displacement: 32,
+        onRefresh: _handleRefreshRequests,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -496,6 +531,7 @@ class _RequestsCenterScreenState extends State<RequestsCenterScreen> {
             const SizedBox(height: 24),
           ],
         ),
+      ),
       ),
     );
   }

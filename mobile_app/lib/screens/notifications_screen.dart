@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 
@@ -200,37 +201,71 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
             // Bildirishnomalar ro'yxati
             Expanded(
-              child: filteredList.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryLight,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.notifications_off_rounded, size: 40, color: AppTheme.primary),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            "Bildirishnomalar mavjud emas",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            "Barcha yangiliklar va eslatmalar shu yerda ko'rinadi",
-                            style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-                          ),
-                        ],
+              child: RefreshIndicator(
+                color: AppTheme.primary,
+                backgroundColor: Colors.white,
+                displacement: 32,
+                onRefresh: () async {
+                  await Future.delayed(const Duration(milliseconds: 500));
+                  HapticFeedback.lightImpact();
+                  if (!context.mounted) return;
+                  setState(() {});
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: const [
+                            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                            SizedBox(width: 10),
+                            Text("Bildirishnomalar yangilandi ✅", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          ],
+                        ),
+                        backgroundColor: AppTheme.primary,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                       ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      itemCount: filteredList.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    );
+                  }
+                },
+                child: filteredList.isEmpty
+                    ? SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                          height: 350,
+                          alignment: Alignment.center,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryLight,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.notifications_off_rounded, size: 40, color: AppTheme.primary),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                "Bildirishnomalar mavjud emas",
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                "Barcha yangiliklar va eslatmalar shu yerda ko'rinadi",
+                                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        itemCount: filteredList.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final item = filteredList[index];
                         return Dismissible(
@@ -347,6 +382,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         );
                       },
                     ),
+              ),
             ),
           ],
         ),
