@@ -292,11 +292,15 @@ class ScanAttendanceView(views.APIView):
 
 def sync_today_lessons_from_schedule(today, weekday):
     """
-    Agar dars jadvalida bugungi kun uchun paralar kiritilgan bo'lsa,
-    Lesson jadvalida bugun uchun darslar mavjudligini ta'minlaydi.
+    Dars jadvalida (ClassSchedule) bugungi kun uchun kiritilgan/o'zgartirilgan darslarni
+    Lesson jadvali bilan 100% to'g'ri sinxronlaydi:
+    - Yangi kiritilgan darslarni qo'shadi yoki mavjudlarini yangilaydi (fan, o'qituvchi, vaqt, xona)
+    - Jadvaldan o'chirilgan yoki vaqti o'zgargan eski darslarni Lesson jadvalidan ham tozalaydi
     """
     try:
         schedules = ClassSchedule.objects.filter(day_of_week=weekday)
+        synced_lesson_ids = set()
+
         for sc in schedules:
             subject, _ = Subject.objects.get_or_create(name=sc.subject_name.strip() or "Umumiy Fan")
             teacher = sc.teacher
@@ -319,7 +323,7 @@ def sync_today_lessons_from_schedule(today, weekday):
                     for dup in list(existing)[1:]:
                         dup.delete()
 
-                Lesson.objects.update_or_create(
+                lesson, _ = Lesson.objects.update_or_create(
                     school_class=sc.school_class,
                     start_time=st,
                     date=today,
@@ -331,6 +335,17 @@ def sync_today_lessons_from_schedule(today, weekday):
                         'topic': sc.topic or f"{subject.name} darsi",
                     }
                 )
+                synced_lesson_ids.add(lesson.id)
+
+        # Bugungi kun uchun jadvalda qolmagan darslarni tozalash (davomatsiz bo'lsa)
+        if synced_lesson_ids:
+            orphaned = Lesson.objects.filter(date=today).exclude(id__in=synced_lesson_ids)
+            for old_lesson in orphaned:
+                if not old_lesson.attendances.exists():
+                    old_lesson.delete()
+        elif schedules.count() == 0:
+            Lesson.objects.filter(date=today, attendances__isnull=True).delete()
+
     except Exception as e:
         print("sync_today_lessons_from_schedule error:", e)
 
@@ -349,18 +364,12 @@ class TodayLessonsView(views.APIView):
         
         if user.role == 'TEACHER':
             lessons = Lesson.objects.filter(teacher=user, date=today).order_by('start_time')
-            if not lessons.exists():
-                lessons = Lesson.objects.filter(teacher=user).order_by('start_time')
         else:
             # O'quvchining sinfidagi darslar
             if hasattr(user, 'student_profile') and user.student_profile and user.student_profile.school_class:
                 lessons = Lesson.objects.filter(school_class=user.student_profile.school_class, date=today).order_by('start_time')
-                if not lessons.exists():
-                    lessons = Lesson.objects.filter(school_class=user.student_profile.school_class).order_by('start_time')
             else:
                 lessons = Lesson.objects.filter(date=today).order_by('start_time')
-                if not lessons.exists():
-                    lessons = Lesson.objects.all().order_by('start_time')
 
         serializer = LessonSerializer(lessons, many=True)
         data = list(serializer.data)
@@ -1677,16 +1686,21 @@ class ClassScheduleManagementView(views.APIView):
         })
 
     def delete(self, request, pk=None):
+        today = timezone.localdate()
         if not pk:
             class_id = request.query_params.get('class_id')
             if class_id:
                 ClassSchedule.objects.filter(school_class_id=class_id).delete()
+                sync_today_lessons_from_schedule(today, today.isoweekday())
                 return Response({'status': 'success', 'message': 'Sinf dars jadvali tozalandi.'})
             return Response({'detail': 'ID kiritilmadi.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             item = ClassSchedule.objects.get(pk=pk)
+            dow = item.day_of_week
             item.delete()
+            if today.isoweekday() == dow:
+                sync_today_lessons_from_schedule(today, dow)
             return Response({'status': 'success', 'message': "Dars o'chirildi."})
         except ClassSchedule.DoesNotExist:
             return Response({'detail': 'Jadval topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
