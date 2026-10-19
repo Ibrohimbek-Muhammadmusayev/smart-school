@@ -212,22 +212,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   setState(() {});
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: const [
-                            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                            SizedBox(width: 10),
-                            Text("Bildirishnomalar yangilandi ✅", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                          ],
-                        ),
-                        backgroundColor: AppTheme.primary,
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    SnackBar(
+                      content: Row(
+                        children: const [
+                          Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                          SizedBox(width: 10),
+                          Text("Bildirishnomalar yangilandi ✅", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        ],
                       ),
-                    );
-                  }
+                      backgroundColor: AppTheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    ),
+                  );
                 },
                 child: filteredList.isEmpty
                     ? SingleChildScrollView(
