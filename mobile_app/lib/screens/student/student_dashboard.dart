@@ -1561,44 +1561,51 @@ class _StudentDashboardState extends State<StudentDashboard> {
         children: [
           // Karta sarlavhasi va surish tugmalari
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isToday ? AppTheme.primaryLight : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.calendar_today_rounded,
-                      size: 16,
-                      color: isToday ? AppTheme.primary : AppTheme.textMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    dayName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textDark),
-                  ),
-                  if (isToday) ...[
-                    const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: BorderRadius.circular(8),
+                        color: isToday ? AppTheme.primaryLight : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text(
-                        "BUGUN 🌟",
-                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
+                      child: Icon(
+                        Icons.calendar_today_rounded,
+                        size: 15,
+                        color: isToday ? AppTheme.primary : AppTheme.textMuted,
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        dayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textDark),
+                      ),
+                    ),
+                    if (isToday) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.primaryGradient,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          "BUGUN",
+                          style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
+              const SizedBox(width: 6),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   InkWell(
                     onTap: dayNum > 1
@@ -1611,20 +1618,20 @@ class _StudentDashboardState extends State<StudentDashboard> {
                             }
                           }
                         : null,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         color: dayNum > 1 ? Colors.grey.shade100 : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Icon(Icons.chevron_left_rounded, size: 20, color: dayNum > 1 ? AppTheme.textDark : Colors.grey.shade300),
+                      child: Icon(Icons.chevron_left_rounded, size: 18, color: dayNum > 1 ? AppTheme.textDark : Colors.grey.shade300),
                     ),
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    "${lessonsList.length} ta dars",
-                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.textMuted),
+                    "${lessonsList.length} dars",
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted),
                   ),
                   const SizedBox(width: 4),
                   InkWell(
@@ -1638,14 +1645,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
                             }
                           }
                         : null,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         color: dayNum < 6 ? Colors.grey.shade100 : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Icon(Icons.chevron_right_rounded, size: 20, color: dayNum < 6 ? AppTheme.textDark : Colors.grey.shade300),
+                      child: Icon(Icons.chevron_right_rounded, size: 18, color: dayNum < 6 ? AppTheme.textDark : Colors.grey.shade300),
                     ),
                   ),
                 ],
