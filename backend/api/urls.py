@@ -4,7 +4,7 @@ from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView,
                     SubmitHomeworkView, TeacherLiveLessonSummaryView, AddGradeView, 
                     TeacherManagePasswordsView, GradesListView, FinishAttendanceView, CompleteLessonView,
                     SchoolClassesListView, StudentManagementView, TeacherManagementView, SchoolConfigView,
-                    ClassScheduleManagementView, StudentDashboardSummaryView)
+                    ClassScheduleManagementView, StudentDashboardSummaryView, StudentMonthlyAttendanceView)
 
 urlpatterns = [
     path('auth/passport-login/', PassportLoginView.as_view(), name='passport_login'),
@@ -13,6 +13,7 @@ urlpatterns = [
     path('attendance/scan/', ScanAttendanceView.as_view(), name='scan_attendance'),
     path('lessons/today/', TodayLessonsView.as_view(), name='today_lessons'),
     path('student/dashboard-summary/', StudentDashboardSummaryView.as_view(), name='student_dashboard_summary'),
+    path('student/monthly-attendance/', StudentMonthlyAttendanceView.as_view(), name='student_monthly_attendance'),
     path('lessons/<int:lesson_id>/room/', LessonRoomView.as_view(), name='lesson_room'),
     path('lessons/<int:lesson_id>/finish-attendance/', FinishAttendanceView.as_view(), name='finish_attendance'),
     path('lessons/<int:lesson_id>/complete/', CompleteLessonView.as_view(), name='complete_lesson'),

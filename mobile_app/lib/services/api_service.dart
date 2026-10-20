@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String serverUrl = 'https://wireless-verbal-cartridge-careful.trycloudflare.com';
+  static const String serverUrl = 'https://cedar-mens-workflow-solved.trycloudflare.com';
 
   static String get baseUrl {
     return '$serverUrl/api';
@@ -135,6 +135,24 @@ class ApiService {
       }
     }
     return data;
+  }
+
+  // Oylik to'liq davomat jadvali (har bir dars va aniq kirish vaqti bilan)
+  static Future<Map<String, dynamic>?> getStudentMonthlyAttendance({int? year, int? month}) async {
+    try {
+      final query = <String>[];
+      if (year != null) query.add('year=$year');
+      if (month != null) query.add('month=$month');
+      final qStr = query.isNotEmpty ? '?${query.join('&')}' : '';
+      final response = await http.get(
+        Uri.parse('$baseUrl/student/monthly-attendance/$qStr'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
   }
 
   // 1.2 O'quvchi bosh sahifasi (Bugungi darslar, real vaqt statusi, statistika, haftalik jadval)
