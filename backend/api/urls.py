@@ -5,7 +5,8 @@ from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView,
                     TeacherManagePasswordsView, GradesListView, FinishAttendanceView, CompleteLessonView,
                     SchoolClassesListView, StudentManagementView, TeacherManagementView, SchoolConfigView,
                     ClassScheduleManagementView, StudentDashboardSummaryView, StudentMonthlyAttendanceView,
-                    DeviceEventIngestionView, DeviceLogsListView, DeviceSimulateView)
+                    DeviceEventIngestionView, DeviceLogsListView, DeviceSimulateView,
+                    HikvisionTestConnectionView, HikvisionSyncStudentsView)
 
 urlpatterns = [
     path('auth/passport-login/', PassportLoginView.as_view(), name='passport_login'),
@@ -37,4 +38,6 @@ urlpatterns = [
     path('devices/turnstile/', DeviceEventIngestionView.as_view(), name='turnstile_event_ingestion'),
     path('devices/logs/', DeviceLogsListView.as_view(), name='device_logs_list'),
     path('devices/simulate/', DeviceSimulateView.as_view(), name='device_simulate'),
+    path('devices/hikvision/test-connection/', HikvisionTestConnectionView.as_view(), name='hikvision_test_connection'),
+    path('devices/hikvision/sync/', HikvisionSyncStudentsView.as_view(), name='hikvision_sync_students'),
 ]

@@ -2482,6 +2482,166 @@ class DeviceSimulateView(views.APIView):
         return ingestion.post(request)
 
 
+# =========================================================================
+# 13. HIKVISION ISAPI O'QUVCHILARNI TERMINALGA YUKLASH (SINXRONIZATSIYA)
+# =========================================================================
+from .hikvision_service import HikvisionISAPIClient, sync_student_to_hikvision, sync_all_students_to_hikvision
+
+
+class HikvisionTestConnectionView(views.APIView):
+    """
+    Hikvision terminali (MinMoe DS-K1T673) bilan aloqani tekshirish:
+    POST /api/devices/hikvision/test-connection/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        host = str(request.data.get('host') or '192.168.1.120').strip()
+        port = int(request.data.get('port', 80) or 80)
+        username = str(request.data.get('username') or 'admin').strip()
+        password = str(request.data.get('password') or '').strip()
+        is_simulate = bool(request.data.get('simulate', False))
+
+        # 1. Agar simulyatsiya rejimi bo'lsa yoki Cloud / demo muhitida bo'lsa
+        if is_simulate or host in ['127.0.0.1', 'demo', 'simulate', 'test']:
+            return Response({
+                'success': True,
+                'connected': True,
+                'is_simulated': True,
+                'message': f"Hikvision MinMoe (DS-K1T673) terminali bilan aloqa o'rnatildi (Test rejimi) ✅",
+                'device_info': {
+                    'device_name': "Hikvision MinMoe DS-K1T673 - Bosh Kirish",
+                    'model': "DS-K1T673-MFWX",
+                    'serial_number': "DS-K1T673-20261020-ABC",
+                    'firmware_version': "V3.2.30_build230415",
+                    'capacity': "50,000 Yuz modeli / 100,000 Hodisalar",
+                },
+                'host': host,
+            })
+
+        # 2. Real tarmoqdagi Hikvision terminaliga ulanish
+        client = HikvisionISAPIClient(host=host, port=port, username=username, password=password, timeout=5)
+        res = client.test_connection()
+        return Response(res, status=status.HTTP_200_OK if res['connected'] else status.HTTP_400_BAD_REQUEST)
+
+
+class HikvisionSyncStudentsView(views.APIView):
+    """
+    Markaziy bazadagi o'quvchilar ma'lumotlarini (ID, F.I.SH va Yuz rasmlarini)
+    Hikvision MinMoe (DS-K1T673) terminaliga avtomat yuklash (ISAPI sinxronizatsiyasi).
+    POST /api/devices/hikvision/sync/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        host = str(request.data.get('host') or '192.168.1.120').strip()
+        port = int(request.data.get('port', 80) or 80)
+        username = str(request.data.get('username') or 'admin').strip()
+        password = str(request.data.get('password') or '').strip()
+        student_id = request.data.get('student_id')
+        school_id = str(request.data.get('school_id') or '1')
+        is_simulate = bool(request.data.get('simulate', False))
+
+        # Sinxronlanadigan o'quvchilarni olish
+        qs = User.objects.filter(role='STUDENT').select_related('student_profile__school_class')
+        if student_id:
+            qs = qs.filter(Q(student_profile__student_id=str(student_id)) | Q(id=int(student_id) if str(student_id).isdigit() else -1))
+
+        students = list(qs)
+        if not students:
+            return Response({'success': False, 'message': "Sinxronlash uchun o'quvchilar topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 1. Simulyatsiya rejimi yoki terminal tarmoqda bo'lmaganda test qilish
+        if is_simulate or host in ['127.0.0.1', 'demo', 'simulate', 'test']:
+            results = []
+            for st in students:
+                sp = getattr(st, 'student_profile', None)
+                emp_no = sp.student_id if sp and sp.student_id else str(st.id)
+                full_name = st.get_full_name() or st.username
+                has_photo = bool(st.photo_3x4)
+                
+                results.append({
+                    'student_id': emp_no,
+                    'name': full_name,
+                    'class_name': sp.school_class.name if sp and sp.school_class else "Sinfsiz",
+                    'success': True,
+                    'profile_sync': {
+                        'success': True,
+                        'endpoint': 'POST /ISAPI/AccessControl/UserInfo/Record?format=json',
+                        'action': 'created',
+                        'message': f"UserInfo yaratildi (employeeNo: {emp_no})"
+                    },
+                    'face_sync': {
+                        'success': True if has_photo else False,
+                        'endpoint': 'POST /ISAPI/Intelligent/FDLib/FaceDataRecord?format=json',
+                        'has_photo': has_photo,
+                        'message': "Yuz modeli muvaffaqiyatli hisoblandi ✅" if has_photo else "Rasm biriktirilmagan (faqat profil yuklandi)"
+                    },
+                    'message': f"{full_name} ({emp_no}) Hikvision terminaliga yuklandi ✅"
+                })
+
+            # Audit logga yozish
+            DeviceEventLog.objects.create(
+                school_id=school_id,
+                device_name="Hikvision MinMoe DS-K1T673",
+                device_ip=host,
+                student_name=f"Barcha o'quvchilar ({len(results)} ta)",
+                student_code="SYNC_ALL",
+                class_name="ISAPI Sinxronizatsiya",
+                event_type='MANUAL',
+                direction='IN',
+                status='SUCCESS',
+                details=f"ISAPI orqali {len(results)} ta o'quvchi profili va yuz modellari terminalga yuklandi",
+                timestamp=timezone.now()
+            )
+
+            return Response({
+                'success': True,
+                'is_simulated': True,
+                'total': len(results),
+                'synced_count': len(results),
+                'fail_count': 0,
+                'terminal_host': host,
+                'results': results,
+                'message': f"Hikvision ISAPI: {len(results)} ta o'quvchi terminalga muvaffaqiyatli yuklandi ✅"
+            })
+
+        # 2. Real tarmoqdagi Hikvision MinMoe terminaliga ulanish va sinxronlash
+        client = HikvisionISAPIClient(host=host, port=port, username=username, password=password, timeout=10)
+        conn = client.test_connection()
+        if not conn['connected']:
+            return Response({
+                'success': False,
+                'connected': False,
+                'message': f"Hikvision terminaliga ulanib bo'lmadi: {conn['message']}. Agar test qilmoqchi bo'lsangiz, 'Simulyatsiya / Test' rejimini yoqing.",
+                'connection_error': conn
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Real sinxronlash
+        results = []
+        synced_count = 0
+        fail_count = 0
+
+        for st in students:
+            res = sync_student_to_hikvision(st, client)
+            if res['success']:
+                synced_count += 1
+            else:
+                fail_count += 1
+            results.append(res)
+
+        return Response({
+            'success': True,
+            'total': len(students),
+            'synced_count': synced_count,
+            'fail_count': fail_count,
+            'terminal_host': host,
+            'results': results,
+            'message': f"Hikvision terminaliga {synced_count} ta o'quvchi yuklandi, {fail_count} ta xatolik."
+        })
+
+
+
 
 
 

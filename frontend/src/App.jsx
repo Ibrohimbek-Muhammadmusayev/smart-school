@@ -9,7 +9,7 @@ import {
   Calendar, CheckCircle, UserX, QrCode, GraduationCap, Clock,
   FolderOpen, EyeOff, Sparkles, Smartphone, ChevronDown, Check,
   Edit, Trash2, Copy, ZoomIn, ExternalLink,
-  Radio, Play, Pause, Cpu
+  Radio, Play, Pause, Cpu, Upload
 } from 'lucide-react';
 import SuperAdminDashboardView from './SuperAdminDashboard';
 import SchoolMapPicker from './components/SchoolMapPicker';
@@ -4779,9 +4779,22 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
   const [newLogIds, setNewLogIds] = useState(new Set());
   const [showSimulateModal, setShowSimulateModal] = useState(false);
   const [showApiDocsModal, setShowApiDocsModal] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [actionNotice, setActionNotice] = useState(null);
   const [copiedCurl, setCopiedCurl] = useState(false);
+
+  // Hikvision terminal sinxronizatsiyasi parametrlari
+  const [syncHost, setSyncHost] = useState('192.168.1.120');
+  const [syncPort, setSyncPort] = useState(80);
+  const [syncUsername, setSyncUsername] = useState('admin');
+  const [syncPassword, setSyncPassword] = useState('hik12345');
+  const [syncSimulate, setSyncSimulate] = useState(true);
+  const [syncSelectedStudent, setSyncSelectedStudent] = useState('');
+  const [syncTestingConnection, setSyncTestingConnection] = useState(false);
+  const [syncConnResult, setSyncConnResult] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResults, setSyncResults] = useState(null);
 
   // Simulyator formasi holati
   const [simForm, setSimForm] = useState({
@@ -4886,6 +4899,67 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
       alert("Xatolik: " + err.message);
     } finally {
       setSimulating(false);
+    }
+  };
+
+  // Hikvision terminali bilan aloqani tekshirish
+  const handleTestDeviceConnection = async () => {
+    setSyncTestingConnection(true);
+    setSyncConnResult(null);
+    try {
+      const res = await fetch('/api/devices/hikvision/test-connection/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: syncHost.trim() || '192.168.1.120',
+          port: Number(syncPort) || 80,
+          username: syncUsername.trim() || 'admin',
+          password: syncPassword.trim(),
+          simulate: syncSimulate,
+        }),
+      });
+      const data = await res.json();
+      setSyncConnResult(data);
+    } catch (err) {
+      setSyncConnResult({ connected: false, message: "Tarmoq xatosi: " + err.message });
+    } finally {
+      setSyncTestingConnection(false);
+    }
+  };
+
+  // O'quvchilar va Yuz rasmlarini Hikvision terminaliga ISAPI orqali yuklash
+  const handleExecuteHikvisionSync = async () => {
+    setSyncing(true);
+    setSyncResults(null);
+    try {
+      const res = await fetch('/api/devices/hikvision/sync/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: syncHost.trim() || '192.168.1.120',
+          port: Number(syncPort) || 80,
+          username: syncUsername.trim() || 'admin',
+          password: syncPassword.trim(),
+          student_id: syncSelectedStudent || undefined,
+          school_id: String(schoolId),
+          simulate: syncSimulate,
+        }),
+      });
+      const data = await res.json();
+      setSyncResults(data);
+      if (data.success) {
+        setActionNotice({
+          type: 'success',
+          text: data.message || "O'quvchilar Hikvision terminaliga muvaffaqiyatli yuklandi!",
+        });
+        await fetchLogs(true);
+      } else {
+        alert("Xatolik: " + (data.message || "Sinxronlashda xatolik yuz berdi"));
+      }
+    } catch (err) {
+      alert("Xatolik: " + err.message);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -5091,6 +5165,30 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
             }}>
             <Sparkles size={14} />
             Face ID Test Simulyatori
+          </button>
+
+          <button
+            onClick={() => {
+              setShowSyncModal(true);
+              setSyncConnResult(null);
+              setSyncResults(null);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '9px 16px',
+              borderRadius: 14,
+              border: 'none',
+              background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+              color: '#FFFFFF',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 6px 14px rgba(99, 102, 241, 0.3)',
+            }}>
+            <Upload size={14} />
+            🔄 Terminalga Yuklash (ISAPI Sync)
           </button>
 
           <button
@@ -5737,6 +5835,292 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5.B HIKVISION MINMOE TERMINALIGA O'QUVCHILARNI YUKLASH (ISAPI SINXRONIZATSIYA) MODALI */}
+      {showSyncModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 130,
+          padding: 20,
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 28,
+            padding: 32,
+            width: '100%',
+            maxWidth: 680,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Upload size={20} color="#6366F1" />
+                  Hikvision MinMoe (DS-K1T673) Sinxronizatsiya Markazi
+                </div>
+                <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
+                  Markaziy bazadagi o'quvchilar ID si, F.I.SH va Yuz rasmlarini terminalga avtomatik yuklash
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSyncModal(false)}
+                style={{
+                  background: '#F1F5F9',
+                  border: 'none',
+                  borderRadius: 10,
+                  width: 34,
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Rejim tanlash (Test / Real) */}
+              <div style={{ display: 'flex', gap: 8, padding: 4, backgroundColor: '#F1F5F9', borderRadius: 14 }}>
+                <button
+                  type="button"
+                  onClick={() => setSyncSimulate(true)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    border: 'none',
+                    backgroundColor: syncSimulate ? '#FFFFFF' : 'transparent',
+                    color: syncSimulate ? '#4F46E5' : THEME.textMuted,
+                    fontWeight: 800,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    boxShadow: syncSimulate ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                  }}>
+                  🧪 Test / Simulyatsiya Rejimi (Tavsiya etiladi)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSyncSimulate(false)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    border: 'none',
+                    backgroundColor: !syncSimulate ? '#FFFFFF' : 'transparent',
+                    color: !syncSimulate ? '#15803D' : THEME.textMuted,
+                    fontWeight: 800,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    boxShadow: !syncSimulate ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                  }}>
+                  🌐 Haqiqiy Hikvision Qurilmasi (Lokal IP)
+                </button>
+              </div>
+
+              {/* Terminal ulanish parametrlari */}
+              <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 18, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>
+                  ⚙️ Hikvision Terminali Sozlamalari:
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark }}>Terminal IP Manzili *</label>
+                    <input
+                      value={syncHost}
+                      onChange={e => setSyncHost(e.target.value)}
+                      placeholder="Masalan: 192.168.1.120"
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px solid #CBD5E1', marginTop: 4, boxSizing: 'border-box', fontSize: 12.5 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark }}>Port</label>
+                    <input
+                      type="number"
+                      value={syncPort}
+                      onChange={e => setSyncPort(e.target.value)}
+                      placeholder="80"
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px solid #CBD5E1', marginTop: 4, boxSizing: 'border-box', fontSize: 12.5 }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark }}>Admin Login</label>
+                    <input
+                      value={syncUsername}
+                      onChange={e => setSyncUsername(e.target.value)}
+                      placeholder="admin"
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px solid #CBD5E1', marginTop: 4, boxSizing: 'border-box', fontSize: 12.5 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark }}>Admin Parol (Digest Auth)</label>
+                    <input
+                      type="password"
+                      value={syncPassword}
+                      onChange={e => setSyncPassword(e.target.value)}
+                      placeholder="••••••••"
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px solid #CBD5E1', marginTop: 4, boxSizing: 'border-box', fontSize: 12.5 }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={handleTestDeviceConnection}
+                    disabled={syncTestingConnection}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 10,
+                      border: '1.5px solid #CBD5E1',
+                      backgroundColor: '#FFFFFF',
+                      color: THEME.textDark,
+                      fontWeight: 800,
+                      fontSize: 12,
+                      cursor: syncTestingConnection ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}>
+                    <RefreshCw size={13} className={syncTestingConnection ? "animate-spin" : ""} />
+                    {syncTestingConnection ? "Tekshirilmoqda..." : "📡 Aloqani Tekshirish (ISAPI Ping)"}
+                  </button>
+                </div>
+
+                {/* Aloqa natijasi */}
+                {syncConnResult && (
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    backgroundColor: syncConnResult.connected ? '#DCFCE7' : '#FEE2E2',
+                    border: `1px solid ${syncConnResult.connected ? '#86EFAC' : '#FCA5A5'}`,
+                    color: syncConnResult.connected ? '#15803D' : '#991B1B',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}>
+                    <div>{syncConnResult.message}</div>
+                    {syncConnResult.device_info && (
+                      <div style={{ fontSize: 11, marginTop: 4, opacity: 0.9 }}>
+                        Model: <b>{syncConnResult.device_info.model}</b> | Proshivka: {syncConnResult.device_info.firmware_version}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Yuklash obyekti (Kimlarni yuklash kerak) */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                  Yuklash ko'lami:
+                </label>
+                <select
+                  value={syncSelectedStudent}
+                  onChange={e => setSyncSelectedStudent(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 12,
+                    border: '1.5px solid #CBD5E1',
+                    marginTop: 6,
+                    fontSize: 13,
+                    backgroundColor: '#FFF',
+                  }}>
+                  <option value="">— Barcha o'quvchilarni yuklash ({realStudents.length} nafar) —</option>
+                  {realStudents.map(st => (
+                    <option key={st.id} value={st.student_id || st.id}>
+                      Faqat: {st.last_name} {st.first_name} ({st.class_name || 'Sinfsiz'}) — ID: {st.student_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Yuklash tugmasi */}
+              <button
+                type="button"
+                onClick={handleExecuteHikvisionSync}
+                disabled={syncing}
+                style={{
+                  width: '100%',
+                  padding: '13px',
+                  borderRadius: 14,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                  color: '#FFFFFF',
+                  fontWeight: 900,
+                  fontSize: 13.5,
+                  cursor: syncing ? 'wait' : 'pointer',
+                  boxShadow: '0 8px 18px rgba(99, 102, 241, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}>
+                <Upload size={16} />
+                {syncing ? "Hikvision ISAPI orqali yuklanmoqda..." : "🚀 O'quvchilar va Yuzlarni Terminalga Yuklash (ISAPI Sync)"}
+              </button>
+
+              {/* Sinxronizatsiya natijalari ro'yxati */}
+              {syncResults && (
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    backgroundColor: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    color: '#065F46',
+                    fontWeight: 800,
+                    fontSize: 12.5,
+                  }}>
+                    {syncResults.message}
+                  </div>
+
+                  <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid #E2E8F0', borderRadius: 14 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
+                      <thead style={{ backgroundColor: '#F8FAFC', color: THEME.textMuted }}>
+                        <tr>
+                          <th style={{ padding: '8px 12px' }}>O'quvchi</th>
+                          <th style={{ padding: '8px 12px' }}>ID Kod</th>
+                          <th style={{ padding: '8px 12px' }}>UserInfo (Profil)</th>
+                          <th style={{ padding: '8px 12px' }}>FaceDataRecord (Yuz)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(syncResults.results || []).map((item, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                            <td style={{ padding: '8px 12px', fontWeight: 800 }}>{item.name}</td>
+                            <td style={{ padding: '8px 12px', color: THEME.primary, fontWeight: 700 }}>{item.student_id}</td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <span style={{ color: '#15803D', fontWeight: 700 }}>✅ Yuklandi</span>
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              {item.face_sync?.success ? (
+                                <span style={{ color: '#15803D', fontWeight: 700 }}>✅ Model hisoblandi</span>
+                              ) : (
+                                <span style={{ color: '#D97706', fontWeight: 700 }}>⚠️ {item.face_sync?.message || 'Rasm yo\'q'}</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
