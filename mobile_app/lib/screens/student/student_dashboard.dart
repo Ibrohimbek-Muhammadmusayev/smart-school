@@ -26,7 +26,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<dynamic> _weeklyGrid = [];
   bool _loading = true;
   int _selectedScheduleDay = (DateTime.now().weekday <= 6) ? DateTime.now().weekday : 1;
-  late PageController _dayPageController;
 
   // Bino maqomi: true = "Bino ichida", false = "Tashqarida"
   bool _isInsideBuilding = true;
@@ -51,7 +50,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
     super.initState();
     final initialDay = (DateTime.now().weekday <= 6) ? DateTime.now().weekday : 1;
     _selectedScheduleDay = initialDay;
-    _dayPageController = PageController(initialPage: initialDay - 1);
     _fetchDashboardSummary();
     // Har 1 soniyada dars va tanaffus taymerlarini real vaqtda hisoblash
     _clockTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -65,7 +63,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   @override
   void dispose() {
-    _dayPageController.dispose();
     _clockTicker?.cancel();
     _backgroundSyncTimer?.cancel();
     _qrTicker?.cancel();
@@ -491,9 +488,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text("To'liq reja", style: TextStyle(color: AppTheme.primary, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        Icon(Icons.calendar_month_rounded, size: 13, color: AppTheme.primary),
                         SizedBox(width: 4),
-                        Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppTheme.primary),
+                        Text("Davomat", style: TextStyle(color: AppTheme.primary, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        SizedBox(width: 3),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 9, color: AppTheme.primary),
                       ],
                     ),
                   ),
@@ -502,12 +501,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
             ),
             const SizedBox(height: 12),
 
-            // Haftaning kunlari tanlagichi (Karusel)
+            // Haftaning kunlari tanlagichi (Qulay 6 kunlik chiziq)
             _buildWeeklyDaySelector(),
             const SizedBox(height: 14),
 
-            // Tanlangan kunning darslari ro'yxati
-            _buildWeeklyScheduleCarousel(),
+            // Tanlangan kunning darslari ro'yxati (Erkin balandlik & Yonga surish)
+            _buildDayScheduleSection(),
             const SizedBox(height: 20),
           ],
         ),
@@ -1375,84 +1374,88 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  // Haftaning kunlari karuseli (Dushanba - Shanba, Bugun ajratilgan)
+  // Haftaning kunlari tanlagichi (Qulay 6 kunlik chiziq, hamma ekranga sig'adi)
   Widget _buildWeeklyDaySelector() {
     final days = [
-      {"num": 1, "short": "Dush", "name": "Dushanba"},
-      {"num": 2, "short": "Sesh", "name": "Seshanba"},
-      {"num": 3, "short": "Chor", "name": "Chorshanba"},
-      {"num": 4, "short": "Pay", "name": "Payshanba"},
-      {"num": 5, "short": "Juma", "name": "Juma"},
+      {"num": 1, "short": "Du", "name": "Dushanba"},
+      {"num": 2, "short": "Se", "name": "Seshanba"},
+      {"num": 3, "short": "Ch", "name": "Chorshanba"},
+      {"num": 4, "short": "Pa", "name": "Payshanba"},
+      {"num": 5, "short": "Ju", "name": "Juma"},
       {"num": 6, "short": "Shan", "name": "Shanba"},
     ];
-    final todayNum = DateTime.now().weekday;
+    final todayWeekday = DateTime.now().weekday;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         children: days.map((d) {
           final dNum = d['num'] as int;
           final isSelected = _selectedScheduleDay == dNum;
-          final isToday = todayNum == dNum;
+          final isToday = todayWeekday == dNum;
 
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
+          return Expanded(
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               onTap: () {
+                HapticFeedback.lightImpact();
                 setState(() => _selectedScheduleDay = dNum);
-                if (_dayPageController.hasClients) {
-                  _dayPageController.animateToPage(
-                    dNum - 1,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOutCubic,
-                  );
-                }
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
+                  gradient: isSelected ? AppTheme.primaryGradient : null,
                   color: isSelected
-                      ? AppTheme.primary
-                      : (isToday ? AppTheme.primaryLight : Colors.white),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppTheme.primary
-                        : (isToday ? AppTheme.primary.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.05)),
-                    width: isToday ? 1.5 : 1,
-                  ),
+                      ? null
+                      : (isToday ? AppTheme.primaryLight : Colors.transparent),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primary.withValues(alpha: 0.28),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       d['short'] as String,
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12.5,
+                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.bold,
+                        fontSize: 13,
                         color: isSelected
                             ? Colors.white
                             : (isToday ? AppTheme.primary : AppTheme.textDark),
                       ),
                     ),
-                    if (isToday) ...[
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.white.withValues(alpha: 0.25) : AppTheme.primary,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          "Bugun",
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w900,
-                            color: isSelected ? Colors.white : Colors.white,
-                          ),
-                        ),
+                    const SizedBox(height: 3),
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: isToday
+                            ? (isSelected ? Colors.white : AppTheme.primary)
+                            : (isSelected ? Colors.white.withValues(alpha: 0.4) : Colors.transparent),
+                        shape: BoxShape.circle,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -1463,8 +1466,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  // Tanlangan kunning darslari ro'yxati (Bugun bo'lsa real davomat bilan, boshqa kun bo'lsa jadval bilan)
-  Widget _buildWeeklyScheduleCarousel() {
+  // Tanlangan kunning darslari bo'limi (Erkin tabiiy balandlik, qulay va yonga suriladigan)
+  Widget _buildDayScheduleSection() {
     final days = [
       {"num": 1, "name": "Dushanba"},
       {"num": 2, "name": "Seshanba"},
@@ -1474,227 +1477,302 @@ class _StudentDashboardState extends State<StudentDashboard> {
       {"num": 6, "name": "Shanba"},
     ];
     final todayWeekday = DateTime.now().weekday;
+    final isToday = (_selectedScheduleDay == todayWeekday);
+    final dayIndex = (_selectedScheduleDay >= 1 && _selectedScheduleDay <= 6)
+        ? _selectedScheduleDay - 1
+        : 0;
+    final dayName = days[dayIndex]['name'] as String;
 
-    return Column(
-      children: [
-        SizedBox(
-          height: 490,
-          child: PageView.builder(
-            controller: _dayPageController,
-            onPageChanged: (pageIndex) {
-              setState(() {
-                _selectedScheduleDay = pageIndex + 1;
-              });
-            },
-            itemCount: 6,
-            itemBuilder: (context, index) {
-              final dayNum = index + 1;
-              final dayInfo = days[index];
-              final isToday = (dayNum == todayWeekday);
-
-              return _buildDayScheduleCard(dayNum, dayInfo['name'] as String, isToday);
-            },
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Karusel indikatori (Pagination dots)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(6, (i) {
-            final isCurrent = (_selectedScheduleDay == i + 1);
-            final isToday = (todayWeekday == i + 1);
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: isCurrent ? 24 : 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: isCurrent
-                    ? AppTheme.primary
-                    : (isToday ? AppTheme.primary.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.12)),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDayScheduleCard(int dayNum, String dayName, bool isToday) {
     List<dynamic> lessonsList = [];
-    if (isToday && _loading && _lessons.isEmpty) {
-      return const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()));
-    }
     if (isToday) {
       lessonsList = _lessons;
     } else {
       final weeklySchedules = (_dashboardData?['weekly_schedules'] as List?) ?? [];
       for (final dayObj in weeklySchedules) {
-        if (dayObj['day_of_week'] == dayNum) {
+        if (dayObj['day_of_week'] == _selectedScheduleDay) {
           lessonsList = (dayObj['lessons'] as List?) ?? [];
           break;
         }
       }
     }
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isToday ? AppTheme.primary.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.05),
-          width: isToday ? 1.5 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isToday ? AppTheme.primary.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Karta sarlavhasi va surish tugmalari
-          Row(
-            children: [
-              Expanded(
-                child: Row(
+    return Column(
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragEnd: (details) {
+            final v = details.primaryVelocity ?? 0;
+            if (v < -200 && _selectedScheduleDay < 6) {
+              HapticFeedback.selectionClick();
+              setState(() => _selectedScheduleDay++);
+            } else if (v > 200 && _selectedScheduleDay > 1) {
+              HapticFeedback.selectionClick();
+              setState(() => _selectedScheduleDay--);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: isToday
+                    ? AppTheme.primary.withValues(alpha: 0.28)
+                    : Colors.black.withValues(alpha: 0.05),
+                width: isToday ? 1.5 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isToday
+                      ? AppTheme.primary.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.025),
+                  blurRadius: 14,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Kun nomi, navigatsiya tugmalari va Bugun tugmasi
+                Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(7),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: isToday ? AppTheme.primaryLight : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         Icons.calendar_today_rounded,
-                        size: 15,
+                        size: 16,
                         color: isToday ? AppTheme.primary : AppTheme.textMuted,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        dayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textDark),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                dayName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: AppTheme.textDark,
+                                ),
+                              ),
+                              if (isToday) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    gradient: AppTheme.primaryGradient,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    "BUGUN",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isToday
+                                ? "Bugungi darslar va real davomat"
+                                : "Dars jadvali rejasi",
+                            style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                          ),
+                        ],
                       ),
                     ),
-                    if (isToday) ...[
+                    if (!isToday) ...[
+                      InkWell(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          setState(() {
+                            _selectedScheduleDay = (todayWeekday <= 6 ? todayWeekday : 1);
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryLight,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.today_rounded, size: 12, color: AppTheme.primary),
+                              SizedBox(width: 4),
+                              Text(
+                                "Bugun",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          "BUGUN",
-                          style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w900),
-                        ),
-                      ),
                     ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    onTap: dayNum > 1
-                        ? () {
-                            if (_dayPageController.hasClients) {
-                              _dayPageController.previousPage(
-                                duration: const Duration(milliseconds: 280),
-                                curve: Curves.easeInOut,
-                              );
-                            }
-                          }
-                        : null,
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: dayNum > 1 ? Colors.grey.shade100 : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(Icons.chevron_left_rounded, size: 18, color: dayNum > 1 ? AppTheme.textDark : Colors.grey.shade300),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    "${lessonsList.length} dars",
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted),
-                  ),
-                  const SizedBox(width: 4),
-                  InkWell(
-                    onTap: dayNum < 6
-                        ? () {
-                            if (_dayPageController.hasClients) {
-                              _dayPageController.nextPage(
-                                duration: const Duration(milliseconds: 280),
-                                curve: Curves.easeInOut,
-                              );
-                            }
-                          }
-                        : null,
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: dayNum < 6 ? Colors.grey.shade100 : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(Icons.chevron_right_rounded, size: 18, color: dayNum < 6 ? AppTheme.textDark : Colors.grey.shade300),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-
-          // Darslar ro'yxati
-          Expanded(
-            child: lessonsList.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.event_busy_rounded, size: 44, color: Colors.grey.shade300),
-                        const SizedBox(height: 10),
-                        Text(
-                          "$dayName kuni uchun darslar belgilanmagan",
-                          style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                        InkWell(
+                          onTap: _selectedScheduleDay > 1
+                              ? () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedScheduleDay--);
+                                }
+                              : null,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: _selectedScheduleDay > 1 ? Colors.grey.shade100 : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.chevron_left_rounded,
+                              size: 20,
+                              color: _selectedScheduleDay > 1 ? AppTheme.textDark : Colors.grey.shade300,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            "${lessonsList.length} ta dars",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textMuted,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        InkWell(
+                          onTap: _selectedScheduleDay < 6
+                              ? () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedScheduleDay++);
+                                }
+                              : null,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: _selectedScheduleDay < 6 ? Colors.grey.shade100 : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.chevron_right_rounded,
+                              size: 20,
+                              color: _selectedScheduleDay < 6 ? AppTheme.textDark : Colors.grey.shade300,
+                            ),
+                          ),
                         ),
                       ],
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+
+                // Darslar ro'yxati
+                if (isToday && _loading && _lessons.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.primary),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "Dars jadvali yuklanmoqda...",
+                            style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
                   )
-                : ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: lessonsList.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 10),
-                    itemBuilder: (ctx, i) {
+                else if (lessonsList.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.event_available_rounded, size: 40, color: Colors.grey.shade300),
+                          const SizedBox(height: 8),
+                          Text(
+                            "$dayName kuni darslar belgilanmagan",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textDark,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          const Text(
+                            "Dam olish yoki mustaqil ta'lim kuni",
+                            style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Column(
+                    children: List.generate(lessonsList.length, (i) {
                       final l = lessonsList[i];
-                      if (isToday) {
-                        return _buildLessonItem(l);
-                      } else {
-                        return _buildPlannedLessonItem(l, i + 1);
-                      }
-                    },
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: i < lessonsList.length - 1 ? 10 : 0),
+                        child: isToday
+                            ? _buildLessonItem(l)
+                            : _buildPlannedLessonItem(l, i + 1),
+                      );
+                    }),
                   ),
+              ],
+            ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.swipe_rounded, size: 13, color: AppTheme.textMuted.withValues(alpha: 0.6)),
+            const SizedBox(width: 4),
+            Text(
+              "Kunlarni almashtirish uchun yonga suring yoki yuqoridagi kunni tanlang",
+              style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted.withValues(alpha: 0.8)),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
