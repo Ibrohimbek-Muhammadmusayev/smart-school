@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String serverUrl = 'https://cedar-mens-workflow-solved.trycloudflare.com';
+  static const String serverUrl = 'https://attributes-screenshot-int-wrapping.trycloudflare.com';
 
   static String get baseUrl {
     return '$serverUrl/api';
