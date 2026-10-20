@@ -4,11 +4,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 import datetime
-from .models import User, SchoolConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule
+from .models import User, SchoolConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule, DeviceEventLog
 from .serializers import (UserSerializer, SchoolClassSerializer, SubjectSerializer, 
                           LessonSerializer, AttendanceSerializer, GradeSerializer, HomeworkSubmissionSerializer, ClassScheduleSerializer)
 from .telegram_service import notify_parent_attendance, notify_parent_grade
 import secrets
+import random
+from django.db.models import Q
 
 class PassportLoginView(views.APIView):
     """
@@ -517,6 +519,22 @@ class StudentDashboardSummaryView(views.APIView):
         default_entry = "13:05" if is_shift_2 else "08:05"
         turnstile_entry = first_att.timestamp.strftime("%H:%M") if first_att else default_entry
         turnstile_exit = "--:--"
+
+        # Real Face ID / Turniket (Hikvision) qurilmasidan kelgan loglar
+        today_entry_event = DeviceEventLog.objects.filter(
+            student=user,
+            direction='IN',
+            timestamp__date=today
+        ).order_by('timestamp').first()
+        today_exit_event = DeviceEventLog.objects.filter(
+            student=user,
+            direction='OUT',
+            timestamp__date=today
+        ).order_by('-timestamp').first()
+        if today_entry_event:
+            turnstile_entry = today_entry_event.timestamp.strftime("%H:%M")
+        if today_exit_event:
+            turnstile_exit = today_exit_event.timestamp.strftime("%H:%M")
         total_today_count = len(today_lessons)
 
         month_lessons_count = Lesson.objects.filter(
@@ -2076,6 +2094,393 @@ class ClassScheduleManagementView(views.APIView):
             return Response({'status': 'success', 'message': "Dars o'chirildi."})
         except ClassSchedule.DoesNotExist:
             return Response({'detail': 'Jadval topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# =========================================================================
+# 12. FACE ID VA TURNIKET QURILMALARI (HIKVISION) INTEGRATSIYASI VA AUDITI
+# =========================================================================
+
+def seed_initial_device_logs(school_id='1'):
+    """
+    Agar DeviceEventLog bo'sh bo'lsa, mavjud o'quvchilar asosida 12-15 ta
+    realistik Hikvision / Face ID turniket loglarini generatsiya qiladi.
+    """
+    if DeviceEventLog.objects.filter(school_id=school_id).exists():
+        return
+
+    students = list(User.objects.filter(role='STUDENT').select_related('student_profile__school_class'))
+    if not students:
+        return
+
+    now = timezone.now()
+    devices = [
+        ("Hikvision MinMoe DS-K1T673 - Bosh Kirish", "192.168.1.120"),
+        ("Hikvision MinMoe DS-K1T673 - Chiqish Turniket 2", "192.168.1.121"),
+        ("Hikvision DS-K5671 - Korpus B Turniket", "192.168.1.125"),
+    ]
+
+    initial_logs = []
+    total_samples = min(14, len(students) * 2)
+    for i in range(total_samples):
+        st = random.choice(students)
+        direction = 'IN' if i % 3 != 0 else 'OUT'
+        dev_name, dev_ip = devices[0] if direction == 'IN' else devices[1]
+        conf = round(random.uniform(97.5, 99.8), 1)
+        temp = round(random.uniform(36.3, 36.8), 1)
+        
+        mins_ago = (total_samples - i) * 12 + random.randint(1, 8)
+        event_time = now - datetime.timedelta(minutes=mins_ago)
+
+        sc = getattr(st.student_profile, 'school_class', None) if hasattr(st, 'student_profile') else None
+        st_code = getattr(st.student_profile, 'student_id', '') if hasattr(st, 'student_profile') else ''
+
+        initial_logs.append(DeviceEventLog(
+            school_id=school_id,
+            device_name=dev_name,
+            device_ip=dev_ip,
+            device_serial=f"DS-K1T673-2026{1000 + i}",
+            student=st,
+            student_name=st.get_full_name() or st.username,
+            student_code=st_code or f"STU-{1000 + st.id}",
+            class_name=sc.name if sc else "9-A",
+            event_type='FACE_RECOGNITION',
+            direction=direction,
+            status='SUCCESS',
+            confidence=conf,
+            temperature=temp,
+            details=f"Yuz tanish orqali {'KIRISH' if direction == 'IN' else 'CHIQISH'} ruxsat etildi",
+            timestamp=event_time
+        ))
+
+    # Realistik xavfsizlik sinovi uchun bitta noma'lum shaxs skani
+    initial_logs.append(DeviceEventLog(
+        school_id=school_id,
+        device_name="Hikvision MinMoe DS-K1T673 - Bosh Kirish",
+        device_ip="192.168.1.120",
+        device_serial="DS-K1T673-20269999",
+        student=None,
+        student_name="Noma'lum Shaxs (Mehmon)",
+        student_code="UNKNOWN_UID",
+        class_name="Begona",
+        event_type='FACE_RECOGNITION',
+        direction='IN',
+        status='UNKNOWN_PERSON',
+        confidence=42.1,
+        temperature=36.6,
+        details="Yuz bazada topilmadi — Xavfsizlik xizmati ogohlantirildi",
+        timestamp=now - datetime.timedelta(minutes=45)
+    ))
+
+    DeviceEventLog.objects.bulk_create(initial_logs)
+
+
+class DeviceEventIngestionView(views.APIView):
+    """
+    Face ID va Turniket qurilmalari (Hikvision, Dahua, ZKTeco) uchun universal API qabul qiluvchi endpoint.
+    POST /api/devices/event/
+    Hikvision MinMoe ISAPI yoki standart REST JSON formatlarini to'liq qabul qiladi.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        payload = request.data or {}
+        
+        # 1. Hikvision maxsus Event payload formatini tekshirish
+        hik_event = payload.get('AccessControllerEvent') or payload.get('event') or {}
+        
+        # Student / Foydalanuvchi identifikatorini aniqlash
+        raw_code = (
+            payload.get('student_id') or 
+            payload.get('student_code') or 
+            payload.get('card_number') or 
+            payload.get('cardNo') or
+            hik_event.get('employeeNoString') or 
+            hik_event.get('cardNo') or 
+            payload.get('user_id') or 
+            payload.get('id')
+        )
+        raw_name = (
+            payload.get('student_name') or 
+            payload.get('name') or 
+            hik_event.get('name') or 
+            payload.get('full_name') or 
+            ''
+        )
+        
+        # Qurilma ma'lumotlari
+        device_name = (
+            payload.get('device_name') or 
+            hik_event.get('deviceName') or 
+            payload.get('deviceName') or 
+            'Hikvision MinMoe DS-K1T673'
+        )
+        device_ip = (
+            payload.get('device_ip') or 
+            payload.get('ipAddress') or 
+            request.META.get('REMOTE_ADDR') or 
+            '192.168.1.120'
+        )
+        device_serial = (
+            payload.get('device_serial') or 
+            payload.get('serialNo') or 
+            hik_event.get('serialNo') or 
+            ''
+        )
+
+        # Harakat yo'nalishi (IN / OUT)
+        raw_direction = str(
+            payload.get('direction') or 
+            hik_event.get('attendanceStatus') or 
+            payload.get('type') or 
+            'IN'
+        ).upper()
+        direction = 'OUT' if any(w in raw_direction for w in ['OUT', 'EXIT', 'CHECKOUT', 'CHIQISH']) else 'IN'
+
+        # Event turi (FACE_RECOGNITION, CARD_SWIPE, etc.)
+        verify_mode = str(hik_event.get('currentVerifyMode') or payload.get('event_type') or 'FACE').upper()
+        if 'CARD' in verify_mode:
+            event_type = 'CARD_SWIPE'
+        elif 'QR' in verify_mode:
+            event_type = 'QR_CODE'
+        elif 'FINGER' in verify_mode:
+            event_type = 'FINGERPRINT'
+        else:
+            event_type = 'FACE_RECOGNITION'
+
+        # Aniqlik (confidence match) va Harorat
+        confidence = float(payload.get('confidence') or hik_event.get('faceScore') or 99.2)
+        temperature = payload.get('temperature') or hik_event.get('temperature')
+        temperature = float(temperature) if temperature is not None else None
+        school_id = str(payload.get('school_id') or '1')
+
+        # 2. Bazadan o'quvchini qidirish
+        student = None
+        if raw_code:
+            code_str = str(raw_code).strip()
+            # 2.1 StudentProfile.student_id bo'yicha
+            sp = StudentProfile.objects.filter(student_id__iexact=code_str).select_related('user', 'school_class').first()
+            if sp:
+                student = sp.user
+            # 2.2 ID raqam bo'yicha
+            elif code_str.isdigit():
+                student = User.objects.filter(id=int(code_str), role='STUDENT').first()
+            # 2.3 Username yoki pasport seriya bo'yicha
+            if not student:
+                student = User.objects.filter(
+                    Q(username__iexact=code_str) | Q(passport_series__iexact=code_str),
+                    role='STUDENT'
+                ).first()
+
+        # 2.4 Ism-familiya bo'yicha qidiruv (agar code orqali topilmasa)
+        if not student and raw_name:
+            clean_name = str(raw_name).strip()
+            name_parts = clean_name.split()
+            if len(name_parts) >= 2:
+                student = User.objects.filter(
+                    role='STUDENT',
+                    first_name__icontains=name_parts[0],
+                    last_name__icontains=name_parts[1]
+                ).first()
+                if not student:
+                    student = User.objects.filter(
+                        role='STUDENT',
+                        first_name__icontains=name_parts[1],
+                        last_name__icontains=name_parts[0]
+                    ).first()
+
+        now = timezone.now()
+        today = now.date()
+
+        # 3. Agar o'quvchi topilsa — Davomatni avtomatik bog'lash va yangilash
+        if student:
+            sp = getattr(student, 'student_profile', None)
+            s_class = sp.school_class if sp else None
+            student_code_final = sp.student_id if sp and sp.student_id else str(raw_code or student.id)
+            class_name_final = s_class.name if s_class else ""
+
+            # Agar yo'nalish KIRISH bo'lsa — bugungi mos dars uchun Attendance yozish
+            if direction == 'IN' and s_class:
+                lesson = Lesson.objects.filter(
+                    school_class=s_class,
+                    date=today,
+                    status__in=['ACTIVE', 'PENDING']
+                ).order_by('id').first()
+
+                if not lesson:
+                    lesson = Lesson.objects.filter(school_class=s_class, date=today).order_by('id').first()
+
+                if lesson:
+                    att_status = 'PRESENT'
+                    cfg = SchoolConfig.objects.filter(school_id=school_id).first()
+                    threshold = cfg.late_threshold_minutes if cfg else 10
+                    if lesson.start_time:
+                        try:
+                            lh, lm = map(int, lesson.start_time.split(':'))
+                            lesson_start_dt = now.replace(hour=lh, minute=lm, second=0, microsecond=0)
+                            if now > lesson_start_dt + datetime.timedelta(minutes=threshold):
+                                att_status = 'LATE'
+                        except Exception:
+                            pass
+
+                    Attendance.objects.update_or_create(
+                        lesson=lesson,
+                        student=student,
+                        defaults={
+                            'status': att_status,
+                            'timestamp': now,
+                            'is_manual': False
+                        }
+                    )
+                    try:
+                        notify_parent_attendance(student, lesson)
+                    except Exception:
+                        pass
+
+            log = DeviceEventLog.objects.create(
+                school_id=school_id,
+                device_name=device_name,
+                device_ip=device_ip,
+                device_serial=device_serial,
+                student=student,
+                student_name=student.get_full_name() or student.username,
+                student_code=student_code_final,
+                class_name=class_name_final,
+                event_type=event_type,
+                direction=direction,
+                status='SUCCESS',
+                confidence=confidence,
+                temperature=temperature,
+                raw_payload=payload if isinstance(payload, dict) else {},
+                details=f"{'Turniketdan KIRISH' if direction == 'IN' else 'Turniketdan CHIQISH'} — {device_name} (Aniqlik: {confidence}%)",
+                timestamp=now
+            )
+
+            return Response({
+                'success': True,
+                'status': 'accepted',
+                'message': f"{student.get_full_name()} — {direction} muvaffaqiyatli qabul qilindi ✅",
+                'log': log.to_dict()
+            }, status=status.HTTP_201_CREATED)
+
+        else:
+            # O'quvchi topilmadi — Xavfsizlik logi sifatida saqlanadi
+            log = DeviceEventLog.objects.create(
+                school_id=school_id,
+                device_name=device_name,
+                device_ip=device_ip,
+                device_serial=device_serial,
+                student=None,
+                student_name=str(raw_name).strip() if raw_name else f"Noma'lum shaxs ({raw_code or 'ID yo\'q'})",
+                student_code=str(raw_code or "UNKNOWN"),
+                class_name="Noma'lum",
+                event_type=event_type,
+                direction=direction,
+                status='UNKNOWN_PERSON',
+                confidence=confidence,
+                temperature=temperature,
+                raw_payload=payload if isinstance(payload, dict) else {},
+                details="Yuz yoki ID maktab bazasida topilmadi — Xavfsizlikka ogohlantirish berildi",
+                timestamp=now
+            )
+
+            return Response({
+                'success': False,
+                'status': 'unknown_person',
+                'message': "O'quvchi bazada topilmadi, xavfsizlik auditiga yozildi ⚠️",
+                'log': log.to_dict()
+            }, status=status.HTTP_200_OK)
+
+
+class DeviceLogsListView(views.APIView):
+    """
+    Maktab auditi sahifasi uchun har 3 soniyada real vaqtda loglarni qaytaruvchi endpoint.
+    GET /api/devices/logs/?school_id=1&limit=50&direction=IN&search=...
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        school_id = request.query_params.get('school_id', '1')
+        limit = int(request.query_params.get('limit', 100))
+        direction = request.query_params.get('direction', '').strip().upper()
+        search = request.query_params.get('search', '').strip()
+
+        # Agar loglar hali yaratilmagan bo'lsa, seed qilib berish
+        seed_initial_device_logs(school_id)
+
+        qs = DeviceEventLog.objects.filter(school_id=school_id)
+        if direction in ['IN', 'OUT']:
+            qs = qs.filter(direction=direction)
+        if search:
+            qs = qs.filter(
+                Q(student_name__icontains=search) | 
+                Q(student_code__icontains=search) | 
+                Q(class_name__icontains=search) | 
+                Q(device_name__icontains=search)
+            )
+
+        now = timezone.now()
+        today = now.date()
+
+        # Bugungi statistika
+        today_qs = DeviceEventLog.objects.filter(school_id=school_id, timestamp__date=today)
+        total_today = today_qs.count()
+        today_entries = today_qs.filter(direction='IN', status='SUCCESS').count()
+        today_exits = today_qs.filter(direction='OUT', status='SUCCESS').count()
+        unique_students_today = today_qs.filter(student__isnull=False).values('student').distinct().count()
+        unrecognized_today = today_qs.filter(status='UNKNOWN_PERSON').count()
+        inside_count = max(0, today_entries - today_exits)
+
+        logs = [log.to_dict() for log in qs[:limit]]
+
+        return Response({
+            'success': True,
+            'school_id': school_id,
+            'server_time': now.strftime("%Y-%m-%d %H:%M:%S"),
+            'stats': {
+                'total_today': total_today,
+                'today_entries': today_entries,
+                'today_exits': today_exits,
+                'inside_count': inside_count,
+                'unique_students_today': unique_students_today,
+                'unrecognized_today': unrecognized_today,
+                'success_rate': round((today_entries / max(1, today_entries + unrecognized_today)) * 100, 1)
+            },
+            'logs': logs
+        })
+
+    def delete(self, request):
+        """Audit loglarini tozalash (faqat test / reset qilish uchun)"""
+        school_id = request.query_params.get('school_id', '1')
+        DeviceEventLog.objects.filter(school_id=school_id).delete()
+        return Response({'success': True, 'message': "Audit loglari tozalandi."})
+
+
+class DeviceSimulateView(views.APIView):
+    """
+    Veb-paneldagi 'Face ID Test Simulyatori' tugmasi uchun test signalini yuborish.
+    POST /api/devices/simulate/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        school_id = request.data.get('school_id', '1')
+        student_id = request.data.get('student_id')
+        direction = request.data.get('direction', 'IN').upper()
+        device_name = request.data.get('device_name', 'Hikvision MinMoe DS-K1T673 - Bosh Kirish')
+
+        if not student_id:
+            st = User.objects.filter(role='STUDENT').order_by('?').first()
+            if st and hasattr(st, 'student_profile'):
+                student_id = st.student_profile.student_id or str(st.id)
+
+        ingestion = DeviceEventIngestionView()
+        request.data['student_id'] = student_id
+        request.data['direction'] = direction
+        request.data['device_name'] = device_name
+        request.data['confidence'] = request.data.get('confidence', 99.4)
+        request.data['school_id'] = school_id
+        return ingestion.post(request)
+
 
 
 

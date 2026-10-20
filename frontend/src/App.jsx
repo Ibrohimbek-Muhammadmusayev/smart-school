@@ -8,7 +8,8 @@ import {
   Sliders, Layers, Server, Database, LogOut, UserPlus, BookOpen,
   Calendar, CheckCircle, UserX, QrCode, GraduationCap, Clock,
   FolderOpen, EyeOff, Sparkles, Smartphone, ChevronDown, Check,
-  Edit, Trash2, Copy, ZoomIn, ExternalLink
+  Edit, Trash2, Copy, ZoomIn, ExternalLink,
+  Radio, Play, Pause, Cpu
 } from 'lucide-react';
 import SuperAdminDashboardView from './SuperAdminDashboard';
 import SchoolMapPicker from './components/SchoolMapPicker';
@@ -1347,7 +1348,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<FolderOpen size={18} />} label={`${terms.groupPlural} Boshqaruvi`} badge={`${classesList.length} ta`} />
           <NavButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} icon={<Users size={18} />} label={terms.studentPlural} badge={`${realStudents.length} ta`} />
           <NavButton active={activeTab === 'teachers'} onClick={() => setActiveTab('teachers')} icon={<GraduationCap size={18} />} label="O'qituvchilar" badge={`${teachersList.length} ta`} />
-          <NavButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<CheckCircle2 size={18} />} label="Davomat Auditi" />
+          <NavButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<Cpu size={18} />} label="Maktab Auditi (Face ID)" badge="Jonli 🔴" />
           <div style={{ margin: '6px 4px', borderTop: `1px dashed ${THEME.border}` }} />
           <NavButton
             active={activeTab === 'settings'}
@@ -1719,7 +1720,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
 
           {/* TAB 5: DAVOMAT AUDITI */}
           {activeTab === 'attendance' && (
-            <AttendanceAuditSection realStudents={realStudents} schoolName={schoolName} terms={terms} />
+            <AttendanceAuditSection realStudents={realStudents} schoolName={schoolName} schoolId={schoolId} terms={terms} />
           )}
 
           {/* TAB 6: MAKTAB SOZLAMALARI (NASTROYKA) */}
@@ -4757,55 +4758,1167 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
 }
 
 // =========================================================================
-// 8. DAVOMAT AUDITI SAHIFASI
+// 8. DAVOMAT VA MAKTAB AUDITI (FACE ID VA TURNIKET — HIKVISION INTEGRATSIYASI)
 // =========================================================================
-function AttendanceAuditSection({ realStudents, schoolName, terms = buildSchoolTerms({}) }) {
+function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1', terms = buildSchoolTerms({}) }) {
+  const [logs, setLogs] = useState([]);
+  const [stats, setStats] = useState({
+    total_today: 0,
+    today_entries: 0,
+    today_exits: 0,
+    inside_count: 0,
+    unique_students_today: 0,
+    unrecognized_today: 0,
+    success_rate: 99.2,
+  });
+  const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [directionFilter, setDirectionFilter] = useState('ALL'); // ALL, IN, OUT, UNKNOWN
+  const [newLogIds, setNewLogIds] = useState(new Set());
+  const [showSimulateModal, setShowSimulateModal] = useState(false);
+  const [showApiDocsModal, setShowApiDocsModal] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+  const [actionNotice, setActionNotice] = useState(null);
+  const [copiedCurl, setCopiedCurl] = useState(false);
+
+  // Simulyator formasi holati
+  const [simForm, setSimForm] = useState({
+    studentId: '',
+    direction: 'IN',
+    deviceName: 'Hikvision MinMoe DS-K1T673 - Bosh Kirish',
+    confidence: 99.5,
+    temperature: 36.5,
+  });
+
+  const prevLogIdsRef = React.useRef(new Set());
+
+  // Backenddan loglarni olish
+  const fetchLogs = async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const res = await fetch(`/api/devices/logs/?school_id=${encodeURIComponent(schoolId)}&limit=150`);
+      if (res.ok) {
+        const data = await res.json();
+        const incomingLogs = data.logs || [];
+        setLogs(incomingLogs);
+        if (data.stats) setStats(data.stats);
+
+        const nowStr = new Date().toLocaleTimeString('uz-UZ');
+        setLastUpdated(nowStr);
+
+        // Yangi kelgan loglarni aniqlash va ularni 8 sekundga porlash effekti bilan ajratib ko'rsatish
+        const currentIds = new Set(incomingLogs.map(l => l.id));
+        if (prevLogIdsRef.current.size > 0) {
+          const freshIds = new Set();
+          currentIds.forEach(id => {
+            if (!prevLogIdsRef.current.has(id)) {
+              freshIds.add(id);
+            }
+          });
+          if (freshIds.size > 0) {
+            setNewLogIds(prev => new Set([...prev, ...freshIds]));
+            setTimeout(() => {
+              setNewLogIds(prev => {
+                const next = new Set(prev);
+                freshIds.forEach(id => next.delete(id));
+                return next;
+              });
+            }, 8000);
+          }
+        }
+        prevLogIdsRef.current = currentIds;
+      }
+    } catch (_) {
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
+  // Har 3 soniyada real vaqtda bazadan avtomatik yangilash (POLLING)
+  useEffect(() => {
+    fetchLogs(false);
+    let intervalId = null;
+    if (autoRefresh) {
+      intervalId = setInterval(() => {
+        fetchLogs(true);
+      }, 3000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [schoolId, autoRefresh]);
+
+  // Test signalini yuborish (Face ID yoki Turniket o'tishini simulyatsiya qilish)
+  const handleSendSimulateEvent = async (overrideData = null) => {
+    setSimulating(true);
+    try {
+      const payload = overrideData || {
+        student_id: simForm.studentId || (realStudents[0]?.student_id || '23089'),
+        direction: simForm.direction,
+        device_name: simForm.deviceName,
+        confidence: Number(simForm.confidence) || 99.2,
+        temperature: Number(simForm.temperature) || 36.5,
+        school_id: String(schoolId),
+      };
+
+      const res = await fetch('/api/devices/event/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await res.json();
+      if (result.log) {
+        setNewLogIds(prev => new Set([...prev, result.log.id]));
+      }
+
+      setActionNotice({
+        type: result.success ? 'success' : 'warning',
+        text: result.message || "Face ID signali bazaga muvaffaqiyatli qabul qilindi!",
+      });
+      setTimeout(() => setActionNotice(null), 5000);
+
+      setShowSimulateModal(false);
+      await fetchLogs(true);
+    } catch (err) {
+      alert("Xatolik: " + err.message);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  // Tezkor bir marta bosish bilan test qilish
+  const handleQuickTest = (direction) => {
+    const randomStudent = realStudents.length > 0
+      ? realStudents[Math.floor(Math.random() * realStudents.length)]
+      : null;
+    const stId = randomStudent ? (randomStudent.student_id || String(randomStudent.id)) : '23089';
+    handleSendSimulateEvent({
+      student_id: stId,
+      direction: direction,
+      device_name: direction === 'IN' ? 'Hikvision MinMoe DS-K1T673 - Bosh Kirish' : 'Hikvision MinMoe DS-K1T673 - Chiqish Turniket 2',
+      confidence: Math.round((98 + Math.random() * 1.8) * 10) / 10,
+      temperature: 36.5,
+      school_id: String(schoolId),
+    });
+  };
+
+  // Noma'lum shaxs test signali
+  const handleUnknownFaceTest = () => {
+    handleSendSimulateEvent({
+      student_id: 'UNKNOWN_' + Math.floor(1000 + Math.random() * 9000),
+      student_name: "Noma'lum Shaxs (Begona)",
+      direction: 'IN',
+      device_name: 'Hikvision MinMoe DS-K1T673 - Bosh Kirish',
+      confidence: 43.5,
+      temperature: 36.7,
+      school_id: String(schoolId),
+    });
+  };
+
+  // CSV Eksport
+  const handleExportAuditCSV = () => {
+    let csv = "\uFEFFID,Vaqt,Sana,O'quvchi F.I.Sh.,ID Kod,Sinf,Harakat,Qurilma,Qurilma IP,Aniqlik %,Harorat,Holat,Tafsilotlar\n";
+    filteredLogs.forEach(l => {
+      csv += `${l.id},"${l.time || ''}","${l.date || ''}","${l.student_name || ''}","${l.student_code || ''}","${l.class_name || ''}","${l.direction === 'IN' ? 'KIRISH' : 'CHIQISH'}","${l.device_name || ''}","${l.device_ip || ''}",${l.confidence || ''},${l.temperature || ''},"${l.status === 'SUCCESS' ? 'Qabul qilindi' : 'Begona shaxs'}","${l.details || ''}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Maktab_Auditi_FaceID_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Loglarni tozalash (test auditni reset qilish)
+  const handleClearLogs = async () => {
+    if (!window.confirm("Rostdan ham ushbu maktabning barcha qurilma va turniket audit loglarini tozalamoqchimisiz?")) {
+      return;
+    }
+    try {
+      await fetch(`/api/devices/logs/?school_id=${encodeURIComponent(schoolId)}`, { method: 'DELETE' });
+      setLogs([]);
+      setStats({
+        total_today: 0,
+        today_entries: 0,
+        today_exits: 0,
+        inside_count: 0,
+        unique_students_today: 0,
+        unrecognized_today: 0,
+        success_rate: 100,
+      });
+      alert("✅ Audit loglari tozalandi.");
+    } catch (err) {
+      alert("Xatolik: " + err.message);
+    }
+  };
+
+  // Filtrlash
+  const filteredLogs = logs.filter(l => {
+    if (directionFilter === 'IN' && l.direction !== 'IN') return false;
+    if (directionFilter === 'OUT' && l.direction !== 'OUT') return false;
+    if (directionFilter === 'UNKNOWN' && l.status !== 'UNKNOWN_PERSON') return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const match =
+        (l.student_name || '').toLowerCase().includes(q) ||
+        (l.student_code || '').toLowerCase().includes(q) ||
+        (l.class_name || '').toLowerCase().includes(q) ||
+        (l.device_name || '').toLowerCase().includes(q) ||
+        (l.device_ip || '').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  const apiEndpointUrl = `${window.location.origin}/api/devices/event/`;
+  const curlExample = `curl -X POST ${apiEndpointUrl} \\
+  -H "Content-Type: application/json" \\
+  -d '{"student_id": "${realStudents[0]?.student_id || '23089'}", "direction": "IN", "device_name": "Hikvision MinMoe DS-K1T673 - Bosh Kirish", "confidence": 99.4, "temperature": 36.5}'`;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
-        <KpiCard title="Bino Ichida" value={realStudents.length ? "96.4%" : "0%"} sub="Turniketdan o'tganlar" color={THEME.green} />
-        <KpiCard title={`Bugungi ${terms.lessonSingular} Qatnashuvi`} value={realStudents.length ? "94.2%" : "0%"} sub={`${terms.lessonSingular} QR kod skanerlangan`} color={THEME.primary} />
-        <KpiCard title={`Jami ${terms.studentPlural}`} value={`${realStudents.length} nafar`} sub={schoolName} color={THEME.orange} />
-        <KpiCard title="Izolyatsiya Holati" value="100% Faol" sub="Faqat shu maktab bazasi" color="#10B981" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      {/* 1. JONLI MONITORING STATUS PANELI */}
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: '18px 24px',
+        border: `1.5px solid ${autoRefresh ? '#86EFAC' : '#E2E8F0'}`,
+        boxShadow: autoRefresh ? '0 10px 25px -5px rgba(34, 197, 94, 0.15)' : '0 4px 12px rgba(0,0,0,0.04)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 16,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* Pulsating status badge */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '7px 14px',
+            borderRadius: 20,
+            backgroundColor: autoRefresh ? '#DCFCE7' : '#F1F5F9',
+            border: `1px solid ${autoRefresh ? '#86EFAC' : '#CBD5E1'}`,
+          }}>
+            <span style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              backgroundColor: autoRefresh ? '#22C55E' : '#94A3B8',
+              boxShadow: autoRefresh ? '0 0 0 4px rgba(34, 197, 94, 0.3)' : 'none',
+              animation: autoRefresh ? 'pulse 2s infinite' : 'none',
+            }} />
+            <span style={{
+              fontSize: 12.5,
+              fontWeight: 800,
+              color: autoRefresh ? '#15803D' : '#64748B',
+              letterSpacing: '0.3px',
+            }}>
+              {autoRefresh ? "JONLI EFIR (Har 3 soniyada)" : "MONITORING TO'XTATILDI"}
+            </span>
+          </div>
+
+          <div style={{ fontSize: 12, color: THEME.textMuted }}>
+            {lastUpdated ? (
+              <span>So'nggi qabul: <b>{lastUpdated}</b></span>
+            ) : (
+              <span>Bog'lanmoqda...</span>
+            )}
+          </div>
+        </div>
+
+        {/* Tezkor boshqaruv tugmalari */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '9px 15px',
+              borderRadius: 14,
+              border: `1.5px solid ${autoRefresh ? '#CBD5E1' : THEME.primary}`,
+              backgroundColor: autoRefresh ? '#FFFFFF' : THEME.primaryLight,
+              color: autoRefresh ? THEME.textDark : THEME.primary,
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}>
+            {autoRefresh ? <Pause size={14} /> : <Play size={14} />}
+            {autoRefresh ? "To'xtatish" : "Jonli rejimni yoqish"}
+          </button>
+
+          <button
+            onClick={() => fetchLogs(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '9px 15px',
+              borderRadius: 14,
+              border: `1px solid #CBD5E1`,
+              backgroundColor: '#FFFFFF',
+              color: THEME.textDark,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}>
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            Yangilash
+          </button>
+
+          <button
+            onClick={() => setShowSimulateModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '9px 16px',
+              borderRadius: 14,
+              border: 'none',
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              color: '#FFFFFF',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 6px 14px rgba(16, 185, 129, 0.3)',
+            }}>
+            <Sparkles size={14} />
+            Face ID Test Simulyatori
+          </button>
+
+          <button
+            onClick={() => setShowApiDocsModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '9px 16px',
+              borderRadius: 14,
+              border: `1.5px solid ${THEME.primary}`,
+              backgroundColor: THEME.primaryLight,
+              color: THEME.primary,
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}>
+            <Radio size={14} />
+            📡 Hikvision API Yo'riqnomasi
+          </button>
+        </div>
       </div>
 
+      {/* Xabarnoma tosti */}
+      {actionNotice && (
+        <div style={{
+          padding: '13px 20px',
+          borderRadius: 16,
+          backgroundColor: actionNotice.type === 'success' ? '#DCFCE7' : '#FEF3C7',
+          border: `1.5px solid ${actionNotice.type === 'success' ? '#86EFAC' : '#FDE68A'}`,
+          color: actionNotice.type === 'success' ? '#14532D' : '#92400E',
+          fontWeight: 800,
+          fontSize: 13,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          animation: 'fadeIn 0.3s ease',
+        }}>
+          <span>{actionNotice.text}</span>
+          <button onClick={() => setActionNotice(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 800 }}>✕</button>
+        </div>
+      )}
+
+      {/* 2. REAL-VAQT KPI STATISTIKA KARTALARI */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}>
+        <KpiCard
+          title="Bino Ichida (Turniket)"
+          value={`${stats.inside_count || 0} nafar`}
+          sub="Turniketdan o'tgan o'quvchilar"
+          color={THEME.green}
+        />
+        <KpiCard
+          title="Bugungi Kirishlar"
+          value={`${stats.today_entries || 0} ta`}
+          sub="Yuz tanish / Karta orqali"
+          color={THEME.primary}
+        />
+        <KpiCard
+          title="Bugungi Chiqishlar"
+          value={`${stats.today_exits || 0} ta`}
+          sub="Turniket 2 orqali chiqish"
+          color={THEME.orange}
+        />
+        <KpiCard
+          title="Face ID Aniqligi"
+          value={`${stats.success_rate || 99.2}%`}
+          sub="Biometrik o'xshashlik"
+          color="#10B981"
+        />
+        <KpiCard
+          title="Noma'lum / Begonalar"
+          value={`${stats.unrecognized_today || 0} ta`}
+          sub={stats.unrecognized_today > 0 ? "⚠️ Xavfsizlik signali" : "Xavfsizlik nazorati me'yorda"}
+          color={stats.unrecognized_today > 0 ? "#EF4444" : THEME.textMuted}
+        />
+      </div>
+
+      {/* 3. TEZKOR TEST VA MONITORING HARAKATLARI PANELI */}
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        borderRadius: 22,
+        padding: '16px 22px',
+        border: `1px solid ${THEME.border}`,
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 14,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: THEME.textDark }}>⚡ Tezkor Test Sinovlari:</span>
+          <span style={{ fontSize: 11.5, color: THEME.textMuted }}>(Hikvision qurilmasidan keladigan signallarni sinab ko'rish)</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => handleQuickTest('IN')}
+            disabled={simulating}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 12,
+              border: '1px solid #86EFAC',
+              backgroundColor: '#F0FDF4',
+              color: '#166534',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: simulating ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+            🟢 + Face ID KIRISH (Tasodifiy)
+          </button>
+
+          <button
+            onClick={() => handleQuickTest('OUT')}
+            disabled={simulating}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 12,
+              border: '1px solid #FED7AA',
+              backgroundColor: '#FFF7ED',
+              color: '#9A3412',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: simulating ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+            🟠 - Turniket CHIQISH (Tasodifiy)
+          </button>
+
+          <button
+            onClick={handleUnknownFaceTest}
+            disabled={simulating}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 12,
+              border: '1px solid #FECACA',
+              backgroundColor: '#FEF2F2',
+              color: '#991B1B',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: simulating ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+            ⚠️ Noma'lum Shaxs (Xavfsizlik)
+          </button>
+        </div>
+      </div>
+
+      {/* 4. ASOSIY AUDIT JADVALI VA FILTRLAR */}
       <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 24, border: `1px solid ${THEME.border}` }}>
-        <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 16 }}>Turniket va {terms.lessonSingular} QR Davomat Loglari ({schoolName})</h3>
-        {realStudents.length === 0 ? (
-          <div style={{ padding: 32, textAlign: 'center', color: THEME.textMuted, fontSize: 13 }}>
-            Ushbu maktabda hozircha {terms.studentPluralLower} mavjud emas.
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 18 }}>
+          <div>
+            <h3 style={{ fontSize: 17, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
+              Face ID va Turniket Maktab Auditi ({schoolName})
+            </h3>
+            <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
+              Hikvision, Dahua va ZKTeco qurilmalaridan kelayotgan real-vaqt biometrik loglari
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={handleExportAuditCSV}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 12,
+                border: '1px solid #CBD5E1',
+                backgroundColor: '#FFFFFF',
+                color: THEME.textDark,
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}>
+              <Download size={14} /> CSV Yuklash
+            </button>
+
+            {logs.length > 0 && (
+              <button
+                onClick={handleClearLogs}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 14px',
+                  borderRadius: 12,
+                  border: '1px solid #FECACA',
+                  backgroundColor: '#FFF1F2',
+                  color: '#BE123C',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}>
+                <Trash2 size={13} /> Tozalash
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filterlar va Qidiruv */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setDirectionFilter('ALL')}
+              style={{
+                padding: '7px 14px',
+                borderRadius: 12,
+                border: directionFilter === 'ALL' ? `2px solid ${THEME.primary}` : '1px solid #E2E8F0',
+                backgroundColor: directionFilter === 'ALL' ? THEME.primaryLight : '#FFF',
+                color: directionFilter === 'ALL' ? THEME.primary : THEME.textDark,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: 'pointer',
+              }}>
+              Barchasi ({logs.length})
+            </button>
+            <button
+              onClick={() => setDirectionFilter('IN')}
+              style={{
+                padding: '7px 14px',
+                borderRadius: 12,
+                border: directionFilter === 'IN' ? `2px solid #22C55E` : '1px solid #E2E8F0',
+                backgroundColor: directionFilter === 'IN' ? '#DCFCE7' : '#FFF',
+                color: directionFilter === 'IN' ? '#15803D' : THEME.textDark,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: 'pointer',
+              }}>
+              🟢 Faqat Kirishlar ({stats.today_entries || 0})
+            </button>
+            <button
+              onClick={() => setDirectionFilter('OUT')}
+              style={{
+                padding: '7px 14px',
+                borderRadius: 12,
+                border: directionFilter === 'OUT' ? `2px solid ${THEME.orange}` : '1px solid #E2E8F0',
+                backgroundColor: directionFilter === 'OUT' ? '#FFF7ED' : '#FFF',
+                color: directionFilter === 'OUT' ? THEME.orange : THEME.textDark,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: 'pointer',
+              }}>
+              🟠 Faqat Chiqishlar ({stats.today_exits || 0})
+            </button>
+            <button
+              onClick={() => setDirectionFilter('UNKNOWN')}
+              style={{
+                padding: '7px 14px',
+                borderRadius: 12,
+                border: directionFilter === 'UNKNOWN' ? `2px solid #EF4444` : '1px solid #E2E8F0',
+                backgroundColor: directionFilter === 'UNKNOWN' ? '#FEE2E2' : '#FFF',
+                color: directionFilter === 'UNKNOWN' ? '#B91C1C' : THEME.textDark,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: 'pointer',
+              }}>
+              ⚠️ Begona / Noma'lum ({stats.unrecognized_today || 0})
+            </button>
+          </div>
+
+          <div style={{ position: 'relative', width: 280 }}>
+            <Search size={15} style={{ position: 'absolute', left: 12, top: 11, color: THEME.textMuted }} />
+            <input
+              placeholder="F.I.Sh., ID yoki qurilma bo'yicha qidiruv..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px 8px 34px',
+                borderRadius: 12,
+                border: '1px solid #CBD5E1',
+                fontSize: 12.5,
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Jadval */}
+        {filteredLogs.length === 0 ? (
+          <div style={{ padding: 48, textAlign: 'center', color: THEME.textMuted, fontSize: 13 }}>
+            {searchQuery || directionFilter !== 'ALL' ? (
+              <div>Filtr bo'yicha hech qanday log topilmadi.</div>
+            ) : (
+              <div>
+                Hozircha birorta qurilma logi mavjud emas. Yuqoridagi <b>"Face ID Test Simulyatori"</b> orqali signal yuborib ko'rishingiz mumkin.
+              </div>
+            )}
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
-                <th style={{ padding: '12px 14px' }}>{terms.studentSingular}</th>
-                <th style={{ padding: '12px 14px' }}>{terms.groupSingular}</th>
-                <th style={{ padding: '12px 14px' }}>Bino Kirishi</th>
-                <th style={{ padding: '12px 14px' }}>{terms.lessonSingular} QR Skanerlash</th>
-                <th style={{ padding: '12px 14px' }}>Kim Yaratgan</th>
-                <th style={{ padding: '12px 14px' }}>Holat</th>
-              </tr>
-            </thead>
-            <tbody>
-              {realStudents.slice(0, 8).map((st) => (
-                <tr key={st.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
-                  <td style={{ padding: '14px', fontWeight: 800 }}>{st.last_name} {st.first_name}</td>
-                  <td style={{ padding: '14px' }}>{terms.formatGroupBadge(st.class_name)}</td>
-                  <td style={{ padding: '14px', color: THEME.green, fontWeight: 700 }}>08:14:22 ✅</td>
-                  <td style={{ padding: '14px', color: THEME.primary, fontWeight: 700 }}>08:32:05 (Dinamik QR)</td>
-                  <td style={{ padding: '14px', fontSize: 12, color: THEME.textMuted }}>{st.created_by || "Maktab Direktori"}</td>
-                  <td style={{ padding: '14px' }}>
-                    <span style={{ padding: '4px 10px', borderRadius: 8, backgroundColor: '#ECFDF5', color: THEME.green, fontWeight: 700, fontSize: 11 }}>
-                      Tasdiqlangan
-                    </span>
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  <th style={{ padding: '12px 14px' }}>Vaqt</th>
+                  <th style={{ padding: '12px 14px' }}>{terms.studentSingular} (F.I.Sh.)</th>
+                  <th style={{ padding: '12px 14px' }}>{terms.groupSingular}</th>
+                  <th style={{ padding: '12px 14px' }}>Harakat (Yo'nalish)</th>
+                  <th style={{ padding: '12px 14px' }}>Qurilma & IP</th>
+                  <th style={{ padding: '12px 14px' }}>Aniqlik</th>
+                  <th style={{ padding: '12px 14px' }}>Tizim Holati</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredLogs.map((log) => {
+                  const isFresh = newLogIds.has(log.id);
+                  const isEntry = log.direction === 'IN';
+                  const isSuccess = log.status === 'SUCCESS';
+
+                  return (
+                    <tr
+                      key={log.id}
+                      style={{
+                        borderBottom: `1px solid ${THEME.bgSoft}`,
+                        backgroundColor: isFresh ? '#F0FDF4' : 'transparent',
+                        transition: 'background-color 0.8s ease',
+                      }}>
+                      {/* Vaqt */}
+                      <td style={{ padding: '13px 14px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 800, color: THEME.textDark, fontSize: 13 }}>
+                          {log.time || '--:--:--'}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: THEME.textMuted }}>
+                          {log.date || ''}
+                        </div>
+                      </td>
+
+                      {/* O'quvchi */}
+                      <td style={{ padding: '13px 14px' }}>
+                        <div style={{ fontWeight: 800, color: isSuccess ? THEME.textDark : '#B91C1C', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {log.student_name}
+                          {isFresh && (
+                            <span style={{ fontSize: 9.5, padding: '2px 6px', borderRadius: 6, backgroundColor: '#22C55E', color: '#FFF', fontWeight: 900 }}>
+                              YANGI
+                            </span>
+                          )}
+                        </div>
+                        {log.student_code && (
+                          <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>
+                            ID: {log.student_code}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Sinf */}
+                      <td style={{ padding: '13px 14px' }}>
+                        {log.class_name && log.class_name !== "Begona" && log.class_name !== "Noma'lum" ? (
+                          terms.formatGroupBadge(log.class_name)
+                        ) : (
+                          <span style={{ padding: '3px 8px', borderRadius: 8, backgroundColor: '#F1F5F9', color: '#64748B', fontSize: 11, fontWeight: 700 }}>
+                            {log.class_name || "—"}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Harakat / Yo'nalish */}
+                      <td style={{ padding: '13px 14px' }}>
+                        <span style={{
+                          padding: '5px 12px',
+                          borderRadius: 10,
+                          backgroundColor: isEntry ? '#DCFCE7' : '#FFEDD5',
+                          color: isEntry ? '#15803D' : '#C2410C',
+                          fontWeight: 800,
+                          fontSize: 11.5,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                        }}>
+                          {isEntry ? '🟢 KIRISH' : '🟠 CHIQISH'}
+                        </span>
+                      </td>
+
+                      {/* Qurilma */}
+                      <td style={{ padding: '13px 14px' }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, color: THEME.textDark }}>
+                          {log.device_name || 'Hikvision Terminal'}
+                        </div>
+                        <div style={{ fontSize: 11, color: THEME.textMuted }}>
+                          IP: {log.device_ip || '192.168.1.120'}
+                        </div>
+                      </td>
+
+                      {/* Aniqlik va Harorat */}
+                      <td style={{ padding: '13px 14px', whiteSpace: 'nowrap' }}>
+                        <div style={{
+                          fontWeight: 800,
+                          color: (log.confidence || 0) >= 90 ? THEME.green : '#D97706',
+                          fontSize: 12.5,
+                        }}>
+                          🎯 {log.confidence ? `${log.confidence}%` : '99.0%'}
+                        </div>
+                        {log.temperature && (
+                          <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 700 }}>
+                            🌡️ {log.temperature}°C
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Holat */}
+                      <td style={{ padding: '13px 14px' }}>
+                        {isSuccess ? (
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: 8,
+                            backgroundColor: '#ECFDF5',
+                            color: THEME.green,
+                            fontWeight: 800,
+                            fontSize: 11,
+                          }}>
+                            ✅ Qabul qilindi
+                          </span>
+                        ) : (
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: 8,
+                            backgroundColor: '#FEE2E2',
+                            color: '#B91C1C',
+                            fontWeight: 800,
+                            fontSize: 11,
+                          }}>
+                            ⚠️ Noma'lum Shaxs
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
+
+      {/* 5. FACE ID TEST SIMULYATORI MODALI */}
+      {showSimulateModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 130,
+          padding: 20,
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 28,
+            padding: 30,
+            width: '100%',
+            maxWidth: 520,
+            boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>
+                  ⚡ Face ID Test Simulyatori
+                </div>
+                <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
+                  Hikvision MinMoe terminalidan keladigan biometrik signalni sinab ko'rish
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSimulateModal(false)}
+                style={{
+                  background: '#F1F5F9',
+                  border: 'none',
+                  borderRadius: 10,
+                  width: 34,
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendSimulateEvent();
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* O'quvchini tanlash */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                  👨‍🎓 {terms.studentSingular}ni tanlang *
+                </label>
+                <select
+                  value={simForm.studentId}
+                  onChange={e => setSimForm({ ...simForm, studentId: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 14,
+                    border: '1.5px solid #CBD5E1',
+                    marginTop: 6,
+                    fontSize: 13,
+                    backgroundColor: '#FFF',
+                  }}>
+                  <option value="">— Tasodifiy birinchi o'quvchi —</option>
+                  {realStudents.map(st => (
+                    <option key={st.id} value={st.student_id || st.id}>
+                      {st.last_name} {st.first_name} ({st.class_name || 'Sinfsiz'}) — ID: {st.student_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Harakat yo'nalishi (KIRISH vs CHIQISH) */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                  🚪 Turniket Harakati (Yo'nalish) *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSimForm({ ...simForm, direction: 'IN' })}
+                    style={{
+                      padding: '11px',
+                      borderRadius: 12,
+                      border: simForm.direction === 'IN' ? '2px solid #22C55E' : '1.5px solid #CBD5E1',
+                      backgroundColor: simForm.direction === 'IN' ? '#DCFCE7' : '#FFF',
+                      color: simForm.direction === 'IN' ? '#15803D' : THEME.textDark,
+                      fontWeight: 800,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}>
+                    🟢 KIRISH (Turniket)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSimForm({ ...simForm, direction: 'OUT' })}
+                    style={{
+                      padding: '11px',
+                      borderRadius: 12,
+                      border: simForm.direction === 'OUT' ? '2px solid #F97316' : '1.5px solid #CBD5E1',
+                      backgroundColor: simForm.direction === 'OUT' ? '#FFEDD5' : '#FFF',
+                      color: simForm.direction === 'OUT' ? '#C2410C' : THEME.textDark,
+                      fontWeight: 800,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}>
+                    🟠 CHIQISH (Turniket)
+                  </button>
+                </div>
+              </div>
+
+              {/* Qurilma tanlash */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                  📷 Terminal / Qurilma Modeli *
+                </label>
+                <select
+                  value={simForm.deviceName}
+                  onChange={e => setSimForm({ ...simForm, deviceName: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 14,
+                    border: '1.5px solid #CBD5E1',
+                    marginTop: 6,
+                    fontSize: 13,
+                    backgroundColor: '#FFF',
+                  }}>
+                  <option value="Hikvision MinMoe DS-K1T673 - Bosh Kirish">Hikvision MinMoe DS-K1T673 - Bosh Kirish (Asosiy Bino)</option>
+                  <option value="Hikvision MinMoe DS-K1T673 - Chiqish Turniket 2">Hikvision MinMoe DS-K1T673 - Chiqish Turniket 2</option>
+                  <option value="Hikvision DS-K5671 - Korpus B Turniket">Hikvision DS-K5671 - Korpus B Turniket</option>
+                  <option value="Dahua ASI7213X-T1 Face Terminal">Dahua ASI7213X-T1 Face Terminal</option>
+                  <option value="ZKTeco SpeedFace-V5L Turniket">ZKTeco SpeedFace-V5L Turniket</option>
+                </select>
+              </div>
+
+              {/* Biometrik parametrlar */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Face Match (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    max="100"
+                    value={simForm.confidence}
+                    onChange={e => setSimForm({ ...simForm, confidence: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid #CBD5E1', marginTop: 5, boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Harorat (°C)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="35"
+                    max="42"
+                    value={simForm.temperature}
+                    onChange={e => setSimForm({ ...simForm, temperature: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid #CBD5E1', marginTop: 5, boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowSimulateModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: 13,
+                    borderRadius: 14,
+                    border: 'none',
+                    backgroundColor: '#F1F5F9',
+                    color: THEME.textDark,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}>
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={simulating}
+                  style={{
+                    flex: 1.6,
+                    padding: 13,
+                    borderRadius: 14,
+                    border: 'none',
+                    background: THEME.gradient,
+                    color: '#FFF',
+                    fontWeight: 800,
+                    cursor: simulating ? 'wait' : 'pointer',
+                    boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)',
+                  }}>
+                  {simulating ? "Yuborilmoqda..." : "🚀 Face ID Signalini Yuborish"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. HIKVISION & TURNIKET API INTEGRATSIYA YO'RIQNOMASI MODALI */}
+      {showApiDocsModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 130,
+          padding: 20,
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 28,
+            padding: 32,
+            width: '100%',
+            maxWidth: 680,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Radio size={20} color={THEME.primary} />
+                  Hikvision & Face ID Qurilmalari API Integratsiyasi
+                </div>
+                <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
+                  Turniket va biometrik kameralarni ushbu maktab bazasiga ulash protokoli
+                </div>
+              </div>
+              <button
+                onClick={() => setShowApiDocsModal(false)}
+                style={{
+                  background: '#F1F5F9',
+                  border: 'none',
+                  borderRadius: 10,
+                  width: 34,
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Endpoint kartasi */}
+              <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, border: '1px solid #E2E8F0' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, textTransform: 'uppercase' }}>API Qabul Qiluvchi URL (POST)</div>
+                <div style={{
+                  fontSize: 13.5,
+                  fontWeight: 800,
+                  color: THEME.primary,
+                  marginTop: 4,
+                  fontFamily: 'monospace',
+                  wordBreak: 'break-all',
+                }}>
+                  {apiEndpointUrl}
+                </div>
+                <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                  Qo'shimcha alias manzillar: <code>/api/devices/hikvision/</code> va <code>/api/devices/turnstile/</code>
+                </div>
+              </div>
+
+              {/* Qo'llab-quvvatlanadigan qurilmalar */}
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark, marginBottom: 6 }}>
+                  Qo'llab-quvvatlanadigan uskunalar:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, fontSize: 12 }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9' }}>
+                    📹 <b>Hikvision MinMoe:</b> DS-K1T671, DS-K1T673, DS-K1T341
+                  </div>
+                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9' }}>
+                    📹 <b>Dahua Technology:</b> ASI7213X, ASI7223X series
+                  </div>
+                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9' }}>
+                    🚪 <b>ZKTeco:</b> ProFace X, SpeedFace-V5L, FaceDepot
+                  </div>
+                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9' }}>
+                    🌐 Har qanday <b>HTTP / Webhook</b> turniket boshqaruvchisi
+                  </div>
+                </div>
+              </div>
+
+              {/* JSON Payload formati */}
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark, marginBottom: 6 }}>
+                  Standart JSON formati:
+                </div>
+                <pre style={{
+                  backgroundColor: '#0F172A',
+                  color: '#38BDF8',
+                  padding: 14,
+                  borderRadius: 14,
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                  overflowX: 'auto',
+                }}>
+{`{
+  "student_id": "23089",               // O'quvchi 5 xonali ID si yoki pasport/RFID karta raqami
+  "direction": "IN",                   // "IN" (KIRISH) yoki "OUT" (CHIQISH)
+  "device_name": "Hikvision MinMoe DS-K1T673",
+  "device_ip": "192.168.1.120",        // Qurilma IP manzili
+  "confidence": 99.4,                  // Yuz tanish foizi (ixtiyoriy)
+  "temperature": 36.5,                 // Harorat (ixtiyoriy)
+  "school_id": "${schoolId}"                     // Maktab ID raqami
+}`}
+                </pre>
+              </div>
+
+              {/* Tayyor cURL buyrug'i */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>
+                    Terminaldan to'g'ridan-to'g'ri sinash (cURL):
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(curlExample);
+                      setCopiedCurl(true);
+                      setTimeout(() => setCopiedCurl(false), 2500);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: THEME.primary,
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}>
+                    <Copy size={13} /> {copiedCurl ? "Nusxa olindi! ✅" : "cURL nusxasini olish"}
+                  </button>
+                </div>
+                <pre style={{
+                  backgroundColor: '#0F172A',
+                  color: '#A7F3D0',
+                  padding: 14,
+                  borderRadius: 14,
+                  fontSize: 11.5,
+                  fontFamily: 'monospace',
+                  overflowX: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                }}>
+                  {curlExample}
+                </pre>
+              </div>
+
+              {/* Integratsiya afzalliklari */}
+              <div style={{
+                padding: '12px 16px',
+                borderRadius: 14,
+                backgroundColor: '#EFF6FF',
+                border: '1px solid #BFDBFE',
+                fontSize: 12,
+                color: '#1E40AF',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+              }}>
+                <div style={{ fontWeight: 800 }}>⚡ Avtomatik Davomat va Bildirishnoma:</div>
+                <div>1. Qurilmadan <code>KIRISH</code> kelganda, o'quvchining bugungi dars davomati avtomatik ravishda <b>Keldi (PRESENT)</b> yoki dars vaqtiga qarab <b>Kechikdi (LATE)</b> qilib belgilanadi.</div>
+                <div>2. O'quvchi ota-onasining Telegram botiga <i>"Farzandingiz soat 08:05 da maktab turniketidan kirdi"</i> xabari avtomatik yuboriladi.</div>
+                <div>3. Ushbu sahifada har 3 soniyada yangi o'tishlar yashil porlash bilan real vaqtda paydo bo'ladi.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

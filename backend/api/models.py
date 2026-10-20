@@ -481,3 +481,70 @@ class ClassSchedule(models.Model):
     def __str__(self):
         return f"{self.school_class.name} | {self.get_day_of_week_display()} {self.lesson_order}-dars: {self.subject_name}"
 
+
+class DeviceEventLog(models.Model):
+    EVENT_TYPE_CHOICES = (
+        ('ENTRY', 'KIRISH (Turniket)'),
+        ('EXIT', 'CHIQISH (Turniket)'),
+        ('FACE_RECOGNITION', 'Face ID Tanib Olish'),
+        ('CARD_SWIPE', 'RFID Karta O\'qish'),
+        ('QR_CODE', 'QR Kod Davomat'),
+        ('MANUAL', 'Qo\'lda belgilash'),
+    )
+    STATUS_CHOICES = (
+        ('SUCCESS', 'Muvaffaqiyatli'),
+        ('UNKNOWN_PERSON', 'Noma\'lum shaxs'),
+        ('FAILED', 'Rad etildi / Xatolik'),
+        ('DUPLICATE', 'Takroriy o\'tish'),
+    )
+
+    school_id = models.CharField(max_length=64, db_index=True, default='1')
+    device_name = models.CharField(max_length=150, default="Hikvision MinMoe DS-K1T673")
+    device_ip = models.CharField(max_length=50, blank=True, default="192.168.1.120")
+    device_serial = models.CharField(max_length=100, blank=True, default="")
+    
+    student = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='device_logs')
+    student_name = models.CharField(max_length=200, blank=True, default="")
+    student_code = models.CharField(max_length=100, blank=True, default="")
+    class_name = models.CharField(max_length=100, blank=True, default="")
+
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPE_CHOICES, default='ENTRY')
+    direction = models.CharField(max_length=10, default="IN")  # 'IN' or 'OUT'
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SUCCESS')
+    confidence = models.FloatField(default=99.0)  # Face match %
+    temperature = models.FloatField(null=True, blank=True)  # Thermal sensor C
+    snapshot_url = models.TextField(blank=True, default="")
+    raw_payload = models.JSONField(default=dict, blank=True)
+    details = models.CharField(max_length=255, blank=True, default="")
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"[{self.timestamp.strftime('%H:%M:%S')}] {self.direction} - {self.student_name} ({self.device_name})"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'school_id': self.school_id,
+            'device_name': self.device_name,
+            'device_ip': self.device_ip,
+            'device_serial': self.device_serial,
+            'student_id': self.student.id if self.student else None,
+            'student_name': self.student_name or (self.student.get_full_name() if self.student else "Noma'lum shaxs"),
+            'student_code': self.student_code or (getattr(self.student.student_profile, 'student_id', '') if self.student and hasattr(self.student, 'student_profile') else ''),
+            'class_name': self.class_name or (self.student.student_profile.school_class.name if self.student and hasattr(self.student, 'student_profile') and self.student.student_profile.school_class else ''),
+            'event_type': self.event_type,
+            'direction': self.direction,
+            'status': self.status,
+            'confidence': round(self.confidence, 1) if self.confidence else 99.0,
+            'temperature': self.temperature,
+            'snapshot_url': self.snapshot_url,
+            'details': self.details,
+            'timestamp': self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            'time': self.timestamp.strftime("%H:%M:%S"),
+            'date': self.timestamp.strftime("%Y-%m-%d"),
+        }
+
+
