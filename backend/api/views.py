@@ -513,7 +513,9 @@ class StudentDashboardSummaryView(views.APIView):
 
         # 5. Bugungi statistika va NB chegarasi
         first_att = Attendance.objects.filter(student=user, lesson__date=today).order_by('timestamp').first()
-        turnstile_entry = first_att.timestamp.strftime("%H:%M") if first_att else "08:05"
+        is_shift_2 = getattr(school_class, 'shift', 1) == 2
+        default_entry = "13:05" if is_shift_2 else "08:05"
+        turnstile_entry = first_att.timestamp.strftime("%H:%M") if first_att else default_entry
         turnstile_exit = "--:--"
         total_today_count = len(today_lessons)
 
@@ -582,6 +584,8 @@ class StudentDashboardSummaryView(views.APIView):
             'class_id': school_class.id if school_class else None,
             'class_name': school_cfg.format_group_name(school_class.name) if school_class else "",
             'raw_class_name': school_class.name if school_class else "",
+            'class_shift': getattr(school_class, 'shift', 1) if school_class else 1,
+            'shift_name': "2-smena (Abeddan keyin)" if is_shift_2 else "1-smena (Ertalabki)",
             'student': {
                 'id': user.id,
                 'name': user.get_full_name() or user.username,
@@ -1159,6 +1163,9 @@ class SchoolClassesListView(views.APIView):
         school_name = str(request.data.get('school_name', '')).strip()
         advisor_teacher = str(request.data.get('advisor_teacher', '')).strip()
         room_number = str(request.data.get('room_number', '')).strip()
+        shift = int(request.data.get('shift') or 1)
+        if shift not in (1, 2):
+            shift = 1
         created_by = str(request.data.get('created_by', '')).strip() or "Maktab Ma'muriyati"
         created_by_role = str(request.data.get('created_by_role', 'SCHOOL_ADMIN')).strip() or 'SCHOOL_ADMIN'
 
@@ -1185,6 +1192,7 @@ class SchoolClassesListView(views.APIView):
             school_name=school_name or f"Maktab #{school_id}",
             advisor_teacher=advisor_teacher,
             room_number=room_number,
+            shift=shift,
             created_by=created_by,
             created_by_role=created_by_role,
         )
@@ -1228,6 +1236,32 @@ class SchoolClassesListView(views.APIView):
             cls.advisor_teacher = str(request.data.get('advisor_teacher', '')).strip()
 
         if 'room_number' in request.data:
+            cls.room_number = str(request.data.get('room_number', '')).strip()
+
+        shift_changed = False
+        if 'shift' in request.data:
+            try:
+                new_shift = int(request.data.get('shift') or 1)
+                if new_shift in (1, 2) and cls.shift != new_shift:
+                    cls.shift = new_shift
+                    shift_changed = True
+            except (ValueError, TypeError):
+                pass
+
+        cls.save()
+
+        # Agar smena o'zgargan bo'lsa, ushbu sinfning dars jadvali slotlarini yangi smena vaqtlariga sinxronlash
+        if shift_changed:
+            cfg = SchoolConfig.get_or_create_for_school(cls.school_id)
+            slots = cfg.calculate_lesson_slots(10, shift=cls.shift)
+            slot_map = {s['order']: s for s in slots}
+            for cs in ClassSchedule.objects.filter(school_class=cls):
+                if cs.lesson_order in slot_map:
+                    cs.start_time = slot_map[cs.lesson_order]['start']
+                    cs.end_time = slot_map[cs.lesson_order]['end']
+                    cs.save(update_fields=['start_time', 'end_time'])
+            today = timezone.localdate()
+            sync_today_lessons_from_schedule(today, today.isoweekday())
             cls.room_number = str(request.data.get('room_number', '')).strip()
 
         cls.save()
@@ -1702,6 +1736,31 @@ class SchoolConfigView(views.APIView):
             except (ValueError, TypeError):
                 pass
 
+        # 2-smena (Abeddan keyingi smena) parametrlari
+        if 'shift2_start_time' in request.data:
+            new_s2 = str(request.data.get('shift2_start_time') or '13:30').strip()
+            if new_s2 and cfg.shift2_start_time != new_s2:
+                cfg.shift2_start_time = new_s2
+                timing_changed = True
+
+        if 'shift2_big_break_after_lesson' in request.data:
+            try:
+                new_s2bba = int(request.data.get('shift2_big_break_after_lesson') or 0)
+                if cfg.shift2_big_break_after_lesson != new_s2bba:
+                    cfg.shift2_big_break_after_lesson = new_s2bba
+                    timing_changed = True
+            except (ValueError, TypeError):
+                pass
+
+        if 'shift2_big_break_duration_minutes' in request.data:
+            try:
+                new_s2bbd = max(0, min(120, int(request.data.get('shift2_big_break_duration_minutes') or 20)))
+                if cfg.shift2_big_break_duration_minutes != new_s2bbd:
+                    cfg.shift2_big_break_duration_minutes = new_s2bbd
+                    timing_changed = True
+            except (ValueError, TypeError):
+                pass
+
         if 'updated_by' in request.data:
             ub = str(request.data.get('updated_by') or '').strip()
             if ub:
@@ -1779,7 +1838,13 @@ class ClassScheduleManagementView(views.APIView):
         day_of_week = request.query_params.get('day_of_week')
 
         school_cfg = SchoolConfig.get_or_create_for_school(school_id)
-        calculated_slots = school_cfg.calculate_lesson_slots(7)
+        target_shift = 1
+        if class_id:
+            target_class = SchoolClass.objects.filter(id=class_id).first()
+            if target_class:
+                target_shift = getattr(target_class, 'shift', 1) or 1
+
+        calculated_slots = school_cfg.calculate_lesson_slots(7, shift=target_shift)
 
         qs = ClassSchedule.objects.filter(school_id=school_id)
         if class_id:
@@ -1792,6 +1857,9 @@ class ClassScheduleManagementView(views.APIView):
             'schedules': serializer.data,
             'days': self.DAYS,
             'standard_slots': calculated_slots,
+            'shift1_slots': school_cfg.calculate_lesson_slots(7, shift=1),
+            'shift2_slots': school_cfg.calculate_lesson_slots(7, shift=2),
+            'class_shift': target_shift,
             'school_config': school_cfg.to_dict(),
             'total_count': qs.count()
         })
@@ -1811,7 +1879,8 @@ class ClassScheduleManagementView(views.APIView):
                 return Response({'detail': 'Sinf topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
 
             school_cfg = SchoolConfig.get_or_create_for_school(sc.school_id or school_id)
-            school_slots = school_cfg.calculate_lesson_slots(7)
+            cls_shift = getattr(sc, 'shift', 1) or 1
+            school_slots = school_cfg.calculate_lesson_slots(7, shift=cls_shift)
 
             teachers = list(User.objects.filter(role='TEACHER', school_id=school_id))
             if not teachers:
@@ -1899,8 +1968,10 @@ class ClassScheduleManagementView(views.APIView):
                 pass
 
         school_cfg = SchoolConfig.get_or_create_for_school(sc.school_id or school_id)
-        school_slots = school_cfg.calculate_lesson_slots(10)
-        default_slot = next((s for s in school_slots if s['order'] == lesson_order), {'start': '08:30', 'end': '09:15'})
+        cls_shift = getattr(sc, 'shift', 1) or 1
+        school_slots = school_cfg.calculate_lesson_slots(10, shift=cls_shift)
+        fallback_default = {'start': '13:30', 'end': '14:15'} if cls_shift == 2 else {'start': '08:30', 'end': '09:15'}
+        default_slot = next((s for s in school_slots if s['order'] == lesson_order), fallback_default)
         start_time = str(request.data.get('start_time') or default_slot['start']).strip()
         end_time = str(request.data.get('end_time') or default_slot['end']).strip()
         room_number = str(request.data.get('room_number') or sc.room_number or '').strip()

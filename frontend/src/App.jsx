@@ -190,17 +190,27 @@ function buildSchoolTerms(cfg) {
   };
 }
 
-function generateLessonSlots(cfg, totalSlots = 7) {
+function generateLessonSlots(cfg, totalSlots = 7, shift = 1) {
   const duration = Math.max(15, Math.min(240, Number(cfg?.lesson_duration_minutes || (cfg?.lesson_term === 'PARA' ? 80 : 45))));
   const breakMin = Math.max(0, Math.min(120, Number(cfg?.break_duration_minutes ?? 10)));
-  const bigBreakAfter = Number(cfg?.big_break_after_lesson || 0);
-  const bigBreakMin = Math.max(breakMin, Math.min(120, Number(cfg?.big_break_duration_minutes ?? 20)));
+  
+  const isShift2 = Number(shift || 1) === 2;
+  const bigBreakAfter = isShift2
+    ? Number(cfg?.shift2_big_break_after_lesson ?? 0)
+    : Number(cfg?.big_break_after_lesson ?? 0);
+  const bigBreakMin = isShift2
+    ? Math.max(breakMin, Math.min(120, Number(cfg?.shift2_big_break_duration_minutes ?? 20)))
+    : Math.max(breakMin, Math.min(120, Number(cfg?.big_break_duration_minutes ?? 20)));
 
-  const startStr = String(cfg?.first_lesson_start_time || '08:30').trim();
-  let startHour = 8, startMinute = 30;
+  const startStr = isShift2
+    ? String(cfg?.shift2_start_time || '13:30').trim()
+    : String(cfg?.first_lesson_start_time || '08:30').trim();
+
+  let startHour = isShift2 ? 13 : 8;
+  let startMinute = 30;
   if (startStr.includes(':')) {
     const parts = startStr.split(':');
-    startHour = parseInt(parts[0], 10) || 8;
+    startHour = parseInt(parts[0], 10) || (isShift2 ? 13 : 8);
     startMinute = parseInt(parts[1], 10) || 0;
   }
 
@@ -223,6 +233,7 @@ function generateLessonSlots(cfg, totalSlots = 7) {
       start: startFmt,
       end: endFmt,
       duration_minutes: duration,
+      shift: isShift2 ? 2 : 1,
     });
 
     const currentBreak = (bigBreakAfter > 0 && order === bigBreakAfter) ? bigBreakMin : breakMin;
@@ -753,7 +764,8 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
     name: '',
     academicYear: '2026-2027',
     teacher: '',
-    room: ''
+    room: '',
+    shift: 1,
   });
 
   // Yangi o'qituvchi formasi
@@ -1015,6 +1027,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           school_name: schoolName,
           advisor_teacher: newGroup.teacher.trim() || `Maktab ${terms.advisorLabel}`,
           room_number: newGroup.room.trim() || "Asosiy o'quv binosi",
+          shift: Number(newGroup.shift) || 1,
           created_by: actorLabel,
           created_by_role: actorRole,
         })
@@ -1036,7 +1049,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       appendGlobalAudit('CREATE_CLASS', `${created.name} ${terms.groupGenitiveLower}`, `${schoolName} bazasida "${created.name}" ${terms.groupGenitiveLower} yaratildi (${actorLabel})`);
       setSelectedGroupFilter(created.name);
       setShowAddGroupModal(false);
-      setNewGroup({ name: '', academicYear: schoolConfig?.academic_year || '2026-2027', teacher: '', room: '' });
+      setNewGroup({ name: '', academicYear: schoolConfig?.academic_year || '2026-2027', teacher: '', room: '', shift: 1 });
       alert(`✅ "${created.name}" ${terms.groupGenitiveLower} "${schoolName}" bazasida muvaffaqiyatli yaratildi!`);
     } catch (err) {
       alert("Xatolik: " + err.message);
@@ -2154,6 +2167,18 @@ function GroupsManagementSection({
                         }}>
                         {c.advisor_teacher || `O'quv yili: ${c.academic_year || '2026-2027'}`}
                       </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                        <span style={{
+                          padding: '1.5px 6px',
+                          borderRadius: 6,
+                          fontSize: 9.5,
+                          fontWeight: 800,
+                          backgroundColor: isSel ? 'rgba(255,255,255,0.25)' : (c.shift === 2 ? '#FEF3C7' : '#EFF6FF'),
+                          color: isSel ? '#FFFFFF' : (c.shift === 2 ? '#B45309' : '#1D4ED8'),
+                        }}>
+                          {c.shift === 2 ? "🌇 2-smena (Abeddan keyin)" : "🌅 1-smena (Ertalabki)"}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -2362,6 +2387,20 @@ function GroupsManagementSection({
                   }}>
                   {filteredStudents.length} nafar {terms.studentSingularLower}
                 </span>
+                {currentClassObj && (
+                  <span
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: 10,
+                      backgroundColor: currentClassObj.shift === 2 ? '#FEF3C7' : '#EFF6FF',
+                      color: currentClassObj.shift === 2 ? '#B45309' : '#1D4ED8',
+                      border: currentClassObj.shift === 2 ? '1px solid #FDE68A' : '1px solid #BFDBFE',
+                      fontWeight: 800,
+                      fontSize: 12,
+                    }}>
+                    {currentClassObj.shift === 2 ? "🌇 2-smena (Abeddan keyingi)" : "🌅 1-smena (Ertalabki)"}
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 5, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
@@ -3408,9 +3447,8 @@ function ScheduleManagementSection({
     { id: 6, name: "Shanba" },
   ];
 
-  const standardSlots = (schoolConfig?.lesson_slots && schoolConfig.lesson_slots.length > 0)
-    ? schoolConfig.lesson_slots
-    : generateLessonSlots(schoolConfig, 7);
+  const classShift = Number(currentClass?.shift || 1);
+  const standardSlots = generateLessonSlots(schoolConfig, 7, classShift);
 
   const getSubjectColor = (name = '') => {
     const s = name.toLowerCase();
@@ -3548,11 +3586,22 @@ function ScheduleManagementSection({
         {/* Faol Sinf Ma'lumotlari Qatori */}
         {currentClass && (
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${THEME.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 12.5, color: THEME.textMuted }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <span>Tanlangan {terms.groupSingularLower}: <b style={{ color: THEME.primary, fontSize: 14 }}>{currentClass.name}</b></span>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: 8,
+                fontSize: 11,
+                fontWeight: 800,
+                backgroundColor: classShift === 2 ? '#FEF3C7' : '#EFF6FF',
+                color: classShift === 2 ? '#B45309' : '#1D4ED8',
+                border: classShift === 2 ? '1px solid #FDE68A' : '1px solid #BFDBFE',
+              }}>
+                {classShift === 2 ? "🌇 2-smena (Abeddan keyingi)" : "🌅 1-smena (Ertalabki)"}
+              </span>
               <span>👨‍🏫 {terms.advisorLabel}: <b style={{ color: THEME.textDark }}>{currentClass.advisor_teacher || "Belgilanmagan"}</b></span>
               <span>📍 Xona: <b style={{ color: THEME.textDark }}>{currentClass.room_number || "Asosiy bino"}</b></span>
-              <span>⏱️ Dars me'yori: <b style={{ color: THEME.primary }}>{schoolConfig?.lesson_duration_minutes || 45} daqiqa</b> ({schoolConfig?.first_lesson_start_time || '08:30'} dan)</span>
+              <span>⏱️ Dars: <b style={{ color: THEME.primary }}>{schoolConfig?.lesson_duration_minutes || 45} daqiqa</b> ({standardSlots[0]?.start || (classShift === 2 ? '13:30' : '08:30')} dan)</span>
               {onGoToSettings && (
                 <button
                   onClick={onGoToSettings}
@@ -3970,18 +4019,19 @@ function AddEditLessonModal({
 }) {
   const isEdit = Boolean(initialData && initialData.id);
 
-  const activeSlots = (schoolConfig?.lesson_slots && schoolConfig.lesson_slots.length > 0)
-    ? schoolConfig.lesson_slots
-    : generateLessonSlots(schoolConfig, 7);
+  const [classId, setClassId] = useState(
+    initialData?.school_class || initialData?.class_id || selectedClassId || (classesList[0]?.id || '')
+  );
+
+  const selectedClass = classesList.find(c => String(c.id) === String(classId));
+  const classShift = Number(selectedClass?.shift || 1);
+  const activeSlots = generateLessonSlots(schoolConfig, 7, classShift);
 
   const standardTimes = {};
   activeSlots.forEach(s => {
     standardTimes[s.order] = { start: s.start, end: s.end };
   });
 
-  const [classId, setClassId] = useState(
-    initialData?.school_class || initialData?.class_id || selectedClassId || (classesList[0]?.id || '')
-  );
   const [dayOfWeek, setDayOfWeek] = useState(initialData?.day_of_week || 1);
   const [lessonOrder, setLessonOrder] = useState(initialData?.lesson_order || 1);
   const [subjectName, setSubjectName] = useState(initialData?.subject_name || '');
@@ -3989,13 +4039,25 @@ function AddEditLessonModal({
   const [teacherName, setTeacherName] = useState(initialData?.teacher_name || '');
   const [roomNumber, setRoomNumber] = useState(initialData?.room_number || '');
   const [startTime, setStartTime] = useState(
-    initialData?.start_time || standardTimes[initialData?.lesson_order || 1]?.start || '08:30'
+    initialData?.start_time || standardTimes[initialData?.lesson_order || 1]?.start || (classShift === 2 ? '13:30' : '08:30')
   );
   const [endTime, setEndTime] = useState(
-    initialData?.end_time || standardTimes[initialData?.lesson_order || 1]?.end || '09:15'
+    initialData?.end_time || standardTimes[initialData?.lesson_order || 1]?.end || (classShift === 2 ? '14:15' : '09:15')
   );
   const [topic, setTopic] = useState(initialData?.topic || '');
   const [submitting, setSubmitting] = useState(false);
+
+  const handleClassChange = (newCid) => {
+    setClassId(newCid);
+    const cls = classesList.find(c => String(c.id) === String(newCid));
+    const s = Number(cls?.shift || 1);
+    const slots = generateLessonSlots(schoolConfig, 7, s);
+    const curSlot = slots.find(item => item.order === lessonOrder) || slots[0];
+    if (curSlot) {
+      setStartTime(curSlot.start);
+      setEndTime(curSlot.end);
+    }
+  };
 
   const days = [
     { id: 1, name: "Dushanba" },
@@ -4084,13 +4146,27 @@ function AddEditLessonModal({
           {/* 1. Sinf & Hafta kuni */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>{terms.groupSingular}ni Tanlang *</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>{terms.groupSingular}ni Tanlang *</label>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '2px 6px',
+                  borderRadius: 6,
+                  backgroundColor: classShift === 2 ? '#FEF3C7' : '#EFF6FF',
+                  color: classShift === 2 ? '#B45309' : '#1D4ED8',
+                }}>
+                  {classShift === 2 ? "🌇 2-smena" : "🌅 1-smena"}
+                </span>
+              </div>
               <select
                 value={classId}
-                onChange={e => setClassId(e.target.value)}
+                onChange={e => handleClassChange(e.target.value)}
                 style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
                 {classesList.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.shift === 2 ? "2-smena (Abeddan keyin)" : "1-smena (Ertalabki)"})
+                  </option>
                 ))}
               </select>
             </div>
@@ -4761,6 +4837,9 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
     first_lesson_start_time: schoolConfig?.first_lesson_start_time || '08:30',
     big_break_after_lesson: schoolConfig?.big_break_after_lesson ?? 0,
     big_break_duration_minutes: schoolConfig?.big_break_duration_minutes ?? 20,
+    shift2_start_time: schoolConfig?.shift2_start_time || '13:30',
+    shift2_big_break_after_lesson: schoolConfig?.shift2_big_break_after_lesson ?? 0,
+    shift2_big_break_duration_minutes: schoolConfig?.shift2_big_break_duration_minutes ?? 20,
     sync_schedules: true,
   });
   const [saving, setSaving] = useState(false);
@@ -4791,6 +4870,9 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
         first_lesson_start_time: schoolConfig.first_lesson_start_time || '08:30',
         big_break_after_lesson: schoolConfig.big_break_after_lesson ?? 0,
         big_break_duration_minutes: schoolConfig.big_break_duration_minutes ?? 20,
+        shift2_start_time: schoolConfig.shift2_start_time || '13:30',
+        shift2_big_break_after_lesson: schoolConfig.shift2_big_break_after_lesson ?? 0,
+        shift2_big_break_duration_minutes: schoolConfig.shift2_big_break_duration_minutes ?? 20,
         sync_schedules: true,
       });
     }
@@ -5512,168 +5594,240 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
               </div>
             </div>
 
-            {/* E) Qo'ng'iroqlar Jadvali & Oraliq Tanaffus */}
+            {/* E) Qo'ng'iroqlar Jadvali & Oraliq Tanaffus (1-smena va 2-smena) */}
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1.5px solid #F1F5F9' }}>
-              <label style={{ fontSize: 13, fontWeight: 900, color: THEME.textDark, display: 'block', marginBottom: 10 }}>
-                🔔 E) Qo'ng'iroqlar Jadvali & Oraliq Tanaffuslar:
-              </label>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                {/* 1-dars boshlanish vaqti */}
-                <div style={{ padding: 12, borderRadius: 14, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 6 }}>
-                    1-DARS BOSHLANISH VAQTI
-                  </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="time"
-                      value={form.first_lesson_start_time || '08:30'}
-                      onChange={e => setForm({ ...form, first_lesson_start_time: e.target.value })}
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: 10,
-                        border: '1px solid #CBD5E1',
-                        fontWeight: 800,
-                        fontSize: 13,
-                        backgroundColor: '#FFF'
-                      }}
-                    />
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {['08:00', '08:30', '09:00'].map(t => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setForm({ ...form, first_lesson_start_time: t })}
-                          style={{
-                            padding: '4px 6px',
-                            borderRadius: 6,
-                            border: form.first_lesson_start_time === t ? `1.5px solid ${THEME.primary}` : '1px solid #CBD5E1',
-                            backgroundColor: form.first_lesson_start_time === t ? THEME.primaryLight : '#FFF',
-                            fontSize: 10,
-                            fontWeight: 800,
-                            cursor: 'pointer'
-                          }}>
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Oraliq tanaffus */}
-                <div style={{ padding: 12, borderRadius: 14, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 6 }}>
-                    ODATIY TANAFFUS VAQTI
-                  </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="number"
-                      min={0}
-                      max={60}
-                      value={form.break_duration_minutes}
-                      onChange={e => {
-                        const v = parseInt(e.target.value, 10);
-                        setForm({ ...form, break_duration_minutes: isNaN(v) ? 0 : v });
-                      }}
-                      style={{
-                        width: 60,
-                        padding: '8px 10px',
-                        borderRadius: 10,
-                        border: '1px solid #CBD5E1',
-                        fontWeight: 800,
-                        fontSize: 13,
-                        backgroundColor: '#FFF',
-                        textAlign: 'center'
-                      }}
-                    />
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textDark }}>daq</span>
-                    <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
-                      {[5, 10, 15].map(b => (
-                        <button
-                          key={b}
-                          type="button"
-                          onClick={() => setForm({ ...form, break_duration_minutes: b })}
-                          style={{
-                            padding: '4px 6px',
-                            borderRadius: 6,
-                            border: Number(form.break_duration_minutes) === b ? `1.5px solid ${THEME.primary}` : '1px solid #CBD5E1',
-                            backgroundColor: Number(form.break_duration_minutes) === b ? THEME.primaryLight : '#FFF',
-                            fontSize: 10,
-                            fontWeight: 800,
-                            cursor: 'pointer'
-                          }}>
-                          {b}m
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Katta tanaffus (Ixtiyoriy) */}
-              <div style={{ padding: 12, borderRadius: 14, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', marginBottom: 14 }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 6 }}>
-                  KATTA TANAFFUS / TUSHLIK (IXTIYORIY)
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <label style={{ fontSize: 13, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🔔 E) Qo'ng'iroqlar Jadvali & Smenalar Konfiguratsiyasi (1-smena & 2-smena):
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
-                  <select
-                    value={form.big_break_after_lesson || 0}
-                    onChange={e => setForm({ ...form, big_break_after_lesson: Number(e.target.value) })}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontSize: 12, fontWeight: 700, backgroundColor: '#FFF' }}>
-                    <option value={0}>Yo'q (Barcha tanaffuslar teng)</option>
-                    <option value={2}>2-darsdan keyin katta tanaffus</option>
-                    <option value={3}>3-darsdan keyin katta tanaffus (Tushlik)</option>
-                    <option value={4}>4-darsdan keyin katta tanaffus</option>
-                  </select>
-                  {Number(form.big_break_after_lesson) > 0 ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <input
-                        type="number"
-                        min={10}
-                        max={90}
-                        value={form.big_break_duration_minutes}
-                        onChange={e => setForm({ ...form, big_break_duration_minutes: Number(e.target.value) || 20 })}
-                        style={{ width: 60, padding: '7px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontWeight: 800, fontSize: 12, textAlign: 'center' }}
-                      />
-                      <span style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textDark }}>daqiqa tanaffus</span>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: 11, color: THEME.textMuted, display: 'flex', alignItems: 'center' }}>
-                      Barcha tanaffuslar {form.break_duration_minutes} daqiqadan
-                    </div>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 10, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted }}>ODATIY TANAFFUS (IKKALA SMENAGA):</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={form.break_duration_minutes}
+                    onChange={e => {
+                      const v = parseInt(e.target.value, 10);
+                      setForm({ ...form, break_duration_minutes: isNaN(v) ? 0 : v });
+                    }}
+                    style={{
+                      width: 50,
+                      padding: '4px 8px',
+                      borderRadius: 8,
+                      border: '1px solid #CBD5E1',
+                      fontWeight: 800,
+                      fontSize: 12.5,
+                      backgroundColor: '#FFF',
+                      textAlign: 'center'
+                    }}
+                  />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark }}>daqiqa</span>
                 </div>
               </div>
 
-              {/* JONLI QO'NG'IROQLAR JADVALI PREVYUSI */}
-              <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#EFF6FF', border: '1.5px solid #BFDBFE' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Calendar size={14} /> JONLI QO'NG'IROQLAR VA DARS VAQTI PREVYUSI:
-                  </div>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: '#2563EB', backgroundColor: '#DBEAFE', padding: '2px 7px', borderRadius: 6 }}>
-                    Har biri {form.lesson_duration_minutes} daqiqa
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                  {generateLessonSlots(form, 6).map(slot => (
-                    <div
-                      key={slot.order}
-                      style={{
-                        padding: '6px 8px',
-                        borderRadius: 10,
-                        backgroundColor: '#FFFFFF',
-                        border: '1px solid #93C5FD',
-                        fontSize: 11,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}>
-                      <span style={{ fontWeight: 800, color: '#1E3A8A' }}>{slot.order}-{liveTerms.lessonSingularLower}:</span>
-                      <span style={{ fontWeight: 900, color: THEME.primary }}>{slot.start} – {slot.end}</span>
+              {/* SMENALAR BO'YICHA SOZLAMALAR (1-SMENA VA 2-SMENA KARTALARI) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                
+                {/* 1-SMENA (ERTALABKI) */}
+                <div style={{ padding: 16, borderRadius: 18, backgroundColor: '#F8FAFC', border: '1.5px solid #E2E8F0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      🌅 1-Smena (Ertalabki darslar)
                     </div>
-                  ))}
+                    <span style={{ fontSize: 10, fontWeight: 800, color: '#1D4ED8', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: 6 }}>
+                      Ertalabki sinflar uchun
+                    </span>
+                  </div>
+
+                  {/* 1-smena dars boshlanish vaqti */}
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
+                      1-DARS BOSHLANISH VAQTI:
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="time"
+                        value={form.first_lesson_start_time || '08:30'}
+                        onChange={e => setForm({ ...form, first_lesson_start_time: e.target.value })}
+                        style={{
+                          padding: '7px 10px',
+                          borderRadius: 10,
+                          border: '1px solid #CBD5E1',
+                          fontWeight: 800,
+                          fontSize: 13,
+                          backgroundColor: '#FFF'
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {['08:00', '08:30', '09:00'].map(t => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setForm({ ...form, first_lesson_start_time: t })}
+                            style={{
+                              padding: '4px 6px',
+                              borderRadius: 6,
+                              border: form.first_lesson_start_time === t ? `1.5px solid ${THEME.primary}` : '1px solid #CBD5E1',
+                              backgroundColor: form.first_lesson_start_time === t ? THEME.primaryLight : '#FFF',
+                              fontSize: 10,
+                              fontWeight: 800,
+                              cursor: 'pointer'
+                            }}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 1-smena katta tanaffus */}
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
+                      KATTA TANAFFUS (1-SMENA):
+                    </label>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <select
+                        value={form.big_break_after_lesson || 0}
+                        onChange={e => setForm({ ...form, big_break_after_lesson: Number(e.target.value) })}
+                        style={{ flex: 1, padding: '7px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontSize: 11.5, fontWeight: 700, backgroundColor: '#FFF' }}>
+                        <option value={0}>Yo'q (Standart tanaffus)</option>
+                        <option value={2}>2-darsdan keyin</option>
+                        <option value={3}>3-darsdan keyin (Tushlik)</option>
+                        <option value={4}>4-darsdan keyin</option>
+                      </select>
+                      {Number(form.big_break_after_lesson) > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <input
+                            type="number"
+                            min={10}
+                            max={90}
+                            value={form.big_break_duration_minutes}
+                            onChange={e => setForm({ ...form, big_break_duration_minutes: Number(e.target.value) || 20 })}
+                            style={{ width: 50, padding: '6px 8px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 800, fontSize: 11.5, textAlign: 'center' }}
+                          />
+                          <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark }}>daq</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 1-smena jonli jadval prevyusi */}
+                  <div style={{ padding: 10, borderRadius: 12, backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#1E40AF', marginBottom: 6 }}>
+                      📋 1-Smena dars vaqtlari:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
+                      {generateLessonSlots(form, 6, 1).map(slot => (
+                        <div key={slot.order} style={{ padding: '4px 6px', borderRadius: 8, backgroundColor: '#FFF', border: '1px solid #BFDBFE', fontSize: 10.5, display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontWeight: 800, color: '#1E3A8A' }}>{slot.order}-dars:</span>
+                          <span style={{ fontWeight: 900, color: THEME.primary }}>{slot.start}–{slot.end}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+
+                {/* 2-SMENA (ABEDDAN KEYINGI) */}
+                <div style={{ padding: 16, borderRadius: 18, backgroundColor: '#FFFBEB', border: '1.5px solid #FDE68A' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: '#92400E', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      🌇 2-Smena (Abeddan keyingi darslar)
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: '#B45309', backgroundColor: '#FEF3C7', padding: '2px 8px', borderRadius: 6 }}>
+                      2-smena sinflari uchun
+                    </span>
+                  </div>
+
+                  {/* 2-smena dars boshlanish vaqti */}
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
+                      2-SMENA BOSHLANISH VAQTI:
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="time"
+                        value={form.shift2_start_time || '13:30'}
+                        onChange={e => setForm({ ...form, shift2_start_time: e.target.value })}
+                        style={{
+                          padding: '7px 10px',
+                          borderRadius: 10,
+                          border: '1px solid #CBD5E1',
+                          fontWeight: 800,
+                          fontSize: 13,
+                          backgroundColor: '#FFF'
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {['13:00', '13:30', '14:00'].map(t => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setForm({ ...form, shift2_start_time: t })}
+                            style={{
+                              padding: '4px 6px',
+                              borderRadius: 6,
+                              border: form.shift2_start_time === t ? `1.5px solid ${THEME.orange}` : '1px solid #CBD5E1',
+                              backgroundColor: form.shift2_start_time === t ? '#FFF7ED' : '#FFF',
+                              color: form.shift2_start_time === t ? THEME.orange : THEME.textDark,
+                              fontSize: 10,
+                              fontWeight: 800,
+                              cursor: 'pointer'
+                            }}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-smena katta tanaffus */}
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
+                      KATTA TANAFFUS (2-SMENA):
+                    </label>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <select
+                        value={form.shift2_big_break_after_lesson || 0}
+                        onChange={e => setForm({ ...form, shift2_big_break_after_lesson: Number(e.target.value) })}
+                        style={{ flex: 1, padding: '7px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontSize: 11.5, fontWeight: 700, backgroundColor: '#FFF' }}>
+                        <option value={0}>Yo'q (Standart tanaffus)</option>
+                        <option value={2}>2-darsdan keyin</option>
+                        <option value={3}>3-darsdan keyin</option>
+                        <option value={4}>4-darsdan keyin</option>
+                      </select>
+                      {Number(form.shift2_big_break_after_lesson) > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <input
+                            type="number"
+                            min={10}
+                            max={90}
+                            value={form.shift2_big_break_duration_minutes}
+                            onChange={e => setForm({ ...form, shift2_big_break_duration_minutes: Number(e.target.value) || 20 })}
+                            style={{ width: 50, padding: '6px 8px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 800, fontSize: 11.5, textAlign: 'center' }}
+                          />
+                          <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark }}>daq</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 2-smena jonli jadval prevyusi */}
+                  <div style={{ padding: 10, borderRadius: 12, backgroundColor: '#FEF3C7', border: '1px solid #FDE68A' }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', marginBottom: 6 }}>
+                      📋 2-Smena dars vaqtlari:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
+                      {generateLessonSlots(form, 6, 2).map(slot => (
+                        <div key={slot.order} style={{ padding: '4px 6px', borderRadius: 8, backgroundColor: '#FFF', border: '1px solid #FDE68A', fontSize: 10.5, display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontWeight: 800, color: '#92400E' }}>{slot.order}-dars:</span>
+                          <span style={{ fontWeight: 900, color: THEME.orange }}>{slot.start}–{slot.end}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
               </div>
 
               {/* Sinxronlash Chekboksi */}
@@ -6326,6 +6480,47 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
             />
           </div>
 
+          {/* O'qish smenasi (1-smena vs 2-smena) */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+              ⏰ O'qish smenasi (Dars vaqti tartibi) *
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setNewGroup({ ...newGroup, shift: 1 })}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: (newGroup.shift || 1) === 1 ? `2px solid ${THEME.primary}` : '1.5px solid #CBD5E1',
+                  backgroundColor: (newGroup.shift || 1) === 1 ? THEME.primaryLight : '#FFF',
+                  color: (newGroup.shift || 1) === 1 ? THEME.primary : THEME.textDark,
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}>
+                🌅 1-smena (Ertalabki)
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewGroup({ ...newGroup, shift: 2 })}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: (newGroup.shift || 1) === 2 ? `2px solid ${THEME.orange}` : '1.5px solid #CBD5E1',
+                  backgroundColor: (newGroup.shift || 1) === 2 ? '#FFF7ED' : '#FFF',
+                  color: (newGroup.shift || 1) === 2 ? THEME.orange : THEME.textDark,
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}>
+                🌇 2-smena (Abeddan keyin)
+              </button>
+            </div>
+          </div>
+
           {/* O'qituvchini mavjud o'qituvchilar bazasidan tanlash */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -6535,6 +6730,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
 function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), onClose, onSave, onOpenAddTeacher }) {
   const [name, setName] = useState(group?.name || '');
   const [academicYear, setAcademicYear] = useState(group?.academic_year || '2026-2027');
+  const [shift, setShift] = useState(group?.shift || 1);
   const [teacher, setTeacher] = useState(group?.advisor_teacher || '');
   const [room, setRoom] = useState(group?.room_number || '');
   const [submitting, setSubmitting] = useState(false);
@@ -6575,6 +6771,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
         academic_year: academicYear.trim() || '2026-2027',
         advisor_teacher: teacher.trim(),
         room_number: room.trim(),
+        shift: Number(shift) || 1,
       });
     } finally {
       setSubmitting(false);
@@ -6615,6 +6812,50 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
               onChange={e => setAcademicYear(e.target.value)}
               style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
+          </div>
+
+          {/* O'qish smenasi (1-smena vs 2-smena) */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+              ⏰ O'qish smenasi (Dars vaqti tartibi) *
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setShift(1)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: (shift || 1) === 1 ? `2px solid ${THEME.primary}` : '1.5px solid #CBD5E1',
+                  backgroundColor: (shift || 1) === 1 ? THEME.primaryLight : '#FFF',
+                  color: (shift || 1) === 1 ? THEME.primary : THEME.textDark,
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}>
+                🌅 1-smena (Ertalabki)
+              </button>
+              <button
+                type="button"
+                onClick={() => setShift(2)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: (shift || 1) === 2 ? `2px solid ${THEME.orange}` : '1.5px solid #CBD5E1',
+                  backgroundColor: (shift || 1) === 2 ? '#FFF7ED' : '#FFF',
+                  color: (shift || 1) === 2 ? THEME.orange : THEME.textDark,
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}>
+                🌇 2-smena (Abeddan keyin)
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+              {(shift || 1) === 1 ? "Ertalabki smena jadvali asosida dars vaqtlari avtomatik hisoblanadi." : "Abeddan keyingi smena (13:30) jadvali asosida dars vaqtlari avtomatik hisoblanadi."}
+            </div>
           </div>
 
           {/* O'qituvchini mavjud o'qituvchilar bazasidan tanlash */}

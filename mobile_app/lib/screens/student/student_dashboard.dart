@@ -105,6 +105,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
             ApiService.currentUser ??= {};
             ApiService.currentUser!['class_name'] = summary['class_name'];
           }
+          if (summary['class_shift'] != null) {
+            ApiService.currentUser ??= {};
+            ApiService.currentUser!['class_shift'] = summary['class_shift'];
+          }
         });
       } else {
         final list = await ApiService.getTodayLessons();
@@ -516,6 +520,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   // 1.1 Header
   Widget _buildHeader(String fullName, String className) {
+    final user = ApiService.currentUser ?? {};
+    final isShift2 = (user['class_shift'] == 2 || _dashboardData?['class_shift'] == 2);
     return Row(
       children: [
         // Profil qisqartmasi (Avatar, F.I.Sh., Guruh) -> Bosilsa: Profil/QR Drawer ochiladi
@@ -567,6 +573,34 @@ class _StudentDashboardState extends State<StudentDashboard> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isShift2
+                                  ? const Color(0xFFFFF7ED)
+                                  : const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isShift2
+                                    ? const Color(0xFFFDBA74)
+                                    : const Color(0xFF93C5FD),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              isShift2
+                                  ? "🌇 2-smena"
+                                  : "🌅 1-smena",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: isShift2
+                                    ? const Color(0xFFC2410C)
+                                    : const Color(0xFF1D4ED8),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),

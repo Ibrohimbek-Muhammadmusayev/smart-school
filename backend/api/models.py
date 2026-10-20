@@ -82,11 +82,18 @@ class SchoolConfig(models.Model):
     radius_meters = models.IntegerField(default=150)
 
     # Dars vaqti va qo'ng'iroqlar jadvali konfiguratsiyasi (Daqiqalarda)
-    lesson_duration_minutes = models.IntegerField(default=45) # Masalan: 45, 60, 80, 90 yoki erkin daqiqa
-    break_duration_minutes = models.IntegerField(default=10) # Tanaffus: 5, 10, 15 daqiqa
+    lesson_duration_minutes = models.IntegerField(default=45) # Masalan: 45, 60, 80, 90 yoki erkin daqiqa (Ikkala smenada ham bir xil)
+    break_duration_minutes = models.IntegerField(default=10) # Odatiy tanaffus: 5, 10, 15 daqiqa (Ikkala smenada ham bir xil)
+    
+    # 1-smena (Ertalabki) dars boshlanish vaqti va katta tanaffusi
     first_lesson_start_time = models.CharField(max_length=10, default="08:30") # Birinchi dars boshlanish vaqti
     big_break_after_lesson = models.IntegerField(default=0) # 0 = Yo'q, 2 = 2-darsdan keyin, 3 = 3-darsdan keyin
     big_break_duration_minutes = models.IntegerField(default=20) # Katta tanaffus / tushlik
+
+    # 2-smena (Abeddan keyingi) dars boshlanish vaqti va katta tanaffusi
+    shift2_start_time = models.CharField(max_length=10, default="13:30") # 2-smena boshlanish vaqti
+    shift2_big_break_after_lesson = models.IntegerField(default=0) # 0 = Yo'q, 2 = 2-darsdan keyin, 3 = 3-darsdan keyin
+    shift2_big_break_duration_minutes = models.IntegerField(default=20) # 2-smena katta tanaffus
 
     DEFAULT_SCHOOLS = {
         '1': {
@@ -171,24 +178,26 @@ class SchoolConfig(models.Model):
         )
         return obj
 
-    def calculate_lesson_slots(self, total_slots=7):
+    def calculate_lesson_slots(self, total_slots=7, shift=1):
         """
         Dars vaqti (lesson_duration_minutes), tanaffus (break_duration_minutes),
-        katta tanaffus va birinchi dars boshlanish vaqti (first_lesson_start_time)
-        asosida barcha para/darslarning aniq boshlanish va tugash vaqtlarini hisoblab beradi.
+        va smenaga (shift 1 = ertalabki, shift 2 = tushdan keyingi) qarab
+        barcha darslarning aniq boshlanish va tugash vaqtlarini hisoblab beradi.
         """
         duration = max(15, min(240, int(self.lesson_duration_minutes or 45)))
         break_min = max(0, min(120, int(self.break_duration_minutes or 10)))
-        big_break_after = int(self.big_break_after_lesson or 0)
-        big_break_min = max(break_min, min(120, int(self.big_break_duration_minutes or 20)))
         
-        start_str = str(self.first_lesson_start_time or "08:30").strip()
+        is_shift2 = int(shift or 1) == 2
+        big_break_after = int(self.shift2_big_break_after_lesson if is_shift2 else (self.big_break_after_lesson or 0))
+        big_break_min = max(break_min, min(120, int(self.shift2_big_break_duration_minutes if is_shift2 else (self.big_break_duration_minutes or 20))))
+        
+        start_str = str((self.shift2_start_time if is_shift2 else self.first_lesson_start_time) or ("13:30" if is_shift2 else "08:30")).strip()
         try:
             parts = start_str.split(':')
             cur_hour = int(parts[0])
             cur_min = int(parts[1])
         except Exception:
-            cur_hour, cur_min = 8, 30
+            cur_hour, cur_min = (13, 30) if is_shift2 else (8, 30)
 
         slots = []
         current_dt = datetime.datetime(2026, 1, 1, cur_hour, cur_min)
@@ -200,6 +209,7 @@ class SchoolConfig(models.Model):
                 'start': current_dt.strftime("%H:%M"),
                 'end': end_dt.strftime("%H:%M"),
                 'duration_minutes': duration,
+                'shift': 2 if is_shift2 else 1,
             })
             applied_break = big_break_min if (big_break_after > 0 and order == big_break_after) else break_min
             current_dt = end_dt + datetime.timedelta(minutes=applied_break)
@@ -209,15 +219,20 @@ class SchoolConfig(models.Model):
     def apply_timing_to_schedules(self):
         """
         Ushbu maktabdagi barcha sinflar/guruhlarning ClassSchedule yozuvlariga
-        yangilangan slot vaqtlarini tartib raqamiga (lesson_order) ko'ra avtomatik tatbiq qiladi.
+        sinfning smenasiga (1 yoki 2) qarab yangilangan slot vaqtlarini
+        tartib raqamiga (lesson_order) ko'ra avtomatik tatbiq qiladi.
         Bugungi Lesson yozuvlarini ham sinxronlaydi.
         """
-        slots = self.calculate_lesson_slots(10)
-        slot_map = {s['order']: s for s in slots}
+        shift1_slots = self.calculate_lesson_slots(10, shift=1)
+        shift2_slots = self.calculate_lesson_slots(10, shift=2)
+        shift1_map = {s['order']: s for s in shift1_slots}
+        shift2_map = {s['order']: s for s in shift2_slots}
         
-        schedules = ClassSchedule.objects.filter(school_id=self.school_id)
+        schedules = ClassSchedule.objects.filter(school_id=self.school_id).select_related('school_class')
         updated_count = 0
         for cs in schedules:
+            cls_shift = getattr(cs.school_class, 'shift', 1) or 1
+            slot_map = shift2_map if cls_shift == 2 else shift1_map
             if cs.lesson_order in slot_map:
                 new_start = slot_map[cs.lesson_order]['start']
                 new_end = slot_map[cs.lesson_order]['end']
@@ -231,6 +246,8 @@ class SchoolConfig(models.Model):
         today = timezone.now().date()
         today_schedules = schedules.filter(day_of_week=today.isoweekday())
         for sc in today_schedules:
+            cls_shift = getattr(sc.school_class, 'shift', 1) or 1
+            slot_map = shift2_map if cls_shift == 2 else shift1_map
             if sc.lesson_order in slot_map:
                 try:
                     st = datetime.datetime.strptime(slot_map[sc.lesson_order]['start'], "%H:%M").time()
@@ -285,7 +302,12 @@ class SchoolConfig(models.Model):
             'first_lesson_start_time': self.first_lesson_start_time or "08:30",
             'big_break_after_lesson': self.big_break_after_lesson or 0,
             'big_break_duration_minutes': self.big_break_duration_minutes or 20,
-            'lesson_slots': self.calculate_lesson_slots(7),
+            'shift2_start_time': self.shift2_start_time or "13:30",
+            'shift2_big_break_after_lesson': self.shift2_big_break_after_lesson or 0,
+            'shift2_big_break_duration_minutes': self.shift2_big_break_duration_minutes or 20,
+            'lesson_slots': self.calculate_lesson_slots(7, shift=1),
+            'shift1_lesson_slots': self.calculate_lesson_slots(7, shift=1),
+            'shift2_lesson_slots': self.calculate_lesson_slots(7, shift=2),
             'updated_by': self.updated_by,
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M') if self.updated_at else '',
             'labels': {
@@ -306,12 +328,17 @@ class SchoolConfig(models.Model):
 
 
 class SchoolClass(models.Model):
+    SHIFT_CHOICES = (
+        (1, "1-smena (Ertalabki)"),
+        (2, "2-smena (Tushdan keyingi)"),
+    )
     name = models.CharField(max_length=50) # Masalan, "9-A" yoki "11-B"
     academic_year = models.CharField(max_length=20, default="2026-2027")
     school_id = models.CharField(max_length=64, db_index=True, default='1')
     school_name = models.CharField(max_length=255, blank=True, default="1-sonli Ixtisoslashtirilgan Maktab-Kollej")
     advisor_teacher = models.CharField(max_length=150, blank=True, default="")
     room_number = models.CharField(max_length=100, blank=True, default="")
+    shift = models.IntegerField(default=1, choices=SHIFT_CHOICES)
     created_by = models.CharField(max_length=255, blank=True, default="Rahimov Jamshid (maktab1 — Direktor)")
     created_by_role = models.CharField(max_length=50, blank=True, default="SCHOOL_ADMIN")
     created_at = models.DateTimeField(default=timezone.now)
