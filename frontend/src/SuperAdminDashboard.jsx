@@ -586,22 +586,67 @@ export default function SuperAdminDashboardView({
           boxShadow: '4px 0 24px rgba(108, 92, 231, 0.03)',
         }}>
         {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingLeft: 6 }}>
-          <img
-            src="/idrok_icon.png"
-            alt="Idrok Edu"
+        <div
+          style={{
+            padding: '14px 16px',
+            marginBottom: 22,
+            background: 'linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(88, 69, 216, 0.02) 100%)',
+            borderRadius: 20,
+            border: '1px solid rgba(108, 92, 231, 0.12)',
+            boxShadow: '0 4px 16px -4px rgba(108, 92, 231, 0.08)',
+          }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+            <img
+              src="/idrok_logo.png"
+              alt="Idrok Edu"
+              style={{
+                height: 40,
+                maxWidth: '150px',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 800,
+                padding: '4px 8px',
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, #7C69EF 0%, #5845D8 100%)',
+                color: '#FFFFFF',
+                letterSpacing: '0.4px',
+                textTransform: 'uppercase',
+                boxShadow: '0 2px 8px rgba(108, 92, 231, 0.3)',
+                whiteSpace: 'nowrap',
+              }}>
+              Super Admin
+            </span>
+          </div>
+          <div
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 14,
-              objectFit: 'contain',
-              boxShadow: '0 8px 20px rgba(108, 92, 231, 0.25)',
-              flexShrink: 0,
-            }}
-          />
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 15.5, color: THEME.textDark, letterSpacing: '-0.2px' }}>Idrok Edu • Super Admin</div>
-            <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>Idrok Core Markaziy Boshqaruvi</div>
+              fontSize: 11,
+              color: THEME.primary,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              paddingTop: 8,
+              borderTop: '1px dashed rgba(108, 92, 231, 0.16)',
+            }}>
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                backgroundColor: '#10B981',
+                boxShadow: '0 0 8px #10B981',
+                display: 'inline-block',
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Idrok Core Markaziy Boshqaruvi
+            </span>
           </div>
         </div>
 
@@ -739,19 +784,33 @@ export default function SuperAdminDashboardView({
             top: 0,
             zIndex: 20,
           }}>
-          <div>
-            <h1 style={{ fontSize: 19, fontWeight: 800, color: THEME.textDark, margin: 0, letterSpacing: '-0.3px' }}>
-              {superTab === 'overview' && "Global Analitika va Jonli Monitoring"}
-              {superTab === 'schools' && "Maktablar Boshqaruvi"}
-              {superTab === 'billing' && "Obuna va Moliya Tizimi"}
-              {superTab === 'ai' && "Idrok Vision: AI & Face ID Server Nazorati"}
-              {superTab === 'security' && "Tizim Xavfsizligi va Audit Jurnali"}
-              {superTab === 'config' && "Idrok Core: Tizim Sozlamalari va Integratsiyalar"}
-              {superTab === 'support' && "Texnik Yordam va Murojaatlar Markazi"}
-            </h1>
-            <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
-              Respublika Yagona Idrok Edu Ekotizimi • {schoolsList.length} ta maktab ({activeCount} faol, {trialCount} sinovda, {blockedCount} cheklangan)
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <img
+              src="/idrok_icon.png"
+              alt="Idrok Edu"
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                objectFit: 'contain',
+                boxShadow: '0 4px 14px rgba(108, 92, 231, 0.22)',
+                flexShrink: 0,
+              }}
+            />
+            <div>
+              <h1 style={{ fontSize: 19, fontWeight: 800, color: THEME.textDark, margin: 0, letterSpacing: '-0.3px' }}>
+                {superTab === 'overview' && "Global Analitika va Jonli Monitoring"}
+                {superTab === 'schools' && "Maktablar Boshqaruvi"}
+                {superTab === 'billing' && "Obuna va Moliya Tizimi"}
+                {superTab === 'ai' && "Idrok Vision: AI & Face ID Server Nazorati"}
+                {superTab === 'security' && "Tizim Xavfsizligi va Audit Jurnali"}
+                {superTab === 'config' && "Idrok Core: Tizim Sozlamalari va Integratsiyalar"}
+                {superTab === 'support' && "Texnik Yordam va Murojaatlar Markazi"}
+              </h1>
+              <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
+                Respublika Yagona Idrok Edu Ekotizimi • {schoolsList.length} ta maktab ({activeCount} faol, {trialCount} sinovda, {blockedCount} cheklangan)
+              </p>
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -1013,7 +1072,10 @@ export default function SuperAdminDashboardView({
                   {/* Modul 5: Idrok Mobile */}
                   <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: 13, color: '#7C3AED' }}>📱 Idrok Mobile</span>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: '#7C3AED', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <img src="/idrok_mobile_icon.png" alt="Idrok Mobile" style={{ width: 17, height: 17, borderRadius: 5, objectFit: 'contain' }} />
+                        <span>Idrok Mobile</span>
+                      </span>
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#EDE9FE', color: '#6D28D9', fontWeight: 800 }}>Flutter App</span>
                     </div>
                     <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Kross-platforma mobil ilova</div>

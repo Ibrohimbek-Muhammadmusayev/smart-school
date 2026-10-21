@@ -420,7 +420,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               // 7. Amallar: Parolni yangilash & Logout
               _buildActionsBlock(),
-              const SizedBox(height: 30),
+              const SizedBox(height: 28),
+
+              // 8. Rasmiy Idrok Mobile brend ma'lumoti
+              Center(
+                child: Column(
+                  children: [
+                    Image.asset(
+                      'assets/images/icon.png',
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Idrok Mobile • v2.1.0",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.primary,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      "Idrok Edu Yagona Raqamli Ekotizimi",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
