@@ -595,33 +595,18 @@ export default function SuperAdminDashboardView({
             border: '1px solid rgba(108, 92, 231, 0.12)',
             boxShadow: '0 4px 16px -4px rgba(108, 92, 231, 0.08)',
           }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
-            <img
-              src="/idrok_logo.png"
-              alt="Idrok Edu"
-              style={{
-                height: 40,
-                maxWidth: '150px',
-                objectFit: 'contain',
-                display: 'block',
-              }}
-            />
-            <span
-              style={{
-                fontSize: 9.5,
-                fontWeight: 800,
-                padding: '4px 8px',
-                borderRadius: 8,
-                background: 'linear-gradient(135deg, #7C69EF 0%, #5845D8 100%)',
-                color: '#FFFFFF',
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                boxShadow: '0 2px 8px rgba(108, 92, 231, 0.3)',
-                whiteSpace: 'nowrap',
-              }}>
-              Super Admin
-            </span>
-          </div>
+          <img
+            src="/idrok_superadmin_logo.png"
+            alt="Idrok Super Admin"
+            style={{
+              height: 48,
+              width: 'auto',
+              maxWidth: '100%',
+              objectFit: 'contain',
+              display: 'block',
+              margin: '0 auto',
+            }}
+          />
           <div
             style={{
               fontSize: 11,
@@ -629,8 +614,10 @@ export default function SuperAdminDashboardView({
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 6,
               paddingTop: 8,
+              marginTop: 6,
               borderTop: '1px dashed rgba(108, 92, 231, 0.16)',
             }}>
             <span
@@ -644,9 +631,7 @@ export default function SuperAdminDashboardView({
                 flexShrink: 0,
               }}
             />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              Idrok Core Markaziy Boshqaruvi
-            </span>
+            <span>Idrok Core Markaziy Boshqaruvi</span>
           </div>
         </div>
 
@@ -786,14 +771,14 @@ export default function SuperAdminDashboardView({
           }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <img
-              src="/idrok_icon.png"
-              alt="Idrok Edu"
+              src="/idrok_superadmin_icon.png"
+              alt="Idrok Super Admin"
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: 12,
+                width: 44,
+                height: 44,
+                borderRadius: 14,
                 objectFit: 'contain',
-                boxShadow: '0 4px 14px rgba(108, 92, 231, 0.22)',
+                boxShadow: '0 6px 16px rgba(108, 92, 231, 0.25)',
                 flexShrink: 0,
               }}
             />

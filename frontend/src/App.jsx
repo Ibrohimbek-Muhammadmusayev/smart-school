@@ -637,7 +637,10 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
             type="button"
             onClick={() => setLoginForm({ username: 'admin', password: 'admin123' })}
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === 'admin' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
-            <span>🛡️ <b>Super Admin (Barcha Maktablar):</b></span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <img src="/idrok_superadmin_icon.png" alt="Super Admin" style={{ width: 18, height: 18, borderRadius: 5, objectFit: 'contain' }} />
+              <b>Super Admin (Barcha Maktablar):</b>
+            </span>
             <code>admin / admin123</code>
           </button>
           <button
