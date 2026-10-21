@@ -124,7 +124,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           children: [
             Icon(Icons.pin_rounded, color: AppTheme.primary),
             SizedBox(width: 8),
-            Text("6 xonali PIN-kod", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            Expanded(
+              child: Text("6 xonali PIN-kod", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            ),
           ],
         ),
         content: Column(
@@ -226,7 +228,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           children: [
             Icon(Icons.cleaning_services_rounded, color: Colors.redAccent),
             SizedBox(width: 8),
-            Text("Doskani tozalash", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            Expanded(
+              child: Text("Doskani tozalash", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            ),
           ],
         ),
         content: const Text("Doskadagi barcha yozuv va chizmalarni o'chirib, toza list ochilsinmi?"),
@@ -258,7 +262,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           children: [
             Icon(Icons.send_rounded, color: AppTheme.primary),
             SizedBox(width: 8),
-            Text("Doskaga Matn / Formula", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            Expanded(
+              child: Text("Doskaga Matn / Formula", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            ),
           ],
         ),
         content: TextField(
@@ -317,7 +323,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           children: [
             Icon(Icons.auto_awesome_rounded, color: AppTheme.primary),
             SizedBox(width: 8),
-            Text("AI Mavzu Konspekti", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            Expanded(
+              child: Text("AI Mavzu Konspekti", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            ),
           ],
         ),
         content: Column(
@@ -390,7 +398,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           children: [
             Icon(Icons.quiz_rounded, color: AppTheme.secondaryOrange),
             SizedBox(width: 8),
-            Text("AI Tezkor Test", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            Expanded(
+              child: Text("AI Tezkor Test", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            ),
           ],
         ),
         content: Column(

@@ -105,8 +105,10 @@ class _BoardControlScreenState extends State<BoardControlScreen> {
         title: const Row(
           children: [
             Icon(Icons.power_settings_new_rounded, color: Colors.redAccent),
-            SizedBox(width: 8),
-            Text("Doskani uzish", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text("Doskani uzish", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ),
           ],
         ),
         content: const Text(

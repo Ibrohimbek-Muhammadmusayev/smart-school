@@ -102,22 +102,38 @@ class _LoginScreenState extends State<LoginScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         title: const Row(
           children: [
-            Icon(Icons.info_outline, color: AppTheme.primary),
-            SizedBox(width: 8),
-            Text("Parolni unutdingizmi?"),
+            Icon(Icons.info_outline_rounded, color: AppTheme.primary, size: 24),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "Parolni unutdingizmi?",
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark,
+                ),
+              ),
+            ),
           ],
         ),
         content: const Text(
-          "Parolni tiklash uchun sinf rahbari yoki maktab ustozingizga murojaat qiling.\nUstoz o'z paneli orqali yangi vaqtinchalik parol taqdim eta oladi.",
-          style: TextStyle(height: 1.4),
+          "Parolni tiklash uchun sinf rahbari yoki maktab ustozingizga murojaat qiling.\n\nUstoz o'z paneli orqali yangi vaqtinchalik parol taqdim eta oladi.",
+          style: TextStyle(height: 1.45, fontSize: 13.5, color: Color(0xFF555B6E)),
         ),
         actions: [
           TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Tushunarli", style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
+            child: const Text("Tushunarli", style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 14)),
           ),
         ],
       ),
