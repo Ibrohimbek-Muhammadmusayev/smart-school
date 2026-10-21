@@ -112,7 +112,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final pData = _profileData ?? {};
     final studentData = (pData['student'] as Map<String, dynamic>?) ?? {};
     final academicData = (pData['academic'] as Map<String, dynamic>?) ?? {};
-    final statsData = (pData['stats'] as Map<String, dynamic>?) ?? {};
     final securityData = (pData['security'] as Map<String, dynamic>?) ?? {};
 
     // 1. Shaxsiy ma'lumotlar
@@ -199,20 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         studentData['director_name'] ??
         'Rahimov Jamshid';
 
-    // 3. Tezkor KPI ko'rsatkichlar
-    final starsCount = statsData['stars_count'] ??
-        studentData['stars_count'] ??
-        user['stars_count'] ??
-        18;
-
-    final monthlyPercent = statsData['monthly_attendance_percent'] ??
-        statsData['monthly_percent'] ??
-        96;
-
-    final nbRemaining = statsData['nb_remaining_hours'] ?? 32;
-    final nbLimit = statsData['nb_limit_hours'] ?? 36;
-
-    // 4. Biometrika & Qurilmalar
+    // 2. Biometrika & Qurilmalar
     final faceIdStatus = securityData['face_id_status'] ??
         studentData['face_id_status'] ??
         "Tasdiqlangan va faol ✅";
@@ -267,17 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 18),
 
-              // 2. Tezkor KPI Ko'rsatkichlar (4 ta karta)
-              _buildKpiGrid(
-                starsCount: starsCount,
-                monthlyPercent: monthlyPercent,
-                nbRemaining: nbRemaining,
-                nbLimit: nbLimit,
-                shift: shift,
-              ),
-              const SizedBox(height: 20),
-
-              // 3. O'quvchi Guvohnomasi (Raqamli ID karta)
+              // 2. O'quvchi Guvohnomasi (Raqamli ID karta)
               _buildSectionCard(
                 title: "O'quvchi guvohnomasi (ID)",
                 subtitle: "Yagona elektron ta'lim tizimi kodi",
@@ -616,124 +592,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildKpiGrid({
-    required dynamic starsCount,
-    required dynamic monthlyPercent,
-    required dynamic nbRemaining,
-    required dynamic nbLimit,
-    required dynamic shift,
-  }) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildKpiCard(
-            title: "Yulduzlar",
-            value: "$starsCount ⭐",
-            subtitle: "Yutuqlar",
-            color: const Color(0xFFFF9F43),
-            bgColor: const Color(0xFFFFF4E6),
-            icon: Icons.star_rounded,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildKpiCard(
-            title: "Davomat",
-            value: "$monthlyPercent%",
-            subtitle: "Oylik foiz",
-            color: const Color(0xFF10AC84),
-            bgColor: const Color(0xFFE8F8F5),
-            icon: Icons.pie_chart_rounded,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildKpiCard(
-            title: "NB qoldiq",
-            value: "${nbRemaining}s",
-            subtitle: "Limit: ${nbLimit}s",
-            color: const Color(0xFF6C5CE7),
-            bgColor: const Color(0xFFF1F0FF),
-            icon: Icons.hourglass_bottom_rounded,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildKpiCard(
-            title: "Smena",
-            value: shift == 2 ? "2-smena" : "1-smena",
-            subtitle: shift == 2 ? "Abeddan keyin" : "Ertalabki",
-            color: const Color(0xFF2E86DE),
-            bgColor: const Color(0xFFEAF2FB),
-            icon: Icons.access_time_filled_rounded,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKpiCard({
-    required String title,
-    required String value,
-    required String subtitle,
-    required Color color,
-    required Color bgColor,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 16, color: color),
-          ),
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 10,
-              color: AppTheme.textMuted,
-              fontWeight: FontWeight.w500,
-            ),
           ),
         ],
       ),
