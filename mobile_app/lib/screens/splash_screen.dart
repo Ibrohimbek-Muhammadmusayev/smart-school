@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Official Smart School Logo Badge
+                    // Official Idrok Edu Logo Badge
                     Container(
                       width: 110,
                       height: 110,
@@ -163,10 +163,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                     // Brand Title
                     const Text(
-                      "Smart School",
+                      "Idrok Edu",
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 32,
+                        fontSize: 34,
                         fontWeight: FontWeight.w900,
                         color: AppTheme.textDark,
                         letterSpacing: -0.5,
@@ -176,7 +176,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                     // Brand Subtitle
                     const Text(
-                      "Raqamli Ta'lim & Biometrik Davomat",
+                      "Idrok Mobile • Raqamli Ta'lim & Biometriya",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -226,7 +226,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
-                    "v1.0.0 Online Cloud",
+                    "Idrok Core & Vision Cloud",
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted),
                   ),
                 ),

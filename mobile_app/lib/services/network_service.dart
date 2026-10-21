@@ -77,7 +77,7 @@ class NetworkService {
                 ],
               ),
               content: const Text(
-                "Smart School tizimi real-vaqt rejimida (Face ID biometriya, Hikvision turniketlar va jonli dars davomati) ishlagani sababli ilova faqat ONLAYN rejimda ishlaydi.\n\nIltimos, Wi-Fi yoki mobil internetni yoqing va qayta tekshiring.",
+                "Idrok Edu tizimi real-vaqt rejimida (Idrok Vision Face ID, Hikvision turniketlar va Idrok Core jonli dars davomati) ishlagani sababli ilova faqat ONLAYN rejimda ishlaydi.\n\nIltimos, Wi-Fi yoki mobil internetni yoqing va qayta tekshiring.",
                 style: TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF555B6E)),
               ),
               actions: [

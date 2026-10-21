@@ -1,5 +1,5 @@
 """
-Hikvision MinMoe (DS-K1T673 va boshqa modellar) Terminal Sinxronizatsiya Moduli
+Idrok Vision — Hikvision MinMoe (DS-K1T673 va boshqa modellar) Terminal Sinxronizatsiya Moduli
 Hikvision ISAPI protokoli orqali o'quvchilar profili (ID, F.I.SH) va yuz rasmlarini
 terminalga avtomatik yuklash va yangilash.
 """

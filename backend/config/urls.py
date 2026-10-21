@@ -19,6 +19,10 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+admin.site.site_header = "Idrok Core — Boshqaruv Markazi"
+admin.site.site_title = "Idrok Edu Admin"
+admin.site.index_title = "Idrok Core Dvigateli va Ma'lumotlar Bazasi"
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),

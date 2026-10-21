@@ -16,7 +16,7 @@ class DeviceRegisterView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        device_name = request.data.get('device_name', 'Smart Board')
+        device_name = request.data.get('device_name', 'IdrokBoard')
         # Yangi token generatsiya
         token = BoardDevice.generate_token()
         device = BoardDevice.objects.create(
@@ -40,7 +40,7 @@ class DeviceInfoView(views.APIView):
     def get(self, request, token):
         device, _ = BoardDevice.objects.get_or_create(
             device_token=token,
-            defaults={'device_name': 'Smart Board'}
+            defaults={'device_name': 'IdrokBoard'}
         )
         
         # Aktiv sessiya bormi?
@@ -59,7 +59,7 @@ class DeviceInfoView(views.APIView):
 
 class SessionConnectView(views.APIView):
     """
-    Smart School mobil ilovadan ustoz QR kodni skanerlaydi.
+    Idrok Mobile ilovasidan ustoz IdrokBoard QR kodini skanerlaydi.
     POST /shooldex/session/connect/
     Body: { device_token, teacher_id }
     JWT token bilan (ustoz autentifikatsiyalangan bo'lishi kerak)
@@ -74,7 +74,7 @@ class SessionConnectView(views.APIView):
         
         device, _ = BoardDevice.objects.get_or_create(
             device_token=device_token,
-            defaults={'device_name': 'Smart Board'}
+            defaults={'device_name': 'IdrokBoard'}
         )
         
         teacher = request.user
@@ -127,7 +127,7 @@ class SessionStatusView(views.APIView):
         
         device, _ = BoardDevice.objects.get_or_create(
             device_token=device_token,
-            defaults={'device_name': 'Smart Board'}
+            defaults={'device_name': 'IdrokBoard'}
         )
         
         # Aktiv sessiyani topish

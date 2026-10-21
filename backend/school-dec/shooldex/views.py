@@ -16,7 +16,7 @@ class DeviceRegisterView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        device_name = request.data.get('device_name', 'Smart Board')
+        device_name = request.data.get('device_name', 'IdrokBoard')
         # Yangi token generatsiya
         token = BoardDevice.generate_token()
         device = BoardDevice.objects.create(
@@ -58,7 +58,7 @@ class DeviceInfoView(views.APIView):
 
 class SessionConnectView(views.APIView):
     """
-    Smart School mobil ilovadan ustoz QR kodni skanerlaydi.
+    Idrok Mobile ilovasidan ustoz IdrokBoard QR kodini skanerlaydi.
     POST /shooldex/session/connect/
     Body: { device_token, teacher_id }
     JWT token bilan (ustoz autentifikatsiyalangan bo'lishi kerak)

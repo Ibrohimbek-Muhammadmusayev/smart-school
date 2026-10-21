@@ -17,7 +17,7 @@ class BoardControlScreen extends StatefulWidget {
     required this.sessionId,
     required this.deviceToken,
     required this.teacherName,
-    this.deviceName = 'Smart Board',
+    this.deviceName = 'IdrokBoard',
     this.geminiApiKey = '',
     this.initialCanvases = const [],
   });
@@ -340,7 +340,7 @@ class _BoardControlScreenState extends State<BoardControlScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Aqlli Doska Boshqaruvi"),
+        title: const Text("IdrokBoard Boshqaruvi"),
         actions: [
           IconButton(
             onPressed: _refreshSessionAndLists,

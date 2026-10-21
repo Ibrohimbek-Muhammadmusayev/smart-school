@@ -1094,7 +1094,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
               const SizedBox(height: 8),
               _buildDetailItem(Icons.how_to_reg_rounded, "Davomatni qayd etuvchi", markedBy),
               const SizedBox(height: 8),
-              _buildDetailItem(Icons.shield_outlined, "Tizim nazorati", "Smart School AI Biometrik Audit"),
+              _buildDetailItem(Icons.shield_outlined, "Tizim nazorati", "Idrok Vision AI Biometrik Audit"),
 
               const SizedBox(height: 20),
 

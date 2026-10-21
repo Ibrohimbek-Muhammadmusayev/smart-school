@@ -72,9 +72,9 @@ class _TeacherUniversalScanScreenState extends State<TeacherUniversalScanScreen>
         if (!mounted) return;
 
         if (res['session_id'] != null) {
-          final deviceName = (res['device_name'] ?? 'Smart Board').toString();
+          final deviceName = (res['device_name'] ?? 'IdrokBoard').toString();
           setState(() {
-            _statusBanner = "🟢 Aqlli doska ulandi: $deviceName ($nowStr)";
+            _statusBanner = "🟢 IdrokBoard ulandi: $deviceName ($nowStr)";
             _bannerColor = AppTheme.success;
             _scanHistory.insert(0, {
               "type": "board",

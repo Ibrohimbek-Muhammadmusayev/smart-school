@@ -134,10 +134,10 @@ const INITIAL_QR_ALERTS = [
 ];
 
 const INITIAL_RBAC_ADMINS = [
-  { id: 1, name: 'Bosh Boshqarma (Super Owner)', role: 'SUPER_OWNER', email: 'root@smartschool.uz', twoFactor: true, permissions: 'To‘liq ruxsat (Barcha modullar)' },
-  { id: 2, name: 'Sardorbek Usmonov', role: 'TECH_SUPPORT', email: 'devops@smartschool.uz', twoFactor: true, permissions: 'AI Serverlar, Turniketlar, Backup va Helpdesk' },
-  { id: 3, name: 'Malika Rahimova', role: 'FINANCE_MANAGER', email: 'billing@smartschool.uz', twoFactor: true, permissions: 'Obunalar, Fakturalar va MRR Tahlil' },
-  { id: 4, name: 'Komiljon Toshmatov', role: 'SECURITY_AUDITOR', email: 'audit@smartschool.uz', twoFactor: false, permissions: 'Global Audit Jurnali va Xavfsizlik loglari' },
+  { id: 1, name: 'Bosh Boshqarma (Super Owner)', role: 'SUPER_OWNER', email: 'root@idrokedu.uz', twoFactor: true, permissions: 'To‘liq ruxsat (Barcha modullar)' },
+  { id: 2, name: 'Sardorbek Usmonov', role: 'TECH_SUPPORT', email: 'devops@idrokedu.uz', twoFactor: true, permissions: 'AI Serverlar, Turniketlar, Backup va Helpdesk' },
+  { id: 3, name: 'Malika Rahimova', role: 'FINANCE_MANAGER', email: 'billing@idrokedu.uz', twoFactor: true, permissions: 'Obunalar, Fakturalar va MRR Tahlil' },
+  { id: 4, name: 'Komiljon Toshmatov', role: 'SECURITY_AUDITOR', email: 'audit@idrokedu.uz', twoFactor: false, permissions: 'Global Audit Jurnali va Xavfsizlik loglari' },
 ];
 
 const INITIAL_BACKUPS = [
@@ -377,7 +377,7 @@ export default function SuperAdminDashboardView({
   const [systemConfig, setSystemConfig] = useState({
     smsProvider: 'Eskiz.uz Official Gateway',
     smsBalance: 48250,
-    telegramBotToken: '7192834102:AAH9xSmartSchoolUzBot_ProdKey',
+    telegramBotToken: '7192834102:AAH9xIdrokEduBot_ProdKey',
     telegramBotActive: true,
     fcmActive: true,
     androidMinVersion: '2.4.1',
@@ -461,7 +461,7 @@ export default function SuperAdminDashboardView({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.setAttribute('download', `smart_school_tenants_report.${ext}`);
+    a.setAttribute('download', `idrok_edu_tenants_report.${ext}`);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -602,8 +602,8 @@ export default function SuperAdminDashboardView({
             <Shield size={22} />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15.5, color: THEME.textDark, letterSpacing: '-0.2px' }}>Super Admin OS</div>
-            <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>Yagona Bulutli Boshqaruv</div>
+            <div style={{ fontWeight: 800, fontSize: 15.5, color: THEME.textDark, letterSpacing: '-0.2px' }}>Idrok Edu • Super Admin</div>
+            <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>Idrok Core Markaziy Boshqaruvi</div>
           </div>
         </div>
 
@@ -634,7 +634,7 @@ export default function SuperAdminDashboardView({
             active={superTab === 'ai'}
             onClick={() => setSuperTab('ai')}
             icon={<Sparkles size={17} />}
-            label="AI & Face ID Server"
+            label="Idrok Vision (Face ID)"
             badge="99.4%"
           />
           <SidebarNavBtn
@@ -648,7 +648,7 @@ export default function SuperAdminDashboardView({
             active={superTab === 'config'}
             onClick={() => setSuperTab('config')}
             icon={<Sliders size={17} />}
-            label="Tizim Sozlamalari"
+            label="Idrok Core Sozlamalari"
             badge="S3/SMS"
           />
           <SidebarNavBtn
@@ -746,13 +746,13 @@ export default function SuperAdminDashboardView({
               {superTab === 'overview' && "Global Analitika va Jonli Monitoring"}
               {superTab === 'schools' && "Maktablar Boshqaruvi"}
               {superTab === 'billing' && "Obuna va Moliya Tizimi"}
-              {superTab === 'ai' && "AI va Biometrik Server Nazorati"}
+              {superTab === 'ai' && "Idrok Vision: AI & Face ID Server Nazorati"}
               {superTab === 'security' && "Tizim Xavfsizligi va Audit Jurnali"}
-              {superTab === 'config' && "Tizim Sozlamalari va Integratsiyalar"}
+              {superTab === 'config' && "Idrok Core: Tizim Sozlamalari va Integratsiyalar"}
               {superTab === 'support' && "Texnik Yordam va Murojaatlar Markazi"}
             </h1>
             <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
-              Respublika Yagona Smart-Maktab Platformasi • {schoolsList.length} ta maktab ({activeCount} faol, {trialCount} sinovda, {blockedCount} cheklangan)
+              Respublika Yagona Idrok Edu Ekotizimi • {schoolsList.length} ta maktab ({activeCount} faol, {trialCount} sinovda, {blockedCount} cheklangan)
             </p>
           </div>
 
@@ -846,7 +846,7 @@ export default function SuperAdminDashboardView({
                     const role = window.prompt("Roli (TECH_SUPPORT, AUDITOR, FINANCE_MANAGER):", "AUDITOR") || "AUDITOR";
                     setRbacAdmins([
                       ...rbacAdmins,
-                      { id: Date.now(), name, role, email: `${name.toLowerCase().replace(/\s+/g, '.')}@smartschool.uz`, twoFactor: true, permissions: 'Tanlangan modul ruxsati' }
+                      { id: Date.now(), name, role, email: `${name.toLowerCase().replace(/\s+/g, '.')}@idrokedu.uz`, twoFactor: true, permissions: 'Tanlangan modul ruxsati' }
                     ]);
                     appendAuditLog('CREATE_RBAC_ADMIN', name, `Yangi ${role} yordamchi admin qo'shildi`);
                     showToast(`👤 "${name}" yordamchi admin sifatida qo'shildi!`);
@@ -936,6 +936,89 @@ export default function SuperAdminDashboardView({
                   color={THEME.cyan}
                   badge="99.98% Uptime"
                 />
+              </div>
+
+              {/* Idrok Edu Ekotizim Modullari Paneli */}
+              <div style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 24,
+                padding: '20px 24px',
+                border: `1px solid ${THEME.border}`,
+                boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 14,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 12, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Layers size={18} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: 15, fontWeight: 800, color: THEME.textDark, margin: 0 }}>
+                        Idrok Edu — Tizim Arxitekturasi va Modullar
+                      </h3>
+                      <p style={{ fontSize: 11.5, color: THEME.textMuted, margin: 0, marginTop: 2 }}>
+                        Platformaning 5 ta o'zaro integratsiyalashgan asosiy arxitektura bo'g'inlari
+                      </p>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, backgroundColor: '#DCFCE7', color: '#166534', fontWeight: 800, border: '1px solid #86EFAC' }}>
+                    ● Barcha 5 modul sinxron va faol
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+                  {/* Modul 1: Idrok Edu */}
+                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: THEME.primary }}>🌐 Idrok Edu</span>
+                      <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800 }}>Master Brand</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Bosh ekotizim brendi</div>
+                    <div style={{ fontSize: 10.5, color: THEME.textMuted, lineHeight: 1.35 }}>Asosiy platforma, landing sahifasi va umumiy boshqaruv shlyuzi.</div>
+                  </div>
+
+                  {/* Modul 2: IdrokBoard */}
+                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: '#D97706' }}>🖥️ IdrokBoard</span>
+                      <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 800 }}>Smart Board</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Interaktiv aqlli doska</div>
+                    <div style={{ fontSize: 10.5, color: THEME.textMuted, lineHeight: 1.35 }}>AI vizualizatsiyasi, interaktiv doska va virtual laboratoriya.</div>
+                  </div>
+
+                  {/* Modul 3: Idrok Core */}
+                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: '#2563EB' }}>⚙️ Idrok Core</span>
+                      <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#DBEAFE', color: '#1D4ED8', fontWeight: 800 }}>Backend & DB</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Markaziy boshqaruv dvigateli</div>
+                    <div style={{ fontSize: 10.5, color: THEME.textMuted, lineHeight: 1.35 }}>Dars jadvallari algoritmi, Face ID oqimlari, RBAC va baza integratsiyasi.</div>
+                  </div>
+
+                  {/* Modul 4: Idrok Vision */}
+                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: '#059669' }}>👁️ Idrok Vision</span>
+                      <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#D1FAE5', color: '#047857', fontWeight: 800 }}>Computer Vision</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Kameralar & Face ID moduli</div>
+                    <div style={{ fontSize: 10.5, color: THEME.textMuted, lineHeight: 1.35 }}>Kirish-chiqish avtomat davomati, darsdagi ishtirok monitoringi.</div>
+                  </div>
+
+                  {/* Modul 5: Idrok Mobile */}
+                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: '#7C3AED' }}>📱 Idrok Mobile</span>
+                      <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#EDE9FE', color: '#6D28D9', fontWeight: 800 }}>Flutter App</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Kross-platforma mobil ilova</div>
+                    <div style={{ fontSize: 10.5, color: THEME.textMuted, lineHeight: 1.35 }}>Shaxsiy jadval, baholar, davomat bildirishnomalari va darslar.</div>
+                  </div>
+                </div>
               </div>
 
               {/* Chapda: Katta Silliq Chiziqli Analitik Grafik + O'ngda: Interaktiv Xarita va Geografiya */}
@@ -2183,7 +2266,7 @@ export default function SuperAdminDashboardView({
 
                     <div style={miniStatBoxStyle}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, fontSize: 13 }}>🤖 Ota-onalar Telegram Boti (@SmartSchool_UzBot)</span>
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>🤖 Ota-onalar Telegram Boti (@IdrokEdu_Bot)</span>
                         <span style={{ color: THEME.green, fontWeight: 700, fontSize: 11 }}>Webhook Faol ✅</span>
                       </div>
                       <input

@@ -588,8 +588,8 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
           <div style={{ width: 68, height: 68, borderRadius: 22, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', boxShadow: '0 10px 24px rgba(108, 92, 231, 0.35)' }}>
             <School size={34} />
           </div>
-          <h2 style={{ fontSize: 24, fontWeight: 900, color: THEME.textDark, margin: 0 }}>Smart School</h2>
-          <p style={{ fontSize: 13, color: THEME.textMuted, marginTop: 6 }}>Yagona Ta'lim va Davomat Boshqaruv Markazi</p>
+          <h2 style={{ fontSize: 24, fontWeight: 900, color: THEME.textDark, margin: 0 }}>Idrok Edu</h2>
+          <p style={{ fontSize: 13, color: THEME.textMuted, marginTop: 6 }}>Yagona Ta'lim va Davomat Boshqaruv Ekotizimi</p>
         </div>
 
         {loginError && (
@@ -1330,13 +1330,12 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             <School size={24} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <div title={schoolName} style={{ fontWeight: 900, fontSize: 14.5, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {schoolName}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontWeight: 900, fontSize: 15, color: THEME.textDark }}>Idrok Edu</span>
+              <span style={{ fontSize: 9.5, padding: '1px 6px', borderRadius: 6, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800 }}>CORE</span>
             </div>
-            <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span>Maktab #{schoolId}</span>
-              <span>•</span>
-              <span>{terms.groupPlural} rejimi</span>
+            <div title={schoolName} style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {schoolName} • #{schoolId}
             </div>
           </div>
         </div>
@@ -1348,7 +1347,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<FolderOpen size={18} />} label={`${terms.groupPlural} Boshqaruvi`} badge={`${classesList.length} ta`} />
           <NavButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} icon={<Users size={18} />} label={terms.studentPlural} badge={`${realStudents.length} ta`} />
           <NavButton active={activeTab === 'teachers'} onClick={() => setActiveTab('teachers')} icon={<GraduationCap size={18} />} label="O'qituvchilar" badge={`${teachersList.length} ta`} />
-          <NavButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<Cpu size={18} />} label="Maktab Auditi (Face ID)" badge="Jonli 🔴" />
+          <NavButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<Cpu size={18} />} label="Idrok Vision (Face ID)" badge="Jonli 🔴" />
           <div style={{ margin: '6px 4px', borderTop: `1px dashed ${THEME.border}` }} />
           <NavButton
             active={activeTab === 'settings'}
@@ -1419,7 +1418,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                 {activeTab === 'groups' && `Maktab ${terms.groupPlural}i & Ularning ${terms.studentPlural}i`}
                 {activeTab === 'students' && `Maktab ${terms.studentPlural} Bazasi & Yaratilganlik Tarixi`}
                 {activeTab === 'teachers' && "Maktab O'qituvchilari Ro'yxati"}
-                {activeTab === 'attendance' && `Bino va ${terms.groupPlural} Bo'yicha Davomat Auditi`}
+                {activeTab === 'attendance' && `Idrok Vision • Bino va ${terms.groupPlural} Bo'yicha Jonli Davomat Auditi`}
                 {activeTab === 'settings' && "Maktab Sozlamalari va Tizim Konfiguratsiyasi (Nastroyka)"}
               </h1>
               <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800, fontSize: 11.5 }}>
@@ -5070,6 +5069,23 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         gap: 16,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* Idrok Vision Brand Pill */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            padding: '7px 14px',
+            borderRadius: 18,
+            background: 'linear-gradient(135deg, #6C5CE7 0%, #8E44AD 100%)',
+            color: '#FFFFFF',
+            fontWeight: 800,
+            fontSize: 12.5,
+            boxShadow: '0 4px 14px rgba(108, 92, 231, 0.25)',
+          }}>
+            <Cpu size={15} />
+            <span>Idrok Vision</span>
+          </div>
+
           {/* Pulsating status badge */}
           <div style={{
             display: 'flex',
@@ -5866,7 +5882,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               <div>
                 <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Upload size={20} color="#6366F1" />
-                  Hikvision MinMoe (DS-K1T673) Sinxronizatsiya Markazi
+                  Idrok Vision • Hikvision MinMoe Sinxronizatsiya Markazi
                 </div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
                   Markaziy bazadagi o'quvchilar ID si, F.I.SH va Yuz rasmlarini terminalga avtomatik yuklash
@@ -7473,7 +7489,7 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
             <GraduationCap size={24} />
           </div>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 16, color: THEME.textDark }}>Ustoz Kabineti</div>
+            <div style={{ fontWeight: 900, fontSize: 16, color: THEME.textDark }}>Idrok Edu • Ustoz</div>
             <div style={{ fontSize: 11, color: THEME.textMuted }}>{displaySchoolName}</div>
           </div>
         </div>
@@ -7503,7 +7519,7 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
             <Smartphone size={16} /> Mobil Davomat
           </div>
           <div style={{ color: THEME.textDark, marginTop: 4, lineHeight: 1.4 }}>
-            Jonli {terms.lessonSingular.toLowerCase()} davomatini olish uchun smartfoningizdagi <b>Smart School</b> mobil ilovasi orqali QR skanerdan foydalaning.
+            Jonli {terms.lessonSingular.toLowerCase()} davomatini olish uchun smartfoningizdagi <b>Idrok Mobile</b> ilovasi orqali QR skanerdan foydalaning.
           </div>
         </div>
 

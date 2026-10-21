@@ -90,7 +90,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Future<void> _openSmartBoard(Map<String, dynamic> user) async {
+  Future<void> _openIdrokBoard(Map<String, dynamic> user) async {
     if (_boardSession != null && _boardSession!['session_id'] != null) {
       await Navigator.push(
         context,
@@ -99,7 +99,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             sessionId: _boardSession!['session_id'] as int,
             deviceToken: (_boardSession!['device_token'] ?? '').toString(),
             teacherName: (user['full_name'] ?? 'Ustoz').toString(),
-            deviceName: (_boardSession!['device_name'] ?? 'Smart Board').toString(),
+            deviceName: (_boardSession!['device_name'] ?? 'IdrokBoard').toString(),
             geminiApiKey: (_boardSession!['gemini_api_key'] ?? '').toString(),
             initialCanvases: (_boardSession!['saved_canvases'] as List<dynamic>?) ?? [],
           ),
@@ -673,7 +673,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           index: _tabIndex,
           children: [
             _buildHomeTab(user, fullName),        // 1. Bosh sahifa (Dashboard)
-            _buildSmartBoardTab(user, fullName),  // 2. Aqlli Doska (Masofaviy Pult)
+            _buildIdrokBoardTab(user, fullName),  // 2. IdrokBoard (Masofaviy Pult)
             _buildGroupsAndResultsTab(),          // 3. Guruhlarim & Natijalar
             _buildMenuTab(user),                  // 4. Menu & Profil
           ],
@@ -705,7 +705,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         child: Row(
           children: [
             _buildBottomNavItem(0, Icons.home_rounded, "Bosh sahifa"),
-            _buildBottomNavItem(1, Icons.tv_rounded, "Aqlli Doska", hasBadge: _boardSession != null),
+            _buildBottomNavItem(1, Icons.tv_rounded, "IdrokBoard", hasBadge: _boardSession != null),
             const SizedBox(width: 56), // Markaziy QR Skaner tugmasi uchun joy
             _buildBottomNavItem(2, Icons.groups_rounded, "Guruhlarim"),
             _buildBottomNavItem(3, Icons.grid_view_rounded, "Menu"),
@@ -835,8 +835,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               const SizedBox(height: 20),
             ],
 
-            // 1.3. Aqlli Doska (Smart Board) Jonli Boshqaruv Vidjeti
-            _buildSmartBoardQuickWidget(user),
+            // 1.3. IdrokBoard Jonli Boshqaruv Vidjeti
+            _buildIdrokBoardQuickWidget(user),
             const SizedBox(height: 22),
 
             // 1.4. Tezkor Statistika Vidjetlari (2x2 Grid)
@@ -1169,13 +1169,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                   ),
-                  onPressed: () => _openSmartBoard(user),
+                  onPressed: () => _openIdrokBoard(user),
                   icon: Icon(
                     boardConnected ? Icons.tv_rounded : Icons.dashboard_customize_rounded,
                     size: 19,
                   ),
                   label: Text(
-                    boardConnected ? "Doska Faol" : "Aqlli Doska",
+                    boardConnected ? "IdrokBoard Faol" : "IdrokBoard",
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                   ),
                 ),
@@ -1187,8 +1187,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  // 1.3 Aqlli Doska (Smart Board) Jonli Boshqaruv Vidjeti
-  Widget _buildSmartBoardQuickWidget(Map<String, dynamic> user) {
+  Widget _buildIdrokBoardQuickWidget(Map<String, dynamic> user) {
     final bool isConnected = _boardSession != null;
     final String deviceName = (_boardSession?['device_name'] ?? '204-xona doskasi').toString();
     final List<dynamic> canvases = (_boardSession?['saved_canvases'] as List<dynamic>?) ?? [];
@@ -1268,7 +1267,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 ),
               ),
               IconButton(
-                onPressed: () => _openSmartBoard(user),
+                onPressed: () => _openIdrokBoard(user),
                 icon: const Icon(Icons.open_in_new_rounded, color: AppTheme.primary, size: 20),
               ),
             ],
@@ -1317,7 +1316,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    onPressed: () => _openSmartBoard(user),
+                    onPressed: () => _openIdrokBoard(user),
                     icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
                     label: const Text(
                       "QR Skanerlash",
@@ -1663,9 +1662,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   // =========================================================================
-  // 2. 🖥️ AQLLI DOSKA (SmartBoardScreen — Masofaviy Pult)
+  // 2. 🖥️ IDROKBOARD (Masofaviy Pult)
   // =========================================================================
-  Widget _buildSmartBoardTab(Map<String, dynamic> user, String fullName) {
+  Widget _buildIdrokBoardTab(Map<String, dynamic> user, String fullName) {
     final bool isConnected = _boardSession != null;
     final String deviceName = (_boardSession?['device_name'] ?? '204-xona doskasi').toString();
 
@@ -1677,7 +1676,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(fullName, "Aqlli Doska Pulti"),
+            _buildHeader(fullName, "IdrokBoard Pulti"),
             const SizedBox(height: 18),
 
             // 2.1. Ulanish Moduli Hero Card
@@ -1724,7 +1723,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    isConnected ? deviceName : "Elektron Doskaga Ulanish",
+                    isConnected ? deviceName : "IdrokBoard-ga Ulanish",
                     style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
@@ -1747,7 +1746,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                             ),
-                            onPressed: () => _openSmartBoard(user),
+                            onPressed: () => _openIdrokBoard(user),
                             icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
                             label: const Text(
                               "QR Skanerlash",
@@ -1786,7 +1785,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         ),
-                        onPressed: () => _openSmartBoard(user),
+                        onPressed: () => _openIdrokBoard(user),
                         icon: const Icon(Icons.settings_remote_rounded, size: 20),
                         label: const Text(
                           "To'liq Boshqaruv Panelini Ochish ➔",
@@ -1883,7 +1882,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     title: "Barchasini o'chirish 🧹",
                     subtitle: "Doskani tozalash",
                     color: Colors.redAccent,
-                    onTap: isConnected ? _clearBoardConfirm : () => _openSmartBoard(user),
+                    onTap: isConnected ? _clearBoardConfirm : () => _openIdrokBoard(user),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -1893,7 +1892,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     title: "Matn uzatish 📤",
                     subtitle: "Telefondan doskaga",
                     color: AppTheme.secondaryBlue,
-                    onTap: isConnected ? _showSendTextDialog : () => _openSmartBoard(user),
+                    onTap: isConnected ? _showSendTextDialog : () => _openIdrokBoard(user),
                   ),
                 ),
               ],
@@ -1911,14 +1910,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               title: "Mavzu Konspekti 📝",
               subtitle: "Mavzuni kiritish orqali doskaga qisqa tushuntirish va reja chiqarish",
               color: AppTheme.primary,
-              onTap: isConnected ? _showAiTopicSummaryDialog : () => _openSmartBoard(user),
+              onTap: isConnected ? _showAiTopicSummaryDialog : () => _openIdrokBoard(user),
             ),
             _buildMenuItem(
               icon: Icons.quiz_rounded,
               title: "Tezkor Test Savollari 🎯",
               subtitle: "Dars mavzusi bo'yicha doska ekraniga 3-5 ta test chiqarish",
               color: AppTheme.secondaryOrange,
-              onTap: isConnected ? _showAiQuickTestDialog : () => _openSmartBoard(user),
+              onTap: isConnected ? _showAiQuickTestDialog : () => _openIdrokBoard(user),
             ),
             const SizedBox(height: 20),
           ],

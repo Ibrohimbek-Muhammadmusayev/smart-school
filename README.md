@@ -1,51 +1,44 @@
-# Smart School: QR kodli Davomat Tizimi
+# Idrok Edu — Yagona Ta'lim va Davomat Ekotizimi
 
-Ushbu tizim maktablarda davomatni avtomatlashtirish, sinfxonalarda dinamik o'zgaruvchi QR-kod orqali o'quvchilar davomatini qayd etish hamda ota-onalarga Telegram orqali avtomatik xabar yuborish imkonini beradi.
+**Idrok Edu** — bu maktablar, o‘quv markazlari, kollejlar va universitetlar uchun zamonaviy, biometrik va sun'iy intellektga asoslangan kompleks ta'lim boshqaruv ekotizimi.
 
 ---
 
-## 1. Tizimning Ishlash Prinsipi
+## 1. Platformaning Asosiy Qismlari (System Architecture Modules)
 
-1. **Sinfxona Ekrani (Smart TV / Monitor / Planshet):**
-   - Ekranda dinamik (har 15-30 soniyada yangilanadigan va vaqtga bog'langan tokenli) **QR-kod** ko'rinadi. Bu bir o'quvchi skrinshot qilib olib, do'stiga yuborishining oldini oladi.
-2. **O'quvchi Telefoni (Mobil brauzer / Web ilova):**
-   - O'quvchi o'z profiliga kirgan holda kamerasi orqali ekrandagi QR kodni skanerlaydi.
-   - Server dinamik tokenni tekshiradi va davomat "Keldi" deb tasdiqlanadi.
-3. **Telegram Bot:**
-   - O'quvchi kelishi bilan uning ota-onasining Telegram akkauntiga avtomatik bildirishnoma boradi:
-     *(Masalan: "Farzandingiz Aliyev Vali 08:15 da maktabga yetib keldi.")*
-4. **Web Dashboard (Maktab Ma'muriyati va O'qituvchilar uchun):**
-   - Barcha sinflar bo'yicha real vaqt rejimidagi statistika, grafiklar, o'quvchilar ro'yxati, kechikkanlar tahlili.
-   - Hisobotlarni Excel va PDF formatida yuklab olish.
+| Modul Nomi | To‘liq Tushuntirish (AI & Dev Context) | Mas'uliyati |
+| :--- | :--- | :--- |
+| **Idrok Edu** | Barcha xizmatlarni o‘z ichiga olgan bosh ekotizim brendi. | Asosiy platforma, landing sahifasi va umumiy boshqaruv shlyuzi. |
+| **IdrokBoard** | Sinfdagi interaktiv aqlli doska dasturi (Smart Interactive Board OS/App). | Mavzuga mos AI vizualizatsiyasi, interaktiv doska, virtual laboratoriya va doska rejimlarini boshqarish. |
+| **Idrok Core** | Markaziy boshqaruv dvigateli (Backend & Data Processor). | Dars jadvallari algoritmi, Face ID/davomat oqimlari, rollar (RBAC) va ma'lumotlar bazasi integratsiyasi. |
+| **Idrok Vision** | Kameralar va Face ID bilan ishlovchi kompyuter ko‘rish moduli. | Kirish-chiqishdagi avtomatik davomat tahlili, darsdagi o‘quvchilar soni va ishtirok monitoringi. |
+| **Idrok Mobile** | O‘quvchi, o‘qituvchi va ota-onalar uchun kross-platforma mobil ilova. | Shaxsiy jadval, baholar, davomat bildirishnomalari va dars materiallari. |
 
 ---
 
 ## 2. Texnologik Stack
 
-- **Backend:** Python (`FastAPI`)
-- **Ma'lumotlar bazasi:** `SQLite` (ishlab chiqish uchun) / `PostgreSQL` (production) + `SQLAlchemy`
-- **Telegram Bot:** `Aiogram 3`
-- **Frontend / Dashboard:** `React` (Vite + Tailwind CSS + Lucide Icons)
-- **Mobil qism:** HTML5 Camera Scanner bilan mobil veb interfeys
+- **Idrok Core (Backend):** Python (`Django 6`, Django REST Framework) + SQLite / PostgreSQL
+- **Idrok Vision (Biometriya & ISAPI):** Hikvision MinMoe REST (ISAPI Digest Auth) + Face Embeddings + WebSocket/Polling
+- **Idrok Edu Web (Dashboard):** React (`Vite`, Lucide Icons, Leaflet Maps)
+- **Idrok Mobile (Mobil Ilova):** Flutter (`Dart 3`, Material 3, Connectivity Plus, Permission Handler)
+- **IdrokBoard (Aqlli Doska):** Electron / Web Canvas + Google Gemini AI integratsiyasi
+- **Xabarnomalar:** Telegram Bot API + SMS Gateway (Eskiz.uz)
 
 ---
 
-## 3. Loyiha Tuzilmasi
+## 3. Repozitoriy Tuzilmasi
 
 ```
 smart-school/
-├── backend/
-│   ├── app/
-│   │   ├── api/             # API endpoints (auth, attendance, classes, students)
-│   │   ├── core/            # Sozlamalar, xavfsizlik (JWT)
-│   │   ├── models/          # DB jadvallari
-│   │   ├── schemas/         # Pydantic modellari
-│   │   ├── services/        # QR kod logikasi, Telegram xabar yuborish
-│   │   └── main.py          # Asosiy dastur
-│   ├── bot/                 # Telegram bot kodi
-│   └── requirements.txt
-├── frontend/                # Web Dashboard, Sinf QR ekrani va Mobil Skaner
-│   ├── src/
-│   └── package.json
-└── README.md
+├── backend/            # Idrok Core & Idrok Vision dvigateli
+│   ├── api/            # API endpoints, Hikvision ISAPI servisi, Telegram xabarlar
+│   ├── config/         # Django konfiguratsiyasi va settings
+│   └── shooldex/       # IdrokBoard interaktiv doska backend API
+├── frontend/           # Idrok Edu Web Dashboard (Super Admin, Maktab Admin, Ustoz)
+│   ├── src/            # React UI komponentlari va sahifalari
+│   └── index.html      # Idrok Edu bosh sahifasi
+└── mobile_app/         # Idrok Mobile kross-platforma ilovasi (Flutter)
+    ├── lib/            # Onboarding, Splash, O'quvchi, Ustoz va IdrokBoard pulti
+    └── android/        # Android manifest va ruxsatlar
 ```

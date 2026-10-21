@@ -65,7 +65,7 @@ class _BoardConnectScreenState extends State<BoardConnectScreen> {
         final sessionId = res['session_id'] as int;
         final deviceToken = (res['device_token'] ?? token).toString();
         final teacherName = (res['teacher_name'] ?? ApiService.currentUser?['full_name'] ?? 'Ustoz').toString();
-        final deviceName = (res['device_name'] ?? 'Smart Board').toString();
+        final deviceName = (res['device_name'] ?? 'IdrokBoard').toString();
         final geminiKey = (res['gemini_api_key'] ?? '').toString();
         final savedCanvases = (res['saved_canvases'] as List<dynamic>?) ?? [];
 
@@ -126,7 +126,7 @@ class _BoardConnectScreenState extends State<BoardConnectScreen> {
           sessionId: _activeSession!['session_id'] as int,
           deviceToken: (_activeSession!['device_token'] ?? '').toString(),
           teacherName: (user['full_name'] ?? 'Ustoz').toString(),
-          deviceName: (_activeSession!['device_name'] ?? 'Smart Board').toString(),
+          deviceName: (_activeSession!['device_name'] ?? 'IdrokBoard').toString(),
           geminiApiKey: (_activeSession!['gemini_api_key'] ?? '').toString(),
           initialCanvases: (_activeSession!['saved_canvases'] as List<dynamic>?) ?? [],
         ),
@@ -182,7 +182,7 @@ class _BoardConnectScreenState extends State<BoardConnectScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Faol doska: ${_activeSession!['device_name'] ?? 'Smart Board'}",
+                            "Faol doska: ${_activeSession!['device_name'] ?? 'IdrokBoard'}",
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,

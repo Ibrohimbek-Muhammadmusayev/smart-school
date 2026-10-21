@@ -1320,7 +1320,7 @@ class TeacherManagePasswordsView(views.APIView):
             return Response({'detail': 'Ruxsat berilmagan.'}, status=status.HTTP_403_FORBIDDEN)
 
         student_id = request.data.get('student_id')
-        new_password = request.data.get('new_password') or f"Smart{secrets.randbelow(8999)+1000}"
+        new_password = request.data.get('new_password') or f"Idrok{secrets.randbelow(8999)+1000}"
 
         student = User.objects.get(id=student_id)
         if getattr(request.user, 'school_id', None) and student.school_id != request.user.school_id:

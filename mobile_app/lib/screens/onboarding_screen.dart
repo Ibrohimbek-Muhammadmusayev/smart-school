@@ -116,7 +116,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                       const SizedBox(width: 10),
                       const Text(
-                        "Smart School",
+                        "Idrok Edu",
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w900,
@@ -154,13 +154,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
                 children: [
                   _buildPage(
-                    badge: "1-BOSQICH",
+                    badge: "1-BOSQICH • IDROK VISION",
                     badgeColor: AppTheme.primary,
                     icon: Icons.face_retouching_natural_rounded,
                     iconGradient: AppTheme.primaryGradient,
-                    title: "Biometrik Face ID &\nAqlli Davomat",
+                    title: "Idrok Vision: Biometrik\nFace ID Nazorati",
                     description:
-                        "Smart School orqali yuzni tanish (Face ID), Hikvision terminallari va dinamik QR-kodlar yordamida darslarga kirish-chiqish 100% aniqlikda nazorat qilinadi.",
+                        "Idrok Vision orqali yuzni tanish (Face ID), Hikvision terminallari va dinamik QR-kodlar yordamida darslarga kirish-chiqish 100% aniqlikda nazorat qilinadi.",
                     permissionTitle: "Kamera ruxsati",
                     permissionDesc: "Face ID verifikatsiyasi va QR-kodlarni tezkor skanerlash uchun talab etiladi.",
                     isGranted: _cameraGranted,
@@ -168,7 +168,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     buttonText: _cameraGranted ? "Ruxsat berilgan ✅" : "Kamera ruxsatini berish 📷",
                   ),
                   _buildPage(
-                    badge: "2-BOSQICH",
+                    badge: "2-BOSQICH • IDROK CORE",
                     badgeColor: const Color(0xFFFF9F43),
                     icon: Icons.notifications_active_rounded,
                     iconGradient: const LinearGradient(
@@ -178,7 +178,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                     title: "Tezkor Xabardorlik &\nOta-onalar Nazorati",
                     description:
-                        "Dars jadvali, olingan baholar, turniketdan o'tish vaqti va darsdagi o'zgarishlar bo'yicha o'quvchi hamda ota-onaga bir zumda push va SMS xabarlar jo'natiladi.",
+                        "Dars jadvali, olingan baholar, Idrok Core davomat oqimlari va darsdagi o'zgarishlar bo'yicha o'quvchi hamda ota-onaga bir zumda push va SMS xabarlar jo'natiladi.",
                     permissionTitle: "Bildirishnomalar ruxsati",
                     permissionDesc: "Darslar boshlanishi va muhim yangiliklarni o'tkazib yubormaslik uchun kerak.",
                     isGranted: _notificationGranted,
@@ -186,7 +186,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     buttonText: _notificationGranted ? "Bildirishnomalar yoqilgan ✅" : "Bildirishnomalarga ruxsat 🔔",
                   ),
                   _buildPage(
-                    badge: "3-BOSQICH",
+                    badge: "3-BOSQICH • IDROK MOBILE",
                     badgeColor: const Color(0xFF10AC84),
                     icon: Icons.cloud_done_rounded,
                     iconGradient: const LinearGradient(
@@ -194,9 +194,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    title: "Doimiy Onlayn &\nXavfsiz Sinxronizatsiya",
+                    title: "Idrok Core Bilan\nDoimiy Onlayn Sinxronlash",
                     description:
-                        "Ilova faqat onlayn rejimda ishlaydi — ma'lumotlar soxtalashtirilishining oldini olish uchun Hikvision qurilmalari va markaziy server bilan to'g'ridan-to'g'ri bog'langan.",
+                        "Idrok Mobile faqat onlayn rejimda ishlaydi — ma'lumotlar soxtalashtirilishining oldini olish uchun Idrok Vision va Idrok Core markaziy serveri bilan uzluksiz bog'langan.",
                     permissionTitle: "Internet aloqasi talabi",
                     permissionDesc: "Face ID va davomat uchun uzluksiz tarmoq aloqasi bo'lishi shart.",
                     isGranted: _isOnline,

@@ -4,16 +4,16 @@ import 'theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const SmartSchoolApp());
+  runApp(const IdrokEduApp());
 }
 
-class SmartSchoolApp extends StatelessWidget {
-  const SmartSchoolApp({super.key});
+class IdrokEduApp extends StatelessWidget {
+  const IdrokEduApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart School',
+      title: 'Idrok Edu',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       home: const SplashScreen(),

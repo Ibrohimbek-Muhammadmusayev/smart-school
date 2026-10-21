@@ -7,7 +7,7 @@ import uuid
 class BoardDevice(models.Model):
     """Electron doska qurilmasi"""
     device_token = models.CharField(max_length=64, unique=True)  # QR kodda ko'rsatiladigan token
-    device_name = models.CharField(max_length=100, default='Smart Board')
+    device_name = models.CharField(max_length=100, default='IdrokBoard')
     gemini_api_key = models.CharField(max_length=200, blank=True, default='')  # Qurilmada saqlangan API key
     created_at = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)

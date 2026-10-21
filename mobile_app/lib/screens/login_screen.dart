@@ -157,10 +157,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    "Smart School",
+                    "Idrok Edu",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 30,
                       fontWeight: FontWeight.w900,
                       color: AppTheme.textDark,
                       letterSpacing: -0.5,
@@ -168,9 +168,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    "Davomat va LMS ta'lim platformasi",
+                    "Idrok Mobile — Davomat va Ta'lim Ekotizimi",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: AppTheme.textMuted),
+                    style: TextStyle(fontSize: 13.5, color: AppTheme.textMuted, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 36),
 

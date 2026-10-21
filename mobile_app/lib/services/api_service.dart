@@ -16,7 +16,7 @@ class ApiService {
   static String get schoolName {
     return (schoolConfig?['school_name'] as String?) ??
         (currentUser?['school_name'] as String?) ??
-        'Smart School';
+        'Idrok Edu';
   }
 
   static String get groupTermSingular {
