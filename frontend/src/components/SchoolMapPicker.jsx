@@ -24,9 +24,10 @@ const createSchoolPinIcon = (label = "Maktab") => {
           border: 1.5px solid #6366F1;
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 6px;
         ">
-          🏫 ${label}
+          <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="#818CF8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 8-4 8 4"/><path d="m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2"/><path d="M14 22v-4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v4"/><path d="M18 5v17"/><path d="M6 5v17"/></svg>
+          <span>${label}</span>
         </div>
         <div style="
           background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);
@@ -41,7 +42,7 @@ const createSchoolPinIcon = (label = "Maktab") => {
           box-shadow: 0 8px 18px rgba(239, 68, 68, 0.45);
           border: 2.5px solid #FFFFFF;
         ">
-          <span style="transform: rotate(45deg); font-size: 18px; line-height: 1;">📍</span>
+          <svg style="transform: rotate(45deg); width: 17px; height: 17px;" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
         <div style="
           width: 12px;
@@ -407,7 +408,7 @@ export default function SchoolMapPicker({
               boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
             }}>
             <Navigation size={14} color="#4F46E5" className={geoLocating ? "animate-spin" : ""} />
-            {geoLocating ? "Aniqlanmoqda..." : "📍 Joriy GPS lokatsiyam"}
+            {geoLocating ? "Aniqlanmoqda..." : "Joriy GPS lokatsiyam"}
           </button>
 
           {/* Search Results Dropdown */}
@@ -439,11 +440,15 @@ export default function SchoolMapPicker({
                     cursor: 'pointer',
                     color: '#1E293B',
                     fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#EEF2FF'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
                 >
-                  📍 {item.display_name}
+                  <MapPin size={13} color="#4F46E5" style={{ flexShrink: 0 }} />
+                  <span>{item.display_name}</span>
                 </div>
               ))}
             </div>
@@ -638,7 +643,7 @@ export default function SchoolMapPicker({
                   boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)',
                 }}>
                   <ShieldCheck size={18} color="#10B981" />
-                  <span>✓ Joylashuv Bazada Tasdiqlangan</span>
+                  <span>Joylashuv Bazada Tasdiqlangan</span>
                 </div>
               ) : null}
 
@@ -671,7 +676,7 @@ export default function SchoolMapPicker({
                   ) : (
                     <>
                       <CheckCircle2 size={17} />
-                      {isConfirmed ? "Joylashuvni Qayta Saqlash 💾" : "📍 Joylashuvni Tasdiqlash va Saqlash 💾"}
+                      {isConfirmed ? "Joylashuvni Qayta Saqlash" : "Joylashuvni Tasdiqlash va Saqlash"}
                     </>
                   )}
                 </button>

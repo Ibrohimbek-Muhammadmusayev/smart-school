@@ -9,7 +9,9 @@ import {
   Calendar, CheckCircle, UserX, QrCode, GraduationCap, Clock,
   FolderOpen, EyeOff, Sparkles, Smartphone, ChevronDown, Check,
   Edit, Trash2, Copy, ZoomIn, ExternalLink,
-  Radio, Play, Pause, Cpu, Upload
+  Radio, Play, Pause, Cpu, Upload, Settings,
+  Sun, Sunset, Camera, ScanFace, DoorOpen, Globe, FileText, FileSpreadsheet,
+  Star, Zap, FlaskConical, ShieldCheck, CheckSquare, Square
 } from 'lucide-react';
 import SuperAdminDashboardView from './SuperAdminDashboard';
 import SchoolMapPicker from './components/SchoolMapPicker';
@@ -510,7 +512,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
     );
     if (matchedSchool) {
       if (matchedSchool.status === 'BLOCKED') {
-        setLoginError(`⛔ "${matchedSchool.name}" hisobi Super Admin tomonidan vaqtincha bloklangan!`);
+        setLoginError(`"${matchedSchool.name}" hisobi Super Admin tomonidan vaqtincha bloklangan!`);
         return;
       }
       onLoginSuccess({
@@ -627,7 +629,11 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
             type="submit" 
             disabled={loading}
             style={{ width: '100%', padding: 15, background: THEME.gradient, color: 'white', borderRadius: 18, border: 'none', fontWeight: 800, fontSize: 15, cursor: loading ? 'wait' : 'pointer', marginTop: 10, boxShadow: '0 10px 20px rgba(108, 92, 231, 0.3)', opacity: loading ? 0.7 : 1 }}>
-            {loading ? "Tekshirilmoqda..." : "Tizimga Kirish  ➔"}
+            {loading ? "Tekshirilmoqda..." : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                Tizimga Kirish <ChevronRight size={16} />
+              </span>
+            )}
           </button>
         </form>
 
@@ -903,7 +909,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         `${formData.subject_name || 'Dars'}`,
         `${schoolName} — dars jadvaliga dars ${isEdit ? "yangilandi" : "kiritildi"}`
       );
-      alert(result.message || "✅ Dars jadvali muvaffaqiyatli saqlandi!");
+      alert(result.message || "Dars jadvali muvaffaqiyatli saqlandi!");
     } catch (err) {
       alert("Xatolik: " + err.message);
     }
@@ -944,7 +950,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       const result = await res.json();
       await fetchSchedules();
       appendGlobalAudit('SEED_SCHEDULE', className || 'Sinf', `${schoolName} — ${className} uchun haftalik dars jadvali avtomatik yaratildi`);
-      alert(result.message || "✅ Haftalik dars jadvali to'liq to'ldirildi!");
+      alert(result.message || "Haftalik dars jadvali to'liq to'ldirildi!");
     } catch (err) {
       alert("Xatolik: " + err.message);
     } finally {
@@ -1064,7 +1070,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       setSelectedGroupFilter(created.name);
       setShowAddGroupModal(false);
       setNewGroup({ name: '', academicYear: schoolConfig?.academic_year || '2026-2027', teacher: '', room: '', shift: 1 });
-      alert(`✅ "${created.name}" ${terms.groupGenitiveLower} "${schoolName}" bazasida muvaffaqiyatli yaratildi!`);
+      alert(`"${created.name}" ${terms.groupGenitiveLower} "${schoolName}" bazasida muvaffaqiyatli yaratildi!`);
     } catch (err) {
       alert("Xatolik: " + err.message);
     }
@@ -1098,7 +1104,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       );
       // O'quvchilar ro'yxatidagi class_name larni yangilash uchun backenddan qayta olamiz
       fetchBackendData();
-      alert(`✅ "${updated.name}" ${terms.groupGenitiveLower} muvaffaqiyatli yangilandi!`);
+      alert(`"${updated.name}" ${terms.groupGenitiveLower} muvaffaqiyatli yangilandi!`);
     } catch (err) {
       alert("Xatolik: " + err.message);
     }
@@ -1179,9 +1185,9 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       setShowAddTeacherModal(false);
       setNewTeacher({ name: '', subject: '', phone: '+998 ', group: '', rooms: '', password: '', photo: null, photoPreview: null });
       alert(
-        `✅ Ustoz "${createdTeacher.name}" faqat "${schoolName}" bazasiga muvaffaqiyatli qo'shildi!\n\n` +
-        `🔑 5 xonali Kirish ID raqami: ${createdTeacher.teacher_id || createdTeacher.username}\n` +
-        `🔒 Maxfiy Parol: ${createdTeacher.initial_password || newTeacher.password?.trim() || 'teacher123'}\n\n` +
+        `Ustoz "${createdTeacher.name}" faqat "${schoolName}" bazasiga muvaffaqiyatli qo'shildi!\n\n` +
+        `5 xonali Kirish ID raqami: ${createdTeacher.teacher_id || createdTeacher.username}\n` +
+        `Maxfiy Parol: ${createdTeacher.initial_password || newTeacher.password?.trim() || 'teacher123'}\n\n` +
         `O'qituvchi ushbu 5 xonali unikal ID va parol orqali veb-kabinetga hamda mobil ilovaga kirishi mumkin.`
       );
     } catch (err) {
@@ -1207,7 +1213,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       }
       setEditingTeacher(null);
       appendGlobalAudit('UPDATE_TEACHER', updated.name, `Ustoz "${updated.name}" ma'lumotlari "${actorLabel}" tomonidan yangilandi`);
-      alert(`✅ Ustoz "${updated.name}" ma'lumotlari muvaffaqiyatli yangilandi!`);
+      alert(`Ustoz "${updated.name}" ma'lumotlari muvaffaqiyatli yangilandi!`);
     } catch (err) {
       alert("Xatolik: " + err.message);
     }
@@ -1300,7 +1306,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         photoPreview: null
       });
       alert(
-        `✅ Yangi ${terms.studentSingularLower} "${schoolName}" bazasiga qo'shildi!\n` +
+        `Yangi ${terms.studentSingularLower} "${schoolName}" bazasiga qo'shildi!\n` +
         `Kirish ID (5 xonali): ${created.student_id}\n` +
         `Paroli: ${created.initial_password}\n` +
         `Yaratuvchi: ${created.created_by}`
@@ -1328,7 +1334,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       }
       setEditingStudent(null);
       appendGlobalAudit('UPDATE_STUDENT', `${updated.last_name} ${updated.first_name}`, `${terms.studentSingular} ma'lumotlari "${actorLabel}" tomonidan yangilandi`);
-      alert(`✅ ${terms.studentSingular} ma'lumotlari muvaffaqiyatli yangilandi!`);
+      alert(`${terms.studentSingular} ma'lumotlari muvaffaqiyatli yangilandi!`);
     } catch (err) {
       alert("Xatolik: " + err.message);
     }
@@ -1348,7 +1354,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         setSelectedStudentForModal(null);
       }
       appendGlobalAudit('DELETE_STUDENT', studentName, `${terms.studentSingular} "${schoolName}" bazasidan "${actorLabel}" tomonidan o'chirildi`);
-      alert(`🗑️ "${studentName}" ushbu maktab bazasidan muvaffaqiyatli o'chirildi!`);
+      alert(`"${studentName}" ushbu maktab bazasidan muvaffaqiyatli o'chirildi!`);
     } catch (err) {
       alert("Xatolik: " + err.message);
     }
@@ -1391,14 +1397,14 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<FolderOpen size={18} />} label={`${terms.groupPlural} Boshqaruvi`} badge={`${classesList.length} ta`} />
           <NavButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} icon={<Users size={18} />} label={terms.studentPlural} badge={`${realStudents.length} ta`} />
           <NavButton active={activeTab === 'teachers'} onClick={() => setActiveTab('teachers')} icon={<GraduationCap size={18} />} label="O'qituvchilar" badge={`${teachersList.length} ta`} />
-          <NavButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<Cpu size={18} />} label="Idrok Vision (Face ID)" badge="Jonli 🔴" />
+          <NavButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<Cpu size={18} />} label="Idrok Vision (Face ID)" badge="Jonli" />
           <div style={{ margin: '6px 4px', borderTop: `1px dashed ${THEME.border}` }} />
           <NavButton
             active={activeTab === 'settings'}
             onClick={() => setActiveTab('settings')}
             icon={<Sliders size={18} />}
             label="Maktab Sozlamalari"
-            badge={isLocationMissing ? "📍 Kiritish shart!" : terms.groupSingular}
+            badge={isLocationMissing ? "Kiritish shart!" : terms.groupSingular}
             badgeColor={isLocationMissing ? "#EF4444" : undefined}
           />
         </div>
@@ -1424,7 +1430,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               gap: 8,
               boxShadow: '0 8px 18px rgba(255, 101, 132, 0.3)',
             }}>
-            <Shield size={16} /> ⬅ Super Adminga Qaytish
+            <Shield size={16} /> Super Adminga Qaytish
           </button>
         )}
 
@@ -1465,8 +1471,8 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                 {activeTab === 'attendance' && `Idrok Vision • Bino va ${terms.groupPlural} Bo'yicha Jonli Davomat Auditi`}
                 {activeTab === 'settings' && "Maktab Sozlamalari va Tizim Konfiguratsiyasi (Nastroyka)"}
               </h1>
-              <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800, fontSize: 11.5 }}>
-                🔒 Faqat {schoolName} bazasi
+              <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Lock size={12} /> Faqat {schoolName} bazasi
               </span>
               <button
                 onClick={() => setActiveTab('settings')}
@@ -1621,9 +1627,12 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                       backgroundColor: '#FEE2E2',
                       color: '#B91C1C',
                       padding: '2px 8px',
-                      borderRadius: 6
+                      borderRadius: 6,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
                     }}>
-                      ⚠️ TO'LDIRISH MAJBURIY
+                      <AlertTriangle size={12} /> TO'LDIRISH MAJBURIY
                     </span>
                     <h4 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#991B1B' }}>
                       Diqqat: Maktab / Kollejning xaritadagi geometkasi belgilanmagan!
@@ -2235,8 +2244,15 @@ function GroupsManagementSection({
                           fontWeight: 800,
                           backgroundColor: isSel ? 'rgba(255,255,255,0.25)' : (c.shift === 2 ? '#FEF3C7' : '#EFF6FF'),
                           color: isSel ? '#FFFFFF' : (c.shift === 2 ? '#B45309' : '#1D4ED8'),
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3
                         }}>
-                          {c.shift === 2 ? "🌇 2-smena (Abeddan keyin)" : "🌅 1-smena (Ertalabki)"}
+                          {c.shift === 2 ? (
+                            <><Sunset size={10} /> 2-smena (Abeddan keyin)</>
+                          ) : (
+                            <><Sun size={10} /> 1-smena (Ertalabki)</>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -2457,14 +2473,23 @@ function GroupsManagementSection({
                       border: currentClassObj.shift === 2 ? '1px solid #FDE68A' : '1px solid #BFDBFE',
                       fontWeight: 800,
                       fontSize: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
                     }}>
-                    {currentClassObj.shift === 2 ? "🌇 2-smena (Abeddan keyingi)" : "🌅 1-smena (Ertalabki)"}
+                    {currentClassObj.shift === 2 ? (
+                      <><Sunset size={12} /> 2-smena (Abeddan keyingi)</>
+                    ) : (
+                      <><Sun size={12} /> 1-smena (Ertalabki)</>
+                    )}
                   </span>
                 )}
               </div>
               <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 5, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                  <span>👨‍🏫 {terms.advisorLabel}: <b style={{ color: THEME.textDark }}>{activeAdvisor.teacher}</b></span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <GraduationCap size={13} /> {terms.advisorLabel}: <b style={{ color: THEME.textDark }}>{activeAdvisor.teacher}</b>
+                  </span>
                   {matchedAdvisorTeacher && (
                     <span style={{ padding: '2px 8px', borderRadius: 8, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 700, fontSize: 11 }}>
                       {matchedAdvisorTeacher.subject}
@@ -2511,10 +2536,10 @@ function GroupsManagementSection({
                     </button>
                   )}
                 </span>
-                {activeAdvisor.room && <span>📍 Xona: <b style={{ color: THEME.textDark }}>{activeAdvisor.room}</b></span>}
-                <span>📅 O'quv yili: <b style={{ color: THEME.textDark }}>{currentClassObj?.academic_year || '2026-2027'}</b></span>
+                {activeAdvisor.room && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><DoorOpen size={12} /> Xona: <b style={{ color: THEME.textDark }}>{activeAdvisor.room}</b></span>}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Calendar size={12} /> O'quv yili: <b style={{ color: THEME.textDark }}>{currentClassObj?.academic_year || '2026-2027'}</b></span>
                 {currentClassObj?.created_by && (
-                  <span>🛡️ {terms.groupSingular} yaratuvchisi: <b style={{ color: THEME.primary }}>{currentClassObj.created_by}</b></span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ShieldCheck size={12} /> {terms.groupSingular} yaratuvchisi: <b style={{ color: THEME.primary }}>{currentClassObj.created_by}</b></span>
                 )}
               </div>
             </div>
@@ -2779,8 +2804,8 @@ function GroupsManagementSection({
                       }}>
                       Yaratdi: <b style={{ color: THEME.textDark }}>{st.created_by || "Maktab Direktori"}</b>
                     </div>
-                    <div style={{ fontSize: 10.5, color: THEME.textMuted, marginTop: 2 }}>
-                      🕒 {st.date_joined || '2026-10-18'} • Parol: <code>{st.initial_password}</code>
+                    <div style={{ fontSize: 10.5, color: THEME.textMuted, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Clock size={11} /> {st.date_joined || '2026-10-18'} • Parol: <code>{st.initial_password}</code>
                     </div>
                   </div>
 
@@ -3229,8 +3254,8 @@ function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onPreviewI
               {terms.formatGroupBadge(student.class_name)} • {student.school_name || `Maktab #${student.school_id}`}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-              <span style={{ padding: '3px 8px', backgroundColor: '#ECFDF5', color: THEME.green, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
-                Face ID faol ✅
+              <span style={{ padding: '3px 8px', backgroundColor: '#ECFDF5', color: THEME.green, borderRadius: 8, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <ScanFace size={11} /> Face ID faol
               </span>
               <span style={{ padding: '3px 8px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
                 Maktab ID #{student.school_id || '1'}
@@ -3377,8 +3402,8 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
               {teacher.subject} • {teacher.school_name || schoolName}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-              <span style={{ padding: '3px 8px', backgroundColor: '#ECFDF5', color: THEME.green, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
-                Mobil QR faol ✅
+              <span style={{ padding: '3px 8px', backgroundColor: '#ECFDF5', color: THEME.green, borderRadius: 8, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <QrCode size={11} /> Mobil QR faol
               </span>
               <span style={{ padding: '3px 8px', backgroundColor: isSuperCreator ? '#FFF0F3' : '#F1F0FF', color: isSuperCreator ? '#E11D48' : THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
                 {isSuperCreator ? 'SUPER ADMIN' : 'MAKTAB ADMINI'}
@@ -3518,16 +3543,16 @@ function ScheduleManagementSection({
 
   const getSubjectColor = (name = '') => {
     const s = name.toLowerCase();
-    if (s.includes('matem') || s.includes('algeb') || s.includes('geom')) return { bg: '#EEF2FF', text: '#4F46E5', border: '#C7D2FE', badge: '📐' };
-    if (s.includes('fizik')) return { bg: '#E0F2FE', text: '#0284C7', border: '#BAE6FD', badge: '⚡' };
-    if (s.includes('kimyo')) return { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A', badge: '🧪' };
-    if (s.includes('biolog')) return { bg: '#ECFDF5', text: '#059669', border: '#A7F3D0', badge: '🌿' };
-    if (s.includes('ingliz') || s.includes('rus') || s.includes('til')) return { bg: '#FDF4FF', text: '#C026D3', border: '#F5D0FE', badge: '🌐' };
-    if (s.includes('adabiyot') || s.includes('ona tili')) return { bg: '#FFF1F2', text: '#E11D48', border: '#FECDD3', badge: '📖' };
-    if (s.includes('tarix') || s.includes('huquq')) return { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A', badge: '🏛️' };
-    if (s.includes('inform') || s.includes('it') || s.includes('dastur')) return { bg: '#ECFEFF', text: '#0891B2', border: '#A5F3FC', badge: '💻' };
-    if (s.includes('jismoniy') || s.includes('sport')) return { bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0', badge: '⚽' };
-    return { bg: '#F1F5F9', text: '#475569', border: '#CBD5E1', badge: '📚' };
+    if (s.includes('matem') || s.includes('algeb') || s.includes('geom')) return { bg: '#EEF2FF', text: '#4F46E5', border: '#C7D2FE', badge: <BookOpen size={15} color="#4F46E5" /> };
+    if (s.includes('fizik')) return { bg: '#E0F2FE', text: '#0284C7', border: '#BAE6FD', badge: <Zap size={15} color="#0284C7" /> };
+    if (s.includes('kimyo')) return { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A', badge: <FlaskConical size={15} color="#D97706" /> };
+    if (s.includes('biolog')) return { bg: '#ECFDF5', text: '#059669', border: '#A7F3D0', badge: <Activity size={15} color="#059669" /> };
+    if (s.includes('ingliz') || s.includes('rus') || s.includes('til')) return { bg: '#FDF4FF', text: '#C026D3', border: '#F5D0FE', badge: <Globe size={15} color="#C026D3" /> };
+    if (s.includes('adabiyot') || s.includes('ona tili')) return { bg: '#FFF1F2', text: '#E11D48', border: '#FECDD3', badge: <FileText size={15} color="#E11D48" /> };
+    if (s.includes('tarix') || s.includes('huquq')) return { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A', badge: <Building2 size={15} color="#B45309" /> };
+    if (s.includes('inform') || s.includes('it') || s.includes('dastur')) return { bg: '#ECFEFF', text: '#0891B2', border: '#A5F3FC', badge: <Cpu size={15} color="#0891B2" /> };
+    if (s.includes('jismoniy') || s.includes('sport')) return { bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0', badge: <Award size={15} color="#16A34A" /> };
+    return { bg: '#F1F5F9', text: '#475569', border: '#CBD5E1', badge: <BookOpen size={15} color="#475569" /> };
   };
 
   if (classesList.length === 0) {
@@ -3587,7 +3612,7 @@ function ScheduleManagementSection({
                   backgroundColor: '#FFF9F2', color: THEME.orange,
                   fontWeight: 800, fontSize: 12.5, cursor: 'pointer'
                 }}>
-                <Sparkles size={15} /> ⚡ Namuna Jadval Yuklash
+                <Sparkles size={15} /> Namuna Jadval Yuklash
               </button>
             )}
 
@@ -3655,19 +3680,28 @@ function ScheduleManagementSection({
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <span>Tanlangan {terms.groupSingularLower}: <b style={{ color: THEME.primary, fontSize: 14 }}>{currentClass.name}</b></span>
               <span style={{
-                padding: '2px 8px',
+                padding: '3px 8px',
                 borderRadius: 8,
                 fontSize: 11,
                 fontWeight: 800,
                 backgroundColor: classShift === 2 ? '#FEF3C7' : '#EFF6FF',
                 color: classShift === 2 ? '#B45309' : '#1D4ED8',
                 border: classShift === 2 ? '1px solid #FDE68A' : '1px solid #BFDBFE',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5
               }}>
-                {classShift === 2 ? "🌇 2-smena (Abeddan keyingi)" : "🌅 1-smena (Ertalabki)"}
+                {classShift === 2 ? <><Sunset size={12} /> 2-smena (Abeddan keyingi)</> : <><Sun size={12} /> 1-smena (Ertalabki)</>}
               </span>
-              <span>👨‍🏫 {terms.advisorLabel}: <b style={{ color: THEME.textDark }}>{currentClass.advisor_teacher || "Belgilanmagan"}</b></span>
-              <span>📍 Xona: <b style={{ color: THEME.textDark }}>{currentClass.room_number || "Asosiy bino"}</b></span>
-              <span>⏱️ Dars: <b style={{ color: THEME.primary }}>{schoolConfig?.lesson_duration_minutes || 45} daqiqa</b> ({standardSlots[0]?.start || (classShift === 2 ? '13:30' : '08:30')} dan)</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <GraduationCap size={14} color={THEME.primary} /> {terms.advisorLabel}: <b style={{ color: THEME.textDark }}>{currentClass.advisor_teacher || "Belgilanmagan"}</b>
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <MapPin size={13} color={THEME.orange} /> Xona: <b style={{ color: THEME.textDark }}>{currentClass.room_number || "Asosiy bino"}</b>
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Clock size={13} color={THEME.primary} /> Dars: <b style={{ color: THEME.primary }}>{schoolConfig?.lesson_duration_minutes || 45} daqiqa</b> ({standardSlots[0]?.start || (classShift === 2 ? '13:30' : '08:30')} dan)
+              </span>
               {onGoToSettings && (
                 <button
                   onClick={onGoToSettings}
@@ -3679,9 +3713,12 @@ function ScheduleManagementSection({
                     fontSize: 11,
                     fontWeight: 800,
                     color: THEME.primary,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4
                   }}>
-                  ⚙️ Vaqtni Sozlash
+                  <Settings size={12} /> Vaqtni Sozlash
                 </button>
               )}
             </div>
@@ -3834,7 +3871,7 @@ function ScheduleManagementSection({
 
                             <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{ fontSize: 16 }}>{colorScheme.badge}</span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center' }}>{colorScheme.badge}</span>
                                 <span style={{ fontWeight: 900, fontSize: 16, color: THEME.textDark }}>
                                   {lesson.subject_name}
                                 </span>
@@ -3853,8 +3890,9 @@ function ScheduleManagementSection({
                               </div>
 
                               {lesson.topic && (
-                                <div style={{ fontSize: 12, color: THEME.textDark, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                  <span>📝 Mavzu:</span>
+                                <div style={{ fontSize: 12, color: THEME.textDark, marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                  <FileText size={12} color={THEME.primary} />
+                                  <span>Mavzu:</span>
                                   <b>{lesson.topic}</b>
                                 </div>
                               )}
@@ -3865,7 +3903,7 @@ function ScheduleManagementSection({
                           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF', padding: '6px 12px', borderRadius: 12, border: `1px solid ${colorScheme.border}` }}>
                               <div style={{ width: 26, height: 26, borderRadius: '50%', backgroundColor: THEME.primaryLight, color: THEME.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11 }}>
-                                👨‍🏫
+                                <GraduationCap size={14} />
                               </div>
                               <div>
                                 <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark }}>
@@ -3877,8 +3915,9 @@ function ScheduleManagementSection({
                               </div>
                             </div>
 
-                            <div style={{ backgroundColor: '#FFFFFF', padding: '8px 12px', borderRadius: 12, border: `1px solid ${colorScheme.border}`, fontWeight: 800, fontSize: 12, color: THEME.textDark }}>
-                              📍 {lesson.room_number || currentClass?.room_number || "Xona belgilanmagan"}
+                            <div style={{ backgroundColor: '#FFFFFF', padding: '8px 12px', borderRadius: 12, border: `1px solid ${colorScheme.border}`, fontWeight: 800, fontSize: 12, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              <MapPin size={13} color={THEME.orange} />
+                              <span>{lesson.room_number || currentClass?.room_number || "Xona belgilanmagan"}</span>
                             </div>
                           </div>
 
@@ -4031,11 +4070,13 @@ function ScheduleManagementSection({
                                 </button>
                               </div>
                             </div>
-                            <div style={{ fontSize: 10.5, color: THEME.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              👨‍🏫 {item.teacher_full_name || item.teacher_name || "Ustoz"}
+                            <div style={{ fontSize: 10.5, color: THEME.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <GraduationCap size={11} color={THEME.primary} />
+                              <span>{item.teacher_full_name || item.teacher_name || "Ustoz"}</span>
                             </div>
-                            <div style={{ fontSize: 10, color: colorScheme.text, fontWeight: 700 }}>
-                              📍 {item.room_number || currentClass?.room_number || "Xona"}
+                            <div style={{ fontSize: 10, color: colorScheme.text, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <MapPin size={10} />
+                              <span>{item.room_number || currentClass?.room_number || "Xona"}</span>
                             </div>
                           </div>
                         ) : (
@@ -4221,8 +4262,11 @@ function AddEditLessonModal({
                   borderRadius: 6,
                   backgroundColor: classShift === 2 ? '#FEF3C7' : '#EFF6FF',
                   color: classShift === 2 ? '#B45309' : '#1D4ED8',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4
                 }}>
-                  {classShift === 2 ? "🌇 2-smena" : "🌅 1-smena"}
+                  {classShift === 2 ? <><Sunset size={10} /> 2-smena</> : <><Sun size={10} /> 1-smena</>}
                 </span>
               </div>
               <select
@@ -4529,13 +4573,13 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
                           {st.created_by || "Maktab Direktori"}
                         </span>
                       </div>
-                      <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 3 }}>
-                        🕒 Yaratilgan vaqti: <b>{st.date_joined || '2026-10-18'}</b>
+                      <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Clock size={11} /> Yaratilgan vaqti: <b>{st.date_joined || '2026-10-18'}</b>
                       </div>
                     </td>
                     <td style={{ padding: '14px' }}>
-                      <span style={{ padding: '4px 8px', backgroundColor: '#F8FAFC', border: `1px solid ${THEME.border}`, color: THEME.textDark, borderRadius: 8, fontWeight: 700, fontSize: 11 }}>
-                        🔒 {st.school_name || schoolName}
+                      <span style={{ padding: '4px 8px', backgroundColor: '#F8FAFC', border: `1px solid ${THEME.border}`, color: THEME.textDark, borderRadius: 8, fontWeight: 700, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Building2 size={11} color={THEME.primary} /> {st.school_name || schoolName}
                       </span>
                     </td>
                     <td style={{ padding: '14px', textAlign: 'right' }}>
@@ -4785,13 +4829,13 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
                         {t.created_by || "Maktab Direktori"}
                       </span>
                     </div>
-                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 3 }}>
-                      🕒 Yaratilgan vaqti: <b>{t.created_at || '2026-10-18'}</b>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Clock size={11} /> Yaratilgan vaqti: <b>{t.created_at || '2026-10-18'}</b>
                     </div>
                   </td>
                   <td style={{ padding: '14px' }}>
-                    <span style={{ padding: '4px 8px', backgroundColor: '#F8FAFC', border: `1px solid ${THEME.border}`, color: THEME.textDark, borderRadius: 8, fontWeight: 700, fontSize: 11 }}>
-                      🔒 {t.school_name || schoolName}
+                    <span style={{ padding: '4px 8px', backgroundColor: '#F8FAFC', border: `1px solid ${THEME.border}`, color: THEME.textDark, borderRadius: 8, fontWeight: 700, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Building2 size={11} color={THEME.primary} /> {t.school_name || schoolName}
                     </span>
                   </td>
                   <td style={{ padding: '14px', textAlign: 'right' }}>
@@ -5098,7 +5142,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         unrecognized_today: 0,
         success_rate: 100,
       });
-      alert("✅ Audit loglari tozalandi.");
+      alert("Audit loglari tozalandi.");
     } catch (err) {
       alert("Xatolik: " + err.message);
     }
@@ -5278,7 +5322,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               boxShadow: '0 6px 14px rgba(99, 102, 241, 0.3)',
             }}>
             <Upload size={14} />
-            🔄 Terminalga Yuklash (ISAPI Sync)
+            Terminalga Yuklash (ISAPI Sync)
           </button>
 
           <button
@@ -5297,7 +5341,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               cursor: 'pointer',
             }}>
             <Radio size={14} />
-            📡 Hikvision API Yo'riqnomasi
+            Hikvision API Yo'riqnomasi
           </button>
         </div>
       </div>
@@ -5318,7 +5362,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
           animation: 'fadeIn 0.3s ease',
         }}>
           <span>{actionNotice.text}</span>
-          <button onClick={() => setActionNotice(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 800 }}>✕</button>
+          <button onClick={() => setActionNotice(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><X size={15} /></button>
         </div>
       )}
 
@@ -5351,7 +5395,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         <KpiCard
           title="Noma'lum / Begonalar"
           value={`${stats.unrecognized_today || 0} ta`}
-          sub={stats.unrecognized_today > 0 ? "⚠️ Xavfsizlik signali" : "Xavfsizlik nazorati me'yorda"}
+          sub={stats.unrecognized_today > 0 ? "Xavfsizlik signali" : "Xavfsizlik nazorati me'yorda"}
           color={stats.unrecognized_today > 0 ? "#EF4444" : THEME.textMuted}
         />
       </div>
@@ -5369,7 +5413,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         gap: 14,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: THEME.textDark }}>⚡ Tezkor Test Sinovlari:</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Zap size={14} color={THEME.primary} /> Tezkor Test Sinovlari:</span>
           <span style={{ fontSize: 11.5, color: THEME.textMuted }}>(Hikvision qurilmasidan keladigan signallarni sinab ko'rish)</span>
         </div>
 
@@ -5390,7 +5434,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               alignItems: 'center',
               gap: 6,
             }}>
-            🟢 + Face ID KIRISH (Tasodifiy)
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22C55E' }} /> + Face ID KIRISH (Tasodifiy)
           </button>
 
           <button
@@ -5409,7 +5453,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               alignItems: 'center',
               gap: 6,
             }}>
-            🟠 - Turniket CHIQISH (Tasodifiy)
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#F97316' }} /> - Turniket CHIQISH (Tasodifiy)
           </button>
 
           <button
@@ -5428,7 +5472,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               alignItems: 'center',
               gap: 6,
             }}>
-            ⚠️ Noma'lum Shaxs (Xavfsizlik)
+            <AlertTriangle size={13} /> Noma'lum Shaxs (Xavfsizlik)
           </button>
         </div>
       </div>
@@ -5514,8 +5558,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 fontWeight: 800,
                 fontSize: 12,
                 cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6
               }}>
-              🟢 Faqat Kirishlar ({stats.today_entries || 0})
+              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22C55E' }} /> Faqat Kirishlar ({stats.today_entries || 0})
             </button>
             <button
               onClick={() => setDirectionFilter('OUT')}
@@ -5528,8 +5575,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 fontWeight: 800,
                 fontSize: 12,
                 cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6
               }}>
-              🟠 Faqat Chiqishlar ({stats.today_exits || 0})
+              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#F97316' }} /> Faqat Chiqishlar ({stats.today_exits || 0})
             </button>
             <button
               onClick={() => setDirectionFilter('UNKNOWN')}
@@ -5542,8 +5592,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 fontWeight: 800,
                 fontSize: 12,
                 cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6
               }}>
-              ⚠️ Begona / Noma'lum ({stats.unrecognized_today || 0})
+              <AlertTriangle size={12} color="#DC2626" /> Begona / Noma'lum ({stats.unrecognized_today || 0})
             </button>
           </div>
 
@@ -5653,9 +5706,19 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                           fontSize: 11.5,
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 5,
+                          gap: 6,
                         }}>
-                          {isEntry ? '🟢 KIRISH' : '🟠 CHIQISH'}
+                          {isEntry ? (
+                            <>
+                              <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#15803D' }} />
+                              KIRISH
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#C2410C' }} />
+                              CHIQISH
+                            </>
+                          )}
                         </span>
                       </td>
 
@@ -5676,11 +5739,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                           color: (log.confidence || 0) >= 90 ? THEME.green : '#D97706',
                           fontSize: 12.5,
                         }}>
-                          🎯 {log.confidence ? `${log.confidence}%` : '99.0%'}
+                          {log.confidence ? `${log.confidence}%` : '99.0%'}
                         </div>
                         {log.temperature && (
                           <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 700 }}>
-                            🌡️ {log.temperature}°C
+                            {log.temperature}°C
                           </div>
                         )}
                       </td>
@@ -5695,8 +5758,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                             color: THEME.green,
                             fontWeight: 800,
                             fontSize: 11,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4
                           }}>
-                            ✅ Qabul qilindi
+                            <CheckCircle2 size={12} /> Qabul qilindi
                           </span>
                         ) : (
                           <span style={{
@@ -5706,8 +5772,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                             color: '#B91C1C',
                             fontWeight: 800,
                             fontSize: 11,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4
                           }}>
-                            ⚠️ Noma'lum Shaxs
+                            <AlertTriangle size={12} /> Noma'lum Shaxs
                           </span>
                         )}
                       </td>
@@ -5743,8 +5812,8 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
-                <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>
-                  ⚡ Face ID Test Simulyatori
+                <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Zap size={18} color={THEME.primary} /> Face ID Test Simulyatori
                 </div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
                   Hikvision MinMoe terminalidan keladigan biometrik signalni sinab ko'rish
@@ -5775,8 +5844,8 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* O'quvchini tanlash */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
-                  👨‍🎓 {terms.studentSingular}ni tanlang *
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Users size={13} color={THEME.primary} /> {terms.studentSingular}ni tanlang *
                 </label>
                 <select
                   value={simForm.studentId}
@@ -5801,8 +5870,8 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
 
               {/* Harakat yo'nalishi (KIRISH vs CHIQISH) */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
-                  🚪 Turniket Harakati (Yo'nalish) *
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <DoorOpen size={13} color={THEME.primary} /> Turniket Harakati (Yo'nalish) *
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 6 }}>
                   <button
@@ -5817,8 +5886,12 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                       fontWeight: 800,
                       fontSize: 13,
                       cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6
                     }}>
-                    🟢 KIRISH (Turniket)
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22C55E' }} /> KIRISH (Turniket)
                   </button>
                   <button
                     type="button"
@@ -5832,16 +5905,20 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                       fontWeight: 800,
                       fontSize: 13,
                       cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6
                     }}>
-                    🟠 CHIQISH (Turniket)
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#F97316' }} /> CHIQISH (Turniket)
                   </button>
                 </div>
               </div>
 
               {/* Qurilma tanlash */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
-                  📷 Terminal / Qurilma Modeli *
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Camera size={13} color={THEME.primary} /> Terminal / Qurilma Modeli *
                 </label>
                 <select
                   value={simForm.deviceName}
@@ -5921,7 +5998,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     cursor: simulating ? 'wait' : 'pointer',
                     boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)',
                   }}>
-                  {simulating ? "Yuborilmoqda..." : "🚀 Face ID Signalini Yuborish"}
+                  {simulating ? "Yuborilmoqda..." : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <Send size={15} /> Face ID Signalini Yuborish
+                    </span>
+                  )}
                 </button>
               </div>
             </form>
@@ -5996,8 +6077,12 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     fontSize: 12,
                     cursor: 'pointer',
                     boxShadow: syncSimulate ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
                   }}>
-                  🧪 Test / Simulyatsiya Rejimi (Tavsiya etiladi)
+                  <FlaskConical size={14} /> Test / Simulyatsiya Rejimi (Tavsiya etiladi)
                 </button>
                 <button
                   type="button"
@@ -6013,15 +6098,19 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     fontSize: 12,
                     cursor: 'pointer',
                     boxShadow: !syncSimulate ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
                   }}>
-                  🌐 Haqiqiy Hikvision Qurilmasi (Lokal IP)
+                  <Globe size={14} /> Haqiqiy Hikvision Qurilmasi (Lokal IP)
                 </button>
               </div>
 
               {/* Terminal ulanish parametrlari */}
               <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 18, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>
-                  ⚙️ Hikvision Terminali Sozlamalari:
+                <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Sliders size={14} color={THEME.primary} /> Hikvision Terminali Sozlamalari:
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
@@ -6087,7 +6176,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                       gap: 6,
                     }}>
                     <RefreshCw size={13} className={syncTestingConnection ? "animate-spin" : ""} />
-                    {syncTestingConnection ? "Tekshirilmoqda..." : "📡 Aloqani Tekshirish (ISAPI Ping)"}
+                    {syncTestingConnection ? "Tekshirilmoqda..." : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Radio size={13} /> Aloqani Tekshirish (ISAPI Ping)
+                      </span>
+                    )}
                   </button>
                 </div>
 
@@ -6160,7 +6253,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                   gap: 8,
                 }}>
                 <Upload size={16} />
-                {syncing ? "Hikvision ISAPI orqali yuklanmoqda..." : "🚀 O'quvchilar va Yuzlarni Terminalga Yuklash (ISAPI Sync)"}
+                {syncing ? "Hikvision ISAPI orqali yuklanmoqda..." : "O'quvchilar va Yuzlarni Terminalga Yuklash (ISAPI Sync)"}
               </button>
 
               {/* Sinxronizatsiya natijalari ro'yxati */}
@@ -6194,13 +6287,19 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                             <td style={{ padding: '8px 12px', fontWeight: 800 }}>{item.name}</td>
                             <td style={{ padding: '8px 12px', color: THEME.primary, fontWeight: 700 }}>{item.student_id}</td>
                             <td style={{ padding: '8px 12px' }}>
-                              <span style={{ color: '#15803D', fontWeight: 700 }}>✅ Yuklandi</span>
+                              <span style={{ color: '#15803D', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <CheckCircle2 size={12} /> Yuklandi
+                              </span>
                             </td>
                             <td style={{ padding: '8px 12px' }}>
                               {item.face_sync?.success ? (
-                                <span style={{ color: '#15803D', fontWeight: 700 }}>✅ Model hisoblandi</span>
+                                <span style={{ color: '#15803D', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <CheckCircle2 size={12} /> Model hisoblandi
+                                </span>
                               ) : (
-                                <span style={{ color: '#D97706', fontWeight: 700 }}>⚠️ {item.face_sync?.message || 'Rasm yo\'q'}</span>
+                                <span style={{ color: '#D97706', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <AlertTriangle size={12} /> {item.face_sync?.message || 'Rasm yo\'q'}
+                                </span>
                               )}
                             </td>
                           </tr>
@@ -6290,17 +6389,21 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                   Qo'llab-quvvatlanadigan uskunalar:
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, fontSize: 12 }}>
-                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9' }}>
-                    📹 <b>Hikvision MinMoe:</b> DS-K1T671, DS-K1T673, DS-K1T341
+                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Camera size={14} color={THEME.primary} />
+                    <div><b>Hikvision MinMoe:</b> DS-K1T671, DS-K1T673, DS-K1T341</div>
                   </div>
-                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9' }}>
-                    📹 <b>Dahua Technology:</b> ASI7213X, ASI7223X series
+                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Camera size={14} color={THEME.cyan} />
+                    <div><b>Dahua Technology:</b> ASI7213X, ASI7223X series</div>
                   </div>
-                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9' }}>
-                    🚪 <b>ZKTeco:</b> ProFace X, SpeedFace-V5L, FaceDepot
+                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <DoorOpen size={14} color={THEME.orange} />
+                    <div><b>ZKTeco:</b> ProFace X, SpeedFace-V5L, FaceDepot</div>
                   </div>
-                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9' }}>
-                    🌐 Har qanday <b>HTTP / Webhook</b> turniket boshqaruvchisi
+                  <div style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Globe size={14} color={THEME.green} />
+                    <div>Har qanday <b>HTTP / Webhook</b> turniket boshqaruvchisi</div>
                   </div>
                 </div>
               </div>
@@ -6354,7 +6457,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                       alignItems: 'center',
                       gap: 4,
                     }}>
-                    <Copy size={13} /> {copiedCurl ? "Nusxa olindi! ✅" : "cURL nusxasini olish"}
+                    <Copy size={13} /> {copiedCurl ? "Nusxa olindi!" : "cURL nusxasini olish"}
                   </button>
                 </div>
                 <pre style={{
@@ -6384,7 +6487,9 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 flexDirection: 'column',
                 gap: 4,
               }}>
-                <div style={{ fontWeight: 800 }}>⚡ Avtomatik Davomat va Bildirishnoma:</div>
+                <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Zap size={14} color="#1E40AF" /> Avtomatik Davomat va Bildirishnoma:
+                </div>
                 <div>1. Qurilmadan <code>KIRISH</code> kelganda, o'quvchining bugungi dars davomati avtomatik ravishda <b>Keldi (PRESENT)</b> yoki dars vaqtiga qarab <b>Kechikdi (LATE)</b> qilib belgilanadi.</div>
                 <div>2. O'quvchi ota-onasining Telegram botiga <i>"Farzandingiz soat 08:05 da maktab turniketidan kirdi"</i> xabari avtomatik yuboriladi.</div>
                 <div>3. Ushbu sahifada har 3 soniyada yangi o'tishlar yashil porlash bilan real vaqtda paydo bo'ladi.</div>
@@ -6507,7 +6612,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
   const handleConfirmLocation = async () => {
     if (form.latitude == null || form.longitude == null || isNaN(form.latitude) || isNaN(form.longitude)) {
-      alert("⚠️ Iltimos, avval xaritani bosib yoki qidiruv orqali maktab binosi nuqtasini belgilang!");
+      alert("Iltimos, avval xaritani bosib yoki qidiruv orqali maktab binosi nuqtasini belgilang!");
       return;
     }
     setSaving(true);
@@ -6517,7 +6622,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
     if (result?.ok) {
       setSaveBanner({
         type: 'success',
-        text: `✅ Maktab joylashuvi muvaffaqiyatli tasdiqlandi va bazada saqlandi! (${Number(form.latitude).toFixed(5)}, ${Number(form.longitude).toFixed(5)}). Barcha ogohlantirishlar olib tashlandi.`
+        text: `Maktab joylashuvi muvaffaqiyatli tasdiqlandi va bazada saqlandi! (${Number(form.latitude).toFixed(5)}, ${Number(form.longitude).toFixed(5)}). Barcha ogohlantirishlar olib tashlandi.`
       });
     } else {
       setSaveBanner({
@@ -6534,7 +6639,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
       return;
     }
     if (form.latitude == null || form.longitude == null || isNaN(form.latitude) || isNaN(form.longitude)) {
-      alert("⚠️ DIQQAT: Maktab / Kollejning xaritadagi geometkasi (lokatsiyasi) belgilanmagan!\n\nUni to'ldirish majburiy. Iltimos, xaritani bosib yoki qidiruv orqali muassasa joylashuvini belgilang.");
+      alert("DIQQAT: Maktab / Kollejning xaritadagi geometkasi (lokatsiyasi) belgilanmagan!\n\nUni to'ldirish majburiy. Iltimos, xaritani bosib yoki qidiruv orqali muassasa joylashuvini belgilang.");
       return;
     }
     setSaving(true);
@@ -6544,7 +6649,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
     if (result?.ok) {
       setSaveBanner({
         type: 'success',
-        text: "✅ Maktab sozlamalari va xaritadagi geometkasi muvaffaqiyatli saqlandi! Web dashbordlar va Mobil ilovalarda barcha parametrlar yangilandi."
+        text: "Maktab sozlamalari va xaritadagi geometkasi muvaffaqiyatli saqlandi! Web dashbordlar va Mobil ilovalarda barcha parametrlar yangilandi."
       });
     } else {
       setSaveBanner({
@@ -6583,14 +6688,14 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 800, fontSize: 12 }}>
-              📚 {liveTerms.groupSingular} / {liveTerms.groupPlural}
+            <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 800, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <FolderOpen size={13} /> {liveTerms.groupSingular} / {liveTerms.groupPlural}
             </span>
-            <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 800, fontSize: 12 }}>
-              ⏰ {liveTerms.lessonSingular} / {liveTerms.lessonPlural}
+            <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 800, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Clock size={13} /> {liveTerms.lessonSingular} / {liveTerms.lessonPlural}
             </span>
-            <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 800, fontSize: 12 }}>
-              🎓 {liveTerms.studentSingular} / {liveTerms.studentPlural}
+            <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 800, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <GraduationCap size={13} /> {liveTerms.studentSingular} / {liveTerms.studentPlural}
             </span>
           </div>
           <button
@@ -6785,7 +6890,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     alignItems: 'center',
                     gap: 6,
                   }}>
-                    <CheckCircle2 size={15} color="#10B981" /> ✓ BAZADA TASDIQLANGAN
+                    <CheckCircle2 size={15} color="#10B981" /> BAZADA TASDIQLANGAN
                   </span>
                 ) : form.latitude ? (
                   <span style={{
@@ -6927,8 +7032,8 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
             {/* Tezkor Shablonlar (Presets) */}
             <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, textTransform: 'uppercase', marginBottom: 8 }}>
-                ⚡ Tezkor Shablon Tanlash:
+              <div style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Zap size={13} color={THEME.primary} /> Tezkor Shablon Tanlash:
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 <button
@@ -6945,7 +7050,9 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     cursor: 'pointer',
                     textAlign: 'left'
                   }}>
-                  🏫 Maktab Rejimi
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <School size={14} color={THEME.primary} /> Maktab Rejimi
+                  </span>
                   <div style={{ fontSize: 10, color: THEME.textMuted, fontWeight: 600, marginTop: 2 }}>Sinf • Dars • O'quvchi</div>
                 </button>
                 <button
@@ -6962,7 +7069,9 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     cursor: 'pointer',
                     textAlign: 'left'
                   }}>
-                  🎓 Litsey / Kollej
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <GraduationCap size={14} color={THEME.primary} /> Litsey / Kollej
+                  </span>
                   <div style={{ fontSize: 10, color: THEME.textMuted, fontWeight: 600, marginTop: 2 }}>Guruh • Para • O'quvchi</div>
                 </button>
                 <button
@@ -6979,7 +7088,9 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     cursor: 'pointer',
                     textAlign: 'left'
                   }}>
-                  🏛️ Texnikum / Markaz
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Building2 size={14} color={THEME.primary} /> Texnikum / Markaz
+                  </span>
                   <div style={{ fontSize: 10, color: THEME.textMuted, fontWeight: 600, marginTop: 2 }}>Guruh • Para • Talaba</div>
                 </button>
               </div>
@@ -7153,8 +7264,8 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
               {/* Qo'lda ixtiyoriy daqiqa kiritish */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 14, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: THEME.textDark, whiteSpace: 'nowrap' }}>
-                  ✏️ Qo'lda ixtiyoriy daqiqa kiritish:
+                <span style={{ fontSize: 12, fontWeight: 800, color: THEME.textDark, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Edit size={13} color={THEME.primary} /> Qo'lda ixtiyoriy daqiqa kiritish:
                 </span>
                 <input
                   type="number"
@@ -7185,7 +7296,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1.5px solid #F1F5F9' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <label style={{ fontSize: 13, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  🔔 E) Qo'ng'iroqlar Jadvali & Smenalar Konfiguratsiyasi (1-smena & 2-smena):
+                  <Bell size={15} color={THEME.primary} /> E) Qo'ng'iroqlar Jadvali & Smenalar Konfiguratsiyasi (1-smena & 2-smena):
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 10, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                   <span style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted }}>ODATIY TANAFFUS (IKKALA SMENAGA):</span>
@@ -7220,7 +7331,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 <div style={{ padding: 16, borderRadius: 18, backgroundColor: '#F8FAFC', border: '1.5px solid #E2E8F0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontSize: 13, fontWeight: 900, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      🌅 1-Smena (Ertalabki darslar)
+                      <Sun size={15} color="#1D4ED8" /> 1-Smena (Ertalabki darslar)
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 800, color: '#1D4ED8', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: 6 }}>
                       Ertalabki sinflar uchun
@@ -7301,8 +7412,8 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
                   {/* 1-smena jonli jadval prevyusi */}
                   <div style={{ padding: 10, borderRadius: 12, backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#1E40AF', marginBottom: 6 }}>
-                      📋 1-Smena dars vaqtlari:
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#1E40AF', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <FileText size={13} color="#1E40AF" /> 1-Smena dars vaqtlari:
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
                       {generateLessonSlots(form, 6, 1).map(slot => (
@@ -7319,7 +7430,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 <div style={{ padding: 16, borderRadius: 18, backgroundColor: '#FFFBEB', border: '1.5px solid #FDE68A' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontSize: 13, fontWeight: 900, color: '#92400E', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      🌇 2-Smena (Abeddan keyingi darslar)
+                      <Sunset size={15} color="#B45309" /> 2-Smena (Abeddan keyingi darslar)
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 800, color: '#B45309', backgroundColor: '#FEF3C7', padding: '2px 8px', borderRadius: 6 }}>
                       2-smena sinflari uchun
@@ -7401,8 +7512,8 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
                   {/* 2-smena jonli jadval prevyusi */}
                   <div style={{ padding: 10, borderRadius: 12, backgroundColor: '#FEF3C7', border: '1px solid #FDE68A' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', marginBottom: 6 }}>
-                      📋 2-Smena dars vaqtlari:
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <FileText size={13} color="#92400E" /> 2-Smena dars vaqtlari:
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
                       {generateLessonSlots(form, 6, 2).map(slot => (
@@ -7427,7 +7538,9 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   style={{ width: 18, height: 18, marginTop: 2, cursor: 'pointer', accentColor: THEME.green }}
                 />
                 <label htmlFor="sync_schedules_cb" style={{ fontSize: 12, fontWeight: 800, color: '#065F46', cursor: 'pointer', lineHeight: 1.45 }}>
-                  🔄 Mavjud barcha sinflarning haftalik dars jadvallari va bugungi darslar vaqtini yangi me'yor bo'yicha avtomatik yangilash (Tavsiya etiladi)
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <RefreshCw size={13} /> Mavjud barcha sinflarning haftalik dars jadvallari va bugungi darslar vaqtini yangi me'yor bo'yicha avtomatik yangilash (Tavsiya etiladi)
+                  </span>
                   <div style={{ fontSize: 10.5, fontWeight: 500, color: '#047857', marginTop: 2 }}>
                     Saqlash tugmasi bosilganda barcha 1-{liveTerms.lessonSingularLower}, 2-{liveTerms.lessonSingularLower}... vaqtlari avtomatik ravishda yangi hisoblangan slotlarga sinxronlashtiriladi.
                   </div>
@@ -7449,7 +7562,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ padding: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 800, marginBottom: 6 }}>📱 MOBIL: {liveTerms.studentSingular.toUpperCase()} PANELI</div>
+                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 800, marginBottom: 6 }}>MOBIL: {liveTerms.studentSingular.toUpperCase()} PANELI</div>
                 <div style={{ fontWeight: 800, fontSize: 13, color: '#FFF' }}>{form.school_name || `Maktab #${schoolId}`}</div>
                 <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 6 }}>
                   • <b>{liveTerms.groupSingular}:</b> {liveTerms.formatGroup('11-A')}
@@ -7463,7 +7576,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
               </div>
 
               <div style={{ padding: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 800, marginBottom: 6 }}>📱 MOBIL: O'QITUVCHI PANELI</div>
+                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 800, marginBottom: 6 }}>MOBIL: O'QITUVCHI PANELI</div>
                 <div style={{ fontWeight: 800, fontSize: 13, color: '#FFF' }}>Mening {liveTerms.groupPlural.toLowerCase()}im</div>
                 <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 6 }}>
                   • <b>Jurnal:</b> {liveTerms.formatGroup('11-A')} ({liveTerms.studentPlural})
@@ -7495,7 +7608,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 <span style={{ fontSize: 12, fontWeight: 800, color: form.latitude ? '#34D399' : '#FCA5A5' }}>
                   {form.latitude
                     ? `Geometka: ${Number(form.latitude).toFixed(5)}, ${Number(form.longitude).toFixed(5)}`
-                    : "⚠️ Geometka belgilanmagan!"}
+                    : "Geometka belgilanmagan!"}
                 </span>
               </div>
               <span style={{
@@ -7695,12 +7808,14 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
                   <td style={{ padding: '14px' }}><code>{st.student_id}</code></td>
                   <td style={{ padding: '14px', fontSize: 12, color: THEME.textMuted }}>{st.created_by} ({st.date_joined})</td>
                   <td style={{ padding: '14px' }}>
-                    <span style={{ padding: '4px 8px', borderRadius: 8, backgroundColor: '#ECFDF5', color: THEME.green, fontWeight: 700, fontSize: 11 }}>
-                      Qatnashdi (08:32) ✅
+                    <span style={{ padding: '4px 8px', borderRadius: 8, backgroundColor: '#ECFDF5', color: THEME.green, fontWeight: 700, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={12} color={THEME.green} /> Qatnashdi (08:32)
                     </span>
                   </td>
-                  <td style={{ padding: '14px', fontWeight: 900, color: THEME.primary }}>
-                    5 (A'lo) ⭐
+                  <td style={{ padding: '14px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 900, color: THEME.primary }}>
+                      5 (A'lo) <Star size={13} fill="#F59E0B" color="#F59E0B" />
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -7834,8 +7949,9 @@ function AddStudentModal({ newStudent, setNewStudent, classesList, terms = build
             </select>
           </div>
 
-          <div style={{ backgroundColor: THEME.primaryLight, padding: 12, borderRadius: 14, fontSize: 12, color: THEME.primary }}>
-            <b>🔢 Kirish ID va Tarix:</b> Tizim 5 xonali unikal ID yaratadi va yaratuvchi shaxs hamda maktabni tarixga muhrlaydi.
+          <div style={{ backgroundColor: THEME.primaryLight, padding: 12, borderRadius: 14, fontSize: 12, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Key size={14} />
+            <span><b>Kirish ID va Tarix:</b> Tizim 5 xonali unikal ID yaratadi va yaratuvchi shaxs hamda maktabni tarixga muhrlaydi.</span>
           </div>
 
           <div>
@@ -7859,8 +7975,9 @@ function AddStudentModal({ newStudent, setNewStudent, classesList, terms = build
                 )}
               </div>
               <input type="file" accept="image/*" id="modal-photo" onChange={handlePhoto} style={{ display: 'none' }} />
-              <label htmlFor="modal-photo" style={{ padding: '8px 14px', backgroundColor: '#F1F5F9', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                Surat tanlash 📷
+              <label htmlFor="modal-photo" style={{ padding: '8px 14px', backgroundColor: '#F1F5F9', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Camera size={14} color={THEME.primary} />
+                <span>Surat tanlash</span>
               </label>
             </div>
           </div>
@@ -7985,8 +8102,9 @@ function EditStudentModal({ student, classesList, terms = buildSchoolTerms(), on
               </div>
               <div>
                 <input type="file" accept="image/*" id="edit-modal-photo" onChange={handlePhotoChange} style={{ display: 'none' }} />
-                <label htmlFor="edit-modal-photo" style={{ padding: '8px 14px', backgroundColor: '#F1F5F9', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-block' }}>
-                  Yangi Surat Tanlash 📷
+                <label htmlFor="edit-modal-photo" style={{ padding: '8px 14px', backgroundColor: '#F1F5F9', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Camera size={14} color={THEME.primary} />
+                  <span>Yangi Surat Tanlash</span>
                 </label>
                 <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
                   {photoFile ? photoFile.name : "Eski rasm saqlanadi"}
@@ -8078,8 +8196,9 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
 
           {/* O'qish smenasi (1-smena vs 2-smena) */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
-              ⏰ O'qish smenasi (Dars vaqti tartibi) *
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Clock size={13} color={THEME.primary} />
+              <span>O'qish smenasi (Dars vaqti tartibi) *</span>
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 6 }}>
               <button
@@ -8095,8 +8214,13 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'center',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
                 }}>
-                🌅 1-smena (Ertalabki)
+                <Sun size={13} />
+                <span>1-smena (Ertalabki)</span>
               </button>
               <button
                 type="button"
@@ -8111,8 +8235,13 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'center',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
                 }}>
-                🌇 2-smena (Abeddan keyin)
+                <Sunset size={13} />
+                <span>2-smena (Abeddan keyin)</span>
               </button>
             </div>
           </div>
@@ -8120,8 +8249,9 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
           {/* O'qituvchini mavjud o'qituvchilar bazasidan tanlash */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
-                👨‍🏫 {terms.groupLeader} (O'qituvchi)
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <GraduationCap size={14} color={THEME.primary} />
+                <span>{terms.groupLeader} (O'qituvchi)</span>
               </label>
               {teachersList.length > 0 && (
                 <button
@@ -8135,8 +8265,11 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                     fontWeight: 700,
                     cursor: 'pointer',
                     textDecoration: 'underline',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
                   }}>
-                  {manualMode ? "👨‍🏫 Mavjud bazadan tanlash" : "✍️ Qo'lda yozish"}
+                  {manualMode ? <><GraduationCap size={12} /> Mavjud bazadan tanlash</> : <><Edit size={12} /> Qo'lda yozish</>}
                 </button>
               )}
             </div>
@@ -8162,7 +8295,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                   <option value="">-- O'qituvchini tanlang ({teachersList.length} nafar mavjud) --</option>
                   {teachersList.map(t => (
                     <option key={t.id} value={t.name}>
-                      👨‍🏫 {t.name} (ID: {t.teacher_id || t.username}) — {t.subject || "Fan o'qituvchisi"}{t.rooms ? ` (${t.rooms})` : ''}
+                      {t.name} (ID: {t.teacher_id || t.username}) — {t.subject || "Fan o'qituvchisi"}{t.rooms ? ` (${t.rooms})` : ''}
                     </option>
                   ))}
                 </select>
@@ -8214,8 +8347,11 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                         color: '#EF4444',
                         cursor: 'pointer',
                         fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4
                       }}>
-                      ✕ Bekor qilish
+                      <X size={12} /> Bekor qilish
                     </button>
                   </div>
                 )}
@@ -8243,7 +8379,10 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                 flexDirection: 'column',
                 gap: 8,
               }}>
-                <div>⚠️ Maktab bazasida hali o'qituvchilar mavjud emas.</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={14} color="#D97706" />
+                  <span>Maktab bazasida hali o'qituvchilar mavjud emas.</span>
+                </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {onOpenAddTeacher && (
                     <button
@@ -8412,8 +8551,9 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
 
           {/* O'qish smenasi (1-smena vs 2-smena) */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
-              ⏰ O'qish smenasi (Dars vaqti tartibi) *
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Clock size={13} color={THEME.primary} />
+              <span>O'qish smenasi (Dars vaqti tartibi) *</span>
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 6 }}>
               <button
@@ -8429,8 +8569,13 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'center',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
                 }}>
-                🌅 1-smena (Ertalabki)
+                <Sun size={13} />
+                <span>1-smena (Ertalabki)</span>
               </button>
               <button
                 type="button"
@@ -8445,8 +8590,13 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'center',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
                 }}>
-                🌇 2-smena (Abeddan keyin)
+                <Sunset size={13} />
+                <span>2-smena (Abeddan keyin)</span>
               </button>
             </div>
             <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
@@ -8457,8 +8607,9 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
           {/* O'qituvchini mavjud o'qituvchilar bazasidan tanlash */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
-                👨‍🏫 {terms.groupLeader} (O'qituvchi)
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <GraduationCap size={14} color={THEME.primary} />
+                <span>{terms.groupLeader} (O'qituvchi)</span>
               </label>
               {teachersList.length > 0 && (
                 <button
@@ -8472,8 +8623,11 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                     fontWeight: 700,
                     cursor: 'pointer',
                     textDecoration: 'underline',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
                   }}>
-                  {manualMode ? "👨‍🏫 Mavjud bazadan tanlash" : "✍️ Qo'lda yozish"}
+                  {manualMode ? <><GraduationCap size={12} /> Mavjud bazadan tanlash</> : <><Edit size={12} /> Qo'lda yozish</>}
                 </button>
               )}
             </div>
@@ -8499,7 +8653,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                   <option value="">-- O'qituvchini tanlang ({teachersList.length} nafar mavjud) --</option>
                   {teachersList.map(t => (
                     <option key={t.id} value={t.name}>
-                      👨‍🏫 {t.name} (ID: {t.teacher_id || t.username}) — {t.subject || "Fan o'qituvchisi"}{t.rooms ? ` (${t.rooms})` : ''}
+                      {t.name} (ID: {t.teacher_id || t.username}) — {t.subject || "Fan o'qituvchisi"}{t.rooms ? ` (${t.rooms})` : ''}
                     </option>
                   ))}
                 </select>
@@ -8551,8 +8705,11 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                         color: '#EF4444',
                         cursor: 'pointer',
                         fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
                       }}>
-                      ✕ Bekor qilish
+                      <X size={12} /> Bekor qilish
                     </button>
                   </div>
                 )}
@@ -8580,7 +8737,10 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                 flexDirection: 'column',
                 gap: 8,
               }}>
-                <div>⚠️ Maktab bazasida hali o'qituvchilar mavjud emas.</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={14} color="#D97706" />
+                  <span>Maktab bazasida hali o'qituvchilar mavjud emas.</span>
+                </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {onOpenAddTeacher && (
                     <button

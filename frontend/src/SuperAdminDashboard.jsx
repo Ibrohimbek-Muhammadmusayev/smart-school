@@ -7,7 +7,10 @@ import {
   Power, Lock, Unlock, Eye, EyeOff, MapPin, Phone, Mail, Award,
   Sliders, Layers, Server, Database, LogOut, UserPlus, BookOpen,
   Calendar, CheckCircle, QrCode, GraduationCap, Clock,
-  FolderOpen, Sparkles, Smartphone, Check, Edit, Trash2
+  FolderOpen, Sparkles, Smartphone, Check, Edit, Trash2,
+  FileSpreadsheet, FileText, FileCode, Monitor, Cpu, ScanFace,
+  Bot, Zap, CreditCard, Wrench, Star, Pause, Archive,
+  HelpCircle, MessageSquare, ShieldCheck, AlertCircle, CheckSquare, Square, DoorOpen
 } from 'lucide-react';
 
 const THEME = {
@@ -322,12 +325,12 @@ export default function SuperAdminDashboardView({
     setShowTierModal(false);
     setEditingTier(null);
     appendAuditLog('UPDATE_PRICING_TIER', tierData.name, `Tarif rejasi sozlamalari yangilandi (${tierData.pricePerMonth})`);
-    showToast(`✅ "${tierData.name}" tarif rejasi muvaffaqiyatli saqlandi!`);
+    showToast(`"${tierData.name}" tarif rejasi muvaffaqiyatli saqlandi!`);
   };
 
   const handleDeleteTier = (tierId) => {
     if (pricingTiers.length <= 1) {
-      showToast("⚠️ Kamida 1 ta tarif rejasi mavjud bo‘lishi shart!");
+      showToast("Kamida 1 ta tarif rejasi mavjud bo‘lishi shart!");
       return;
     }
     const tier = pricingTiers.find(t => t.id === tierId);
@@ -335,14 +338,14 @@ export default function SuperAdminDashboardView({
       const updated = pricingTiers.filter(t => t.id !== tierId);
       savePricingTiers(updated);
       appendAuditLog('DELETE_PRICING_TIER', tier?.name, `Tarif rejasi o‘chirildi`);
-      showToast(`🗑️ "${tier?.name}" tarifi o‘chirildi!`);
+      showToast(`"${tier?.name}" tarifi o‘chirildi!`);
     }
   };
 
   const handleResetDefaultTiers = () => {
     if (window.confirm("Barcha tarif rejalarini dastlabki standart holatiga qaytarmoqchimisiz?")) {
       savePricingTiers(INITIAL_PRICING_TIERS);
-      showToast("🔄 Tarif rejalari standart holatiga qaytarildi!");
+      showToast("Tarif rejalari standart holatiga qaytarildi!");
     }
   };
 
@@ -465,7 +468,7 @@ export default function SuperAdminDashboardView({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    showToast(`📊 ${format.toUpperCase()} hisobot muvaffaqiyatli yuklab olindi!`);
+    showToast(`${format.toUpperCase()} hisobot muvaffaqiyatli yuklab olindi!`);
   };
 
   const handleSetSchoolStatus = (school, newStatus, reason = '') => {
@@ -480,11 +483,11 @@ export default function SuperAdminDashboardView({
     );
     onUpdateSchools(updated);
     appendAuditLog(`SCHOOL_STATUS_${newStatus}`, school.name, `Holat ${newStatus} ga o'zgartirildi. ${reason}`);
-    showToast(`✅ "${school.name}" holati yangilandi!`);
+    showToast(`"${school.name}" holati yangilandi!`);
   };
 
   const handleHardDeleteSchool = (school) => {
-    if (!window.confirm(`⚠️ DIQQAT!\n"${school.name}" maktabini tizimdan butunlay o'chirmoqchimisiz?`)) {
+    if (!window.confirm(`DIQQAT!\n"${school.name}" maktabini tizimdan butunlay o'chirmoqchimisiz?`)) {
       return;
     }
     const updated = schoolsList.filter(s => s.id !== school.id);
@@ -493,7 +496,7 @@ export default function SuperAdminDashboardView({
     if (selectedSchoolId === school.id && updated.length > 0) {
       setSelectedSchoolId(updated[0].id);
     }
-    showToast(`🗑️ "${school.name}" tizimdan o'chirildi.`);
+    showToast(`"${school.name}" tizimdan o'chirildi.`);
   };
 
   const handleSaveWarningBanner = (e) => {
@@ -506,7 +509,7 @@ export default function SuperAdminDashboardView({
     appendAuditLog('SET_WARNING_BANNER', warningModalSchool.name, `Ogohlantirish banneri: "${warningBannerInput.trim()}"`);
     const schoolName = warningModalSchool.name;
     setWarningModalSchool(null);
-    showToast(`📢 "${schoolName}" paneliga ogohlantirish banneri o'rnatildi!`);
+    showToast(`"${schoolName}" paneliga ogohlantirish banneri o'rnatildi!`);
   };
 
   const triggerReindexBiometrics = () => {
@@ -519,7 +522,7 @@ export default function SuperAdminDashboardView({
     setTimeout(() => {
       setReindexProgress(100);
       setReindexing(false);
-      showToast('✅ Biometrik baza (3,520 ta Face Embedding) muvaffaqiyatli yangilandi!');
+      showToast('Biometrik baza (3,520 ta Face Embedding) muvaffaqiyatli yangilandi!');
     }, 1350);
   };
 
@@ -535,7 +538,7 @@ export default function SuperAdminDashboardView({
     };
     setBackups([created, ...backups]);
     appendAuditLog('MANUAL_BACKUP', code, 'PostgreSQL va S3 Media omboridan zaxira nusxa olindi');
-    showToast(`✅ Yangi zaxira nusxasi (${code}) muvaffaqiyatli yaratildi!`);
+    showToast(`Yangi zaxira nusxasi (${code}) muvaffaqiyatli yaratildi!`);
   };
 
   const openTicketsCount = tickets.filter(t => t.status === 'OPEN').length;
@@ -813,13 +816,13 @@ export default function SuperAdminDashboardView({
             {superTab === 'schools' && (
               <>
                 <button className="sa-btn" onClick={() => handleExportReport('excel')} style={secondaryBtnStyle}>
-                  📊 Excel
+                  <FileSpreadsheet size={14} /> Excel
                 </button>
                 <button className="sa-btn" onClick={() => handleExportReport('csv')} style={secondaryBtnStyle}>
-                  📄 CSV
+                  <FileText size={14} /> CSV
                 </button>
                 <button className="sa-btn" onClick={() => handleExportReport('pdf')} style={secondaryBtnStyle}>
-                  📑 PDF
+                  <FileCode size={14} /> PDF
                 </button>
                 <button className="sa-btn" onClick={() => setShowOnboardingWizard(true)} style={primaryBtnStyle}>
                   <Plus size={16} /> Yangi Maktab Qo‘shish
@@ -833,7 +836,7 @@ export default function SuperAdminDashboardView({
                   className="sa-btn"
                   onClick={() => {
                     appendAuditLog('BILLING_REMINDER', 'Qarzdor maktablar', 'Avtomatik SMS va Email invoys eslatmalari yuborildi');
-                    showToast('📩 Qarzdor maktab direktorlariga SMS va Email eslatmalar yuborildi!');
+                    showToast('Qarzdor maktab direktorlariga SMS va Email eslatmalar yuborildi!');
                   }}
                   style={secondaryBtnStyle}>
                   <Send size={14} /> Qarzdorlarga SMS Eslatma
@@ -850,7 +853,7 @@ export default function SuperAdminDashboardView({
                   className="sa-btn"
                   onClick={() => {
                     appendAuditLog('CLEAN_EMBEDDINGS', 'Face ID DB', 'Chiqib ketgan 42 nafar sobiq o‘quvchi embeddinglari tozalandi');
-                    showToast("🧹 Eski va bitirgan o'quvchilarning 42 ta yuz embedding'lari tozalandi!");
+                    showToast("Eski va bitirgan o'quvchilarning 42 ta yuz embedding'lari tozalandi!");
                   }}
                   style={secondaryBtnStyle}>
                   <Trash2 size={14} /> Eski Embeddinglarni Tozalash
@@ -875,7 +878,7 @@ export default function SuperAdminDashboardView({
                     a.href = URL.createObjectURL(blob);
                     a.setAttribute('download', 'global_security_audit_logs.csv');
                     a.click();
-                    showToast('🛡️ Audit jurnali CSV formatda yuklab olindi!');
+                    showToast('Audit jurnali CSV formatda yuklab olindi!');
                   }}
                   style={secondaryBtnStyle}>
                   <Download size={14} /> Audit Jurnalini Yuklash
@@ -891,7 +894,7 @@ export default function SuperAdminDashboardView({
                       { id: Date.now(), name, role, email: `${name.toLowerCase().replace(/\s+/g, '.')}@idrokedu.uz`, twoFactor: true, permissions: 'Tanlangan modul ruxsati' }
                     ]);
                     appendAuditLog('CREATE_RBAC_ADMIN', name, `Yangi ${role} yordamchi admin qo'shildi`);
-                    showToast(`👤 "${name}" yordamchi admin sifatida qo'shildi!`);
+                    showToast(`"${name}" yordamchi admin sifatida qo'shildi!`);
                   }}
                   style={primaryBtnStyle}>
                   <UserPlus size={16} /> Yangi Admin Qo‘shish
@@ -905,7 +908,7 @@ export default function SuperAdminDashboardView({
                   className="sa-btn"
                   onClick={() => {
                     appendAuditLog('CLEAR_CACHE', 'Redis & Web CDN', 'Global web-panel va API keshi tozalandi');
-                    showToast('✅ Web-panel va Redis API keshi muvaffaqiyatli tozalandi!');
+                    showToast('Web-panel va Redis API keshi muvaffaqiyatli tozalandi!');
                   }}
                   style={secondaryBtnStyle}>
                   <RefreshCw size={14} /> Keshni Tozalash
@@ -925,7 +928,7 @@ export default function SuperAdminDashboardView({
                   const a = window.prompt("Javobni kiriting:");
                   if (!a) return;
                   setFaqs([{ id: Date.now(), q, a }, ...faqs]);
-                  showToast('📚 Yangi FAQ savol-javobi qo‘shildi!');
+                  showToast('Yangi FAQ savol-javobi qo‘shildi!');
                 }}
                 style={primaryBtnStyle}>
                 <Plus size={16} /> Yangi FAQ Qo‘shish
@@ -1027,7 +1030,10 @@ export default function SuperAdminDashboardView({
                   {/* Modul 2: IdrokBoard */}
                   <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: 13, color: '#D97706' }}>🖥️ IdrokBoard</span>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: '#D97706', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Monitor size={16} />
+                        <span>IdrokBoard</span>
+                      </span>
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 800 }}>Smart Board</span>
                     </div>
                     <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Interaktiv aqlli doska</div>
@@ -1037,7 +1043,10 @@ export default function SuperAdminDashboardView({
                   {/* Modul 3: Idrok Core */}
                   <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: 13, color: '#2563EB' }}>⚙️ Idrok Core</span>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: '#2563EB', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Cpu size={16} />
+                        <span>Idrok Core</span>
+                      </span>
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#DBEAFE', color: '#1D4ED8', fontWeight: 800 }}>Backend & DB</span>
                     </div>
                     <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Markaziy boshqaruv dvigateli</div>
@@ -1047,7 +1056,10 @@ export default function SuperAdminDashboardView({
                   {/* Modul 4: Idrok Vision */}
                   <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: 13, color: '#059669' }}>👁️ Idrok Vision</span>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: '#059669', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <ScanFace size={16} />
+                        <span>Idrok Vision</span>
+                      </span>
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#D1FAE5', color: '#047857', fontWeight: 800 }}>Computer Vision</span>
                     </div>
                     <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Kameralar & Face ID moduli</div>
@@ -1117,7 +1129,7 @@ export default function SuperAdminDashboardView({
                       changesReal: Math.round(totalSystemChanges * 0.63),
                     },
                     {
-                      short: '14:00 🔥',
+                      short: '14:00 (Pik)',
                       imagesLine: 94,
                       filesLine: 86,
                       schoolsLine: 82,
@@ -1314,7 +1326,7 @@ export default function SuperAdminDashboardView({
                               transition: 'left 0.06s ease-out',
                             }}>
                             <div style={{ fontWeight: 800, fontSize: 12, color: '#F8FAFC', marginBottom: 6, paddingBottom: 5, borderBottom: '1px solid rgba(255,255,255,0.12)', display: 'flex', justifyContent: 'space-between' }}>
-                              <span>⏱️ Vaqt oralig‘i:</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Clock size={13} color="#38BDF8" /> Vaqt oralig‘i:</span>
                               <span style={{ color: '#38BDF8' }}>{chartHover.short}</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4.5 }}>
@@ -1511,7 +1523,7 @@ export default function SuperAdminDashboardView({
                       }}>
                       <div>
                         <div style={{ fontSize: 10, opacity: 0.85, fontWeight: 700, letterSpacing: '0.5px' }}>TANLANGAN HUDUD</div>
-                        <div style={{ fontSize: 15.5, fontWeight: 800, marginTop: 3 }}>📍 {selectedRegion.name}</div>
+                        <div style={{ fontSize: 15.5, fontWeight: 800, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={16} /> {selectedRegion.name}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 14, textAlign: 'right' }}>
                         <div>
@@ -1676,15 +1688,17 @@ export default function SuperAdminDashboardView({
                     <div className="sa-card" style={{ flex: 1, ...cardBoxStyle, display: 'flex', flexDirection: 'column', gap: 20 }}>
                       {currentSelectedSchool.warningBanner && (
                         <div style={{ padding: '12px 16px', borderRadius: 16, backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', fontSize: 12.5, fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>⚠️ Faol ogohlantirish banneri: "{currentSelectedSchool.warningBanner}"</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <AlertTriangle size={15} color="#D97706" /> Faol ogohlantirish banneri: "{currentSelectedSchool.warningBanner}"
+                          </span>
                           <button
                             onClick={() => {
                               const updated = schoolsList.map(s => s.id === currentSelectedSchool.id ? { ...s, warningBanner: '' } : s);
                               onUpdateSchools(updated);
                               showToast('Banner olib tashlandi');
                             }}
-                            style={{ border: 'none', background: 'transparent', color: '#B45309', fontWeight: 800, cursor: 'pointer' }}>
-                            Olib tashlash ✕
+                            style={{ border: 'none', background: 'transparent', color: '#B45309', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            Olib tashlash <X size={14} />
                           </button>
                         </div>
                       )}
@@ -1694,10 +1708,15 @@ export default function SuperAdminDashboardView({
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                             <h2 style={{ fontSize: 19, fontWeight: 800, color: THEME.textDark, margin: 0 }}>{currentSelectedSchool.name}</h2>
                             <StatusBadge status={currentSelectedSchool.status} />
-                            <span style={pillBadgeStyle}>🔒 Izolyatsiyalangan Baza #{currentSelectedSchool.id}</span>
+                            <span style={pillBadgeStyle}>
+                              <Lock size={12} style={{ display: 'inline', marginRight: 4 }} /> Izolyatsiyalangan Baza #{currentSelectedSchool.id}
+                            </span>
                           </div>
-                          <div style={{ fontSize: 12.5, color: THEME.textMuted, marginTop: 6 }}>
-                            📍 {currentSelectedSchool.district} • INN/Kod: <b>{currentSelectedSchool.inn || '309481023'}</b> • Direktor: <b>{currentSelectedSchool.director}</b> ({currentSelectedSchool.phone})
+                          <div style={{ fontSize: 12.5, color: THEME.textMuted, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <MapPin size={13} /> {currentSelectedSchool.district}
+                            </span>
+                            • INN/Kod: <b>{currentSelectedSchool.inn || '309481023'}</b> • Direktor: <b>{currentSelectedSchool.director}</b> ({currentSelectedSchool.phone})
                           </div>
                         </div>
 
@@ -1720,8 +1739,11 @@ export default function SuperAdminDashboardView({
 
                       {/* Izolyatsiya qoidasi eslatmasi */}
                       <div style={{ padding: '14px 18px', borderRadius: 18, backgroundColor: THEME.primaryLight, border: `1px solid ${THEME.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                        <div style={{ fontSize: 12.5, color: THEME.textDark, lineHeight: 1.5 }}>
-                          🔒 <b>Multi-Tenant Izolyatsiya Qoidasi:</b> Super Admin o‘z dashbordidan turib to‘g‘ridan-to‘g‘ri o‘quvchi, o‘qituvchi yoki sinf yaratmaydi. Ushbu maktab bazasiga yangi sinf, o‘qituvchi yoki o‘quvchi qo‘shish va sozlash uchun <b>"Maktab Dashbordiga Kirib Boshqarish"</b> tugmasi orqali maktabning ichki paneliga kiring.
+                        <div style={{ fontSize: 12.5, color: THEME.textDark, lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                          <Lock size={16} color={THEME.primary} style={{ flexShrink: 0, marginTop: 2 }} />
+                          <div>
+                            <b>Multi-Tenant Izolyatsiya Qoidasi:</b> Super Admin o‘z dashbordidan turib to‘g‘ridan-to‘g‘ri o‘quvchi, o‘qituvchi yoki sinf yaratmaydi. Ushbu maktab bazasiga yangi sinf, o‘qituvchi yoki o‘quvchi qo‘shish va sozlash uchun <b>"Maktab Dashbordiga Kirib Boshqarish"</b> tugmasi orqali maktabning ichki paneliga kiring.
+                          </div>
                         </div>
                       </div>
 
@@ -1770,18 +1792,18 @@ export default function SuperAdminDashboardView({
                       <div style={{ padding: 18, borderRadius: 20, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 14 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                           <div>
-                            <div style={{ fontWeight: 800, fontSize: 14, color: THEME.textDark }}>
-                              📋 {currentSelectedSchool.name} — Baza va Konfiguratsiya Ko‘rsatkichlari
+                            <div style={{ fontWeight: 800, fontSize: 14, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <FileText size={16} color={THEME.primary} /> {currentSelectedSchool.name} — Baza va Konfiguratsiya Ko‘rsatkichlari
                             </div>
-                            <div style={{ fontSize: 11.5, color: THEME.textMuted }}>
+                            <div style={{ fontSize: 11.5, color: THEME.textMuted, marginTop: 2 }}>
                               Sinflar va o‘quvchilar ro‘yxati multi-tenant xavfsizlik talabiga binoan faqat maktab ichki dashbordida to‘liq ochiladi
                             </div>
                           </div>
                           <button
                             className="sa-btn"
                             onClick={() => handleGhostLogin(currentSelectedSchool)}
-                            style={{ ...secondaryBtnStyle, color: THEME.primary, borderColor: THEME.primary, fontWeight: 700 }}>
-                            Maktab Dashbordiga Kirish ➔
+                            style={{ ...secondaryBtnStyle, color: THEME.primary, borderColor: THEME.primary, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            Maktab Dashbordiga Kirish <ChevronRight size={15} />
                           </button>
                         </div>
 
@@ -1798,9 +1820,13 @@ export default function SuperAdminDashboardView({
                             <div style={{ fontSize: 11, color: THEME.textMuted }}>Xaritadagi Joylashuv & Radius</div>
                             <div style={{ fontSize: 13, fontWeight: 800, color: THEME.textDark, marginTop: 3 }}>
                               {currentSelectedSchool.is_location_set !== false ? (
-                                <span style={{ color: THEME.green }}>📍 Belgilangan ({currentSelectedSchool.radius_meters || 150} metr)</span>
+                                <span style={{ color: THEME.green, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <MapPin size={13} /> Belgilangan ({currentSelectedSchool.radius_meters || 150} metr)
+                                </span>
                               ) : (
-                                <span style={{ color: '#EF4444' }}>⚠️ Belgilanmagan</span>
+                                <span style={{ color: '#EF4444', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <AlertTriangle size={13} /> Belgilanmagan
+                                </span>
                               )}
                             </div>
                             <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>{currentSelectedSchool.district}</div>
@@ -1811,15 +1837,21 @@ export default function SuperAdminDashboardView({
                             <div style={{ fontSize: 13, fontWeight: 800, color: THEME.primary, marginTop: 3 }}>
                               {currentSelectedSchool.plan || 'Standart'}
                             </div>
-                            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Holati: {currentSelectedSchool.status === 'ACTIVE' ? 'Faol ✅' : currentSelectedSchool.status}</div>
+                            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Holati: {currentSelectedSchool.status === 'ACTIVE' ? 'Faol' : currentSelectedSchool.status}</div>
                           </div>
 
                           <div style={{ padding: '12px 14px', borderRadius: 14, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
                             <div style={{ fontSize: 11, color: THEME.textMuted }}>Faol Tizim Modullari</div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: THEME.green, marginTop: 4 }}>
-                              ✅ Face ID • ✅ 25s QR • ✅ TG Bot
+                            <div style={{ fontSize: 12, fontWeight: 700, color: THEME.green, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><ScanFace size={13} /> Face ID</span>
+                              •
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><QrCode size={13} /> 25s QR</span>
+                              •
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Bot size={13} /> TG Bot</span>
                             </div>
-                            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Baza: 🔒 Izolyatsiyalangan #{currentSelectedSchool.id}</div>
+                            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              Baza: <Lock size={11} /> Izolyatsiyalangan #{currentSelectedSchool.id}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1839,40 +1871,40 @@ export default function SuperAdminDashboardView({
                             className="sa-btn"
                             onClick={() => {
                               setWarningModalSchool(currentSelectedSchool);
-                              setWarningBannerInput(currentSelectedSchool.warningBanner || "⚠️ Diqqat: Maktab obuna to'lov muddati tugashiga 3 kun qoldi!");
+                              setWarningBannerInput(currentSelectedSchool.warningBanner || "Diqqat: Maktab obuna to'lov muddati tugashiga 3 kun qoldi!");
                             }}
-                            style={{ padding: '8px 13px', borderRadius: 12, border: '1px solid #FDE68A', backgroundColor: '#FFFBEB', color: '#B45309', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                            📢 Ogohlantirish Banneri
+                            style={{ padding: '8px 13px', borderRadius: 12, border: '1px solid #FDE68A', backgroundColor: '#FFFBEB', color: '#B45309', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <Bell size={13} /> Ogohlantirish Banneri
                           </button>
 
                           {currentSelectedSchool.status !== 'SUSPENDED' ? (
                             <button
                               className="sa-btn"
                               onClick={() => handleSetSchoolStatus(currentSelectedSchool, 'SUSPENDED', 'To‘lov qilinmagani sababli vaqtincha to‘xtatildi')}
-                              style={{ padding: '8px 13px', borderRadius: 12, border: 'none', backgroundColor: '#F59E0B', color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                              ⏸ Vaqtincha To‘xtatish
+                              style={{ padding: '8px 13px', borderRadius: 12, border: 'none', backgroundColor: '#F59E0B', color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <Pause size={13} /> Vaqtincha To‘xtatish
                             </button>
                           ) : (
                             <button
                               className="sa-btn"
                               onClick={() => handleSetSchoolStatus(currentSelectedSchool, 'ACTIVE')}
-                              style={{ padding: '8px 13px', borderRadius: 12, border: 'none', backgroundColor: THEME.green, color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                              ▶ Faollashtirish
+                              style={{ padding: '8px 13px', borderRadius: 12, border: 'none', backgroundColor: THEME.green, color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <CheckCircle2 size={13} /> Faollashtirish
                             </button>
                           )}
 
                           <button
                             className="sa-btn"
                             onClick={() => handleSetSchoolStatus(currentSelectedSchool, 'ARCHIVED', 'Maktab ma\'lumotlari arxivlandi')}
-                            style={{ padding: '8px 13px', borderRadius: 12, border: `1px solid ${THEME.border}`, backgroundColor: '#FFFFFF', color: THEME.textDark, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                            📦 Arxivlash
+                            style={{ padding: '8px 13px', borderRadius: 12, border: `1px solid ${THEME.border}`, backgroundColor: '#FFFFFF', color: THEME.textDark, fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <Archive size={13} /> Arxivlash
                           </button>
 
                           <button
                             className="sa-btn"
                             onClick={() => handleHardDeleteSchool(currentSelectedSchool)}
-                            style={{ padding: '8px 13px', borderRadius: 12, border: 'none', backgroundColor: '#F43F5E', color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                            🗑️ O‘chirish
+                            style={{ padding: '8px 13px', borderRadius: 12, border: 'none', backgroundColor: '#F43F5E', color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <Trash2 size={13} /> O‘chirish
                           </button>
                         </div>
                       </div>
@@ -1940,7 +1972,11 @@ export default function SuperAdminDashboardView({
                           <span style={{ fontWeight: 900, fontSize: 17, color: tier.color || THEME.primary }}>
                             {tier.name}
                           </span>
-                          {tier.popular && <span style={pillBadgeStyle}>⭐ Eng Ommabop</span>}
+                          {tier.popular && (
+                            <span style={pillBadgeStyle}>
+                              <Star size={12} fill="#F59E0B" color="#F59E0B" style={{ display: 'inline', marginRight: 4 }} /> Eng Ommabop
+                            </span>
+                          )}
                         </div>
 
                         <div>
@@ -1954,9 +1990,15 @@ export default function SuperAdminDashboardView({
 
                         {/* Limitlar */}
                         <div style={{ padding: 13, borderRadius: 16, backgroundColor: '#F8F9FE', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <div>👥 Maksimal o‘quvchilar: <b>{tier.maxStudents} nafar</b></div>
-                          <div>🏫 Xonalar sig‘imi: <b>{tier.maxRooms} ta</b></div>
-                          <div>💾 Cloud Xotira: <b>{tier.storageGb} GB S3</b></div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Users size={14} color={THEME.primary} /> Maksimal o‘quvchilar: <b>{tier.maxStudents} nafar</b>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Building2 size={14} color={THEME.primary} /> Xonalar sig‘imi: <b>{tier.maxRooms} ta</b>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Database size={14} color={THEME.primary} /> Cloud Xotira: <b>{tier.storageGb} GB S3</b>
+                          </div>
                         </div>
 
                         {/* Modullar piktogrammalari */}
@@ -1965,15 +2007,15 @@ export default function SuperAdminDashboardView({
                             <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textMuted, width: '100%', marginBottom: 2 }}>
                               Yoqilgan tizim modullari ({activeModulesCount} ta):
                             </span>
-                            {tier.modules.face_id && <span style={tierBadgeStyle}>🧠 Face ID</span>}
-                            {tier.modules.dynamic_qr && <span style={tierBadgeStyle}>📱 25s QR</span>}
-                            {tier.modules.telegram_bot && <span style={tierBadgeStyle}>🤖 TG Bot</span>}
-                            {tier.modules.turnstile_api && <span style={tierBadgeStyle}>🚪 Turniket</span>}
-                            {tier.modules.anti_spoofing && <span style={tierBadgeStyle}>🛡️ Anti-Spoof</span>}
-                            {tier.modules.sms_alerts && <span style={tierBadgeStyle}>📩 SMS</span>}
-                            {tier.modules.journal_matrix && <span style={tierBadgeStyle}>📊 Jurnal</span>}
-                            {tier.modules.gps_geofence && <span style={tierBadgeStyle}>📍 Geometka</span>}
-                            {tier.modules.vip_support && <span style={tierBadgeStyle}>⚡ VIP SLA</span>}
+                            {tier.modules.face_id && <span style={tierBadgeStyle}><ScanFace size={12} /> Face ID</span>}
+                            {tier.modules.dynamic_qr && <span style={tierBadgeStyle}><QrCode size={12} /> 25s QR</span>}
+                            {tier.modules.telegram_bot && <span style={tierBadgeStyle}><Bot size={12} /> TG Bot</span>}
+                            {tier.modules.turnstile_api && <span style={tierBadgeStyle}><DoorOpen size={12} /> Turniket</span>}
+                            {tier.modules.anti_spoofing && <span style={tierBadgeStyle}><ShieldCheck size={12} /> Anti-Spoof</span>}
+                            {tier.modules.sms_alerts && <span style={tierBadgeStyle}><Send size={12} /> SMS</span>}
+                            {tier.modules.journal_matrix && <span style={tierBadgeStyle}><FileSpreadsheet size={12} /> Jurnal</span>}
+                            {tier.modules.gps_geofence && <span style={tierBadgeStyle}><MapPin size={12} /> Geometka</span>}
+                            {tier.modules.vip_support && <span style={tierBadgeStyle}><Zap size={12} /> VIP SLA</span>}
                           </div>
                         )}
 
@@ -2017,43 +2059,45 @@ export default function SuperAdminDashboardView({
                   <p style={sectionSubStyle}>Payme, Click, Uzum Business va Bank hisob-raqami orqali kelib tushgan to‘lovlar</p>
                 </div>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
-                      <th style={{ padding: '12px' }}>Invoice ID</th>
-                      <th style={{ padding: '12px' }}>Maktab</th>
-                      <th style={{ padding: '12px' }}>Tarif</th>
-                      <th style={{ padding: '12px' }}>Summa</th>
-                      <th style={{ padding: '12px' }}>To‘lov Tizimi</th>
-                      <th style={{ padding: '12px' }}>Muddati</th>
-                      <th style={{ padding: '12px' }}>Holati</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoices.map(inv => (
-                      <tr key={inv.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
-                        <td style={{ padding: '12px', fontWeight: 700, fontFamily: 'monospace' }}>{inv.id}</td>
-                        <td style={{ padding: '12px', fontWeight: 700 }}>{inv.schoolName}</td>
-                        <td style={{ padding: '12px' }}>{inv.plan}</td>
-                        <td style={{ padding: '12px', fontWeight: 800, color: THEME.primary }}>{inv.amount}</td>
-                        <td style={{ padding: '12px' }}>{inv.method}</td>
-                        <td style={{ padding: '12px', fontSize: 12, color: THEME.textMuted }}>{inv.dueDate}</td>
-                        <td style={{ padding: '12px' }}>
-                          <span style={{
-                            padding: '4px 10px',
-                            borderRadius: 10,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            backgroundColor: inv.status === 'PAID' ? '#ECFDF5' : inv.status === 'PENDING' ? '#FFFBEB' : '#FFF1F2',
-                            color: inv.status === 'PAID' ? THEME.green : inv.status === 'PENDING' ? '#D97706' : '#E11D48',
-                          }}>
-                            {inv.status === 'PAID' ? 'To‘langan ✅' : inv.status === 'PENDING' ? 'Kutilmoqda ⏳' : 'Qarzdor ⚠️'}
-                          </span>
-                        </td>
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                  <table style={{ width: '100%', minWidth: 650, borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
+                        <th style={{ padding: '12px' }}>Invoice ID</th>
+                        <th style={{ padding: '12px' }}>Maktab</th>
+                        <th style={{ padding: '12px' }}>Tarif</th>
+                        <th style={{ padding: '12px' }}>Summa</th>
+                        <th style={{ padding: '12px' }}>To‘lov Tizimi</th>
+                        <th style={{ padding: '12px' }}>Muddati</th>
+                        <th style={{ padding: '12px' }}>Holati</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {invoices.map(inv => (
+                        <tr key={inv.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
+                          <td style={{ padding: '12px', fontWeight: 700, fontFamily: 'monospace' }}>{inv.id}</td>
+                          <td style={{ padding: '12px', fontWeight: 700 }}>{inv.schoolName}</td>
+                          <td style={{ padding: '12px' }}>{inv.plan}</td>
+                          <td style={{ padding: '12px', fontWeight: 800, color: THEME.primary }}>{inv.amount}</td>
+                          <td style={{ padding: '12px' }}>{inv.method}</td>
+                          <td style={{ padding: '12px', fontSize: 12, color: THEME.textMuted }}>{inv.dueDate}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: 10,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              backgroundColor: inv.status === 'PAID' ? '#ECFDF5' : inv.status === 'PENDING' ? '#FFFBEB' : '#FFF1F2',
+                              color: inv.status === 'PAID' ? THEME.green : inv.status === 'PENDING' ? '#D97706' : '#E11D48',
+                            }}>
+                              {inv.status === 'PAID' ? 'To‘langan' : inv.status === 'PENDING' ? 'Kutilmoqda' : 'Qarzdor'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -2080,7 +2124,7 @@ export default function SuperAdminDashboardView({
                   onChange={e => {
                     setActiveAiModel(e.target.value);
                     appendAuditLog('CHANGE_AI_MODEL', e.target.value, 'Face ID klaster modeli almashtirildi');
-                    showToast(`🧠 AI model "${e.target.value}" ga o'tkazildi!`);
+                    showToast(`AI model "${e.target.value}" ga o'tkazildi!`);
                   }}
                   style={{ ...selectFilterStyle, fontWeight: 700, padding: '11px 16px' }}>
                   <option value="InsightFace ArcFace v2.4 (GPU TensorRT)">InsightFace ArcFace v2.4 (GPU TensorRT)</option>
@@ -2100,8 +2144,9 @@ export default function SuperAdminDashboardView({
                     <div key={log.id} style={{ padding: 15, borderRadius: 18, backgroundColor: log.severity === 'CRITICAL' ? '#FFF5F6' : '#FFFBEB', border: `1px solid ${log.severity === 'CRITICAL' ? '#FECDD3' : '#FDE68A'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: log.severity === 'CRITICAL' ? '#F43F5E' : '#F59E0B', color: '#FFFFFF', fontWeight: 700, fontSize: 10 }}>
-                            {log.severity === 'CRITICAL' ? '🚨 ANTI-SPOOFING' : '⚠️ SIFAT OGOHLANTIRISHI'}
+                          <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: log.severity === 'CRITICAL' ? '#F43F5E' : '#F59E0B', color: '#FFFFFF', fontWeight: 700, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            {log.severity === 'CRITICAL' ? <ShieldCheck size={11} /> : <AlertTriangle size={11} />}
+                            {log.severity === 'CRITICAL' ? 'ANTI-SPOOFING' : 'SIFAT OGOHLANTIRISHI'}
                           </span>
                           <span style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>{log.school}</span>
                           <span style={{ fontSize: 12, color: THEME.textMuted }}>• O‘quvchi: <b>{log.studentName}</b> (ID: {log.studentId})</span>
@@ -2162,8 +2207,11 @@ export default function SuperAdminDashboardView({
                           fontWeight: 700,
                           fontSize: 11.5,
                           cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6
                         }}>
-                        {require2FA[item.key] ? '✅ ' : '⬜ '} {item.label}
+                        {require2FA[item.key] ? <CheckSquare size={13} /> : <Square size={13} />} {item.label}
                       </button>
                     ))}
                   </div>
@@ -2196,88 +2244,92 @@ export default function SuperAdminDashboardView({
                   <span style={pillBadgeStyle}>100% Izolyatsiyalangan</span>
                 </div>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12.5, marginTop: 14 }}>
-                  <thead>
-                    <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
-                      <th style={{ padding: '10px' }}>O‘quvchi F.I.Sh.</th>
-                      <th style={{ padding: '10px' }}>Kirish ID</th>
-                      <th style={{ padding: '10px' }}>Tegishli Maktab Bazasi</th>
-                      <th style={{ padding: '10px' }}>Sinf / Guruh</th>
-                      <th style={{ padding: '10px' }}>Kim Tomonidan Yaratilgan</th>
-                      <th style={{ padding: '10px' }}>Yaratilgan Vaqti</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dbStudents.map(st => {
-                      const isSuper = (st.created_by_role || '').includes('SUPER') || (st.created_by || '').toLowerCase().includes('super');
-                      return (
-                        <tr key={st.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
-                          <td style={{ padding: '10px', fontWeight: 700, color: THEME.textDark }}>{st.last_name} {st.first_name}</td>
-                          <td style={{ padding: '10px', fontFamily: 'monospace', fontWeight: 700, color: THEME.primary }}>{st.student_id}</td>
-                          <td style={{ padding: '10px' }}>
-                            <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: '#F8FAFC', border: `1px solid ${THEME.border}`, fontWeight: 700, fontSize: 11.5 }}>
-                              🔒 {st.school_name || `Maktab #${st.school_id}`}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px' }}>
-                            <span style={{ padding: '3px 8px', borderRadius: 6, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 700, fontSize: 11 }}>
-                              {st.class_name || 'Guruhsiz'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px' }}>
-                            <span style={{
-                              padding: '2px 7px',
-                              borderRadius: 6,
-                              fontSize: 10,
-                              fontWeight: 800,
-                              marginRight: 6,
-                              backgroundColor: isSuper ? '#FFF0F3' : '#ECFDF5',
-                              color: isSuper ? '#E11D48' : THEME.green,
-                            }}>
-                              {isSuper ? 'SUPER ADMIN' : 'MAKTAB ADMINI'}
-                            </span>
-                            <span style={{ fontWeight: 600, color: THEME.textDark }}>{st.created_by || 'Maktab Direktori'}</span>
-                          </td>
-                          <td style={{ padding: '10px', fontFamily: 'monospace', color: THEME.textMuted }}>{st.date_joined}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <div style={{ overflowX: 'auto', width: '100%', marginTop: 14 }}>
+                  <table style={{ width: '100%', minWidth: 650, borderCollapse: 'collapse', textAlign: 'left', fontSize: 12.5 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
+                        <th style={{ padding: '10px' }}>O‘quvchi F.I.Sh.</th>
+                        <th style={{ padding: '10px' }}>Kirish ID</th>
+                        <th style={{ padding: '10px' }}>Tegishli Maktab Bazasi</th>
+                        <th style={{ padding: '10px' }}>Sinf / Guruh</th>
+                        <th style={{ padding: '10px' }}>Kim Tomonidan Yaratilgan</th>
+                        <th style={{ padding: '10px' }}>Yaratilgan Vaqti</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dbStudents.map(st => {
+                        const isSuper = (st.created_by_role || '').includes('SUPER') || (st.created_by || '').toLowerCase().includes('super');
+                        return (
+                          <tr key={st.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
+                            <td style={{ padding: '10px', fontWeight: 700, color: THEME.textDark }}>{st.last_name} {st.first_name}</td>
+                            <td style={{ padding: '10px', fontFamily: 'monospace', fontWeight: 700, color: THEME.primary }}>{st.student_id}</td>
+                            <td style={{ padding: '10px' }}>
+                              <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: '#F8FAFC', border: `1px solid ${THEME.border}`, fontWeight: 700, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <Lock size={11} /> {st.school_name || `Maktab #${st.school_id}`}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px' }}>
+                              <span style={{ padding: '3px 8px', borderRadius: 6, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 700, fontSize: 11 }}>
+                                {st.class_name || 'Guruhsiz'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px' }}>
+                              <span style={{
+                                padding: '2px 7px',
+                                borderRadius: 6,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                marginRight: 6,
+                                backgroundColor: isSuper ? '#FFF0F3' : '#ECFDF5',
+                                color: isSuper ? '#E11D48' : THEME.green,
+                              }}>
+                                {isSuper ? 'SUPER ADMIN' : 'MAKTAB ADMINI'}
+                              </span>
+                              <span style={{ fontWeight: 600, color: THEME.textDark }}>{st.created_by || 'Maktab Direktori'}</span>
+                            </td>
+                            <td style={{ padding: '10px', fontFamily: 'monospace', color: THEME.textMuted }}>{st.date_joined}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div className="sa-card" style={cardBoxStyle}>
                 <h3 style={sectionTitleStyle}>Global Audit Jurnali</h3>
                 <p style={sectionSubStyle}>Barcha tizim amallari, Ghost Login o‘tishlari va ma'lumotlar o‘zgarishi tarixi</p>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12.5, marginTop: 14 }}>
-                  <thead>
-                    <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
-                      <th style={{ padding: '10px' }}>Vaqt</th>
-                      <th style={{ padding: '10px' }}>Foydalanuvchi</th>
-                      <th style={{ padding: '10px' }}>IP Manzil</th>
-                      <th style={{ padding: '10px' }}>Amal</th>
-                      <th style={{ padding: '10px' }}>Obyekt</th>
-                      <th style={{ padding: '10px' }}>Tafsilot</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {auditLogs.map(log => (
-                      <tr key={log.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
-                        <td style={{ padding: '10px', fontFamily: 'monospace', color: THEME.textMuted }}>{log.time}</td>
-                        <td style={{ padding: '10px', fontWeight: 700 }}>{log.actor}</td>
-                        <td style={{ padding: '10px', fontFamily: 'monospace' }}>{log.ip}</td>
-                        <td style={{ padding: '10px' }}>
-                          <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 700, fontSize: 11 }}>
-                            {log.action}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px', fontWeight: 700 }}>{log.target}</td>
-                        <td style={{ padding: '10px', color: THEME.textDark }}>{log.detail}</td>
+                <div style={{ overflowX: 'auto', width: '100%', marginTop: 14 }}>
+                  <table style={{ width: '100%', minWidth: 650, borderCollapse: 'collapse', textAlign: 'left', fontSize: 12.5 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
+                        <th style={{ padding: '10px' }}>Vaqt</th>
+                        <th style={{ padding: '10px' }}>Foydalanuvchi</th>
+                        <th style={{ padding: '10px' }}>IP Manzil</th>
+                        <th style={{ padding: '10px' }}>Amal</th>
+                        <th style={{ padding: '10px' }}>Obyekt</th>
+                        <th style={{ padding: '10px' }}>Tafsilot</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {auditLogs.map(log => (
+                        <tr key={log.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
+                          <td style={{ padding: '10px', fontFamily: 'monospace', color: THEME.textMuted }}>{log.time}</td>
+                          <td style={{ padding: '10px', fontWeight: 700 }}>{log.actor}</td>
+                          <td style={{ padding: '10px', fontFamily: 'monospace' }}>{log.ip}</td>
+                          <td style={{ padding: '10px' }}>
+                            <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 700, fontSize: 11 }}>
+                              {log.action}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px', fontWeight: 700 }}>{log.target}</td>
+                          <td style={{ padding: '10px', color: THEME.textDark }}>{log.detail}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -2295,7 +2347,9 @@ export default function SuperAdminDashboardView({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
                     <div style={miniStatBoxStyle}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, fontSize: 13 }}>📩 SMS Shlyuz ({systemConfig.smsProvider})</span>
+                        <span style={{ fontWeight: 700, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <Send size={14} color={THEME.primary} /> SMS Shlyuz ({systemConfig.smsProvider})
+                        </span>
                         <span style={{ color: THEME.green, fontWeight: 800 }}>Balans: {systemConfig.smsBalance.toLocaleString()} SMS</span>
                       </div>
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -2306,7 +2360,7 @@ export default function SuperAdminDashboardView({
                           <option value="Eskiz.uz Official Gateway">Eskiz.uz Official Gateway</option>
                           <option value="PlayMobile Corporate SMS">PlayMobile Corporate SMS</option>
                         </select>
-                        <button className="sa-btn" onClick={() => showToast('✅ Test SMS muvaffaqiyatli yuborildi!')} style={secondaryBtnStyle}>
+                        <button className="sa-btn" onClick={() => showToast('Test SMS muvaffaqiyatli yuborildi!')} style={secondaryBtnStyle}>
                           Test SMS
                         </button>
                       </div>
@@ -2314,8 +2368,10 @@ export default function SuperAdminDashboardView({
 
                     <div style={miniStatBoxStyle}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, fontSize: 13 }}>🤖 Ota-onalar Telegram Boti (@IdrokEdu_Bot)</span>
-                        <span style={{ color: THEME.green, fontWeight: 700, fontSize: 11 }}>Webhook Faol ✅</span>
+                        <span style={{ fontWeight: 700, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <Bot size={14} color={THEME.primary} /> Ota-onalar Telegram Boti (@IdrokEdu_Bot)
+                        </span>
+                        <span style={{ color: THEME.green, fontWeight: 700, fontSize: 11 }}>Webhook Faol</span>
                       </div>
                       <input
                         value={systemConfig.telegramBotToken}
@@ -2326,7 +2382,9 @@ export default function SuperAdminDashboardView({
 
                     <div style={miniStatBoxStyle}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, fontSize: 13 }}>🔔 Firebase Cloud Messaging (FCM Push)</span>
+                        <span style={{ fontWeight: 700, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <Bell size={14} color={THEME.primary} /> Firebase Cloud Messaging (FCM Push)
+                        </span>
                         <button
                           className="sa-btn"
                           onClick={() => setSystemConfig({ ...systemConfig, fcmActive: !systemConfig.fcmActive })}
@@ -2364,23 +2422,25 @@ export default function SuperAdminDashboardView({
 
                     <div style={{ ...miniStatBoxStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>📲 Majburiy Yangilanish (Force Update)</div>
-                        <div style={{ fontSize: 11, color: THEME.textMuted }}>Eski versiyadagi ilovalardan yangilashni talab qilish</div>
+                        <div style={{ fontWeight: 700, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <Smartphone size={14} color={THEME.primary} /> Majburiy Yangilanish (Force Update)
+                        </div>
+                        <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Eski versiyadagi ilovalardan yangilashni talab qilish</div>
                       </div>
                       <button
                         className="sa-btn"
                         onClick={() => setSystemConfig({ ...systemConfig, forceUpdate: !systemConfig.forceUpdate })}
                         style={{ padding: '8px 14px', borderRadius: 12, border: 'none', backgroundColor: systemConfig.forceUpdate ? THEME.primary : '#CBD5E1', color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                        {systemConfig.forceUpdate ? 'Yoqilgan ✅' : 'O‘chiq'}
+                        {systemConfig.forceUpdate ? 'Yoqilgan' : 'O‘chiq'}
                       </button>
                     </div>
 
                     <div style={{ ...miniStatBoxStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: systemConfig.maintenanceMode ? '#FFF5F6' : '#F9FAFE' }}>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: systemConfig.maintenanceMode ? '#E11D48' : THEME.textDark }}>
-                          🛠️ Texnik Ishlar Rejimi (Maintenance)
+                        <div style={{ fontWeight: 700, fontSize: 13, color: systemConfig.maintenanceMode ? '#E11D48' : THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <Wrench size={14} color={systemConfig.maintenanceMode ? '#E11D48' : THEME.primary} /> Texnik Ishlar Rejimi (Maintenance)
                         </div>
-                        <div style={{ fontSize: 11, color: THEME.textMuted }}>Super Admindan tashqari kirishlarni vaqtincha cheklash</div>
+                        <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Super Admindan tashqari kirishlarni vaqtincha cheklash</div>
                       </div>
                       <button
                         className="sa-btn"
@@ -2399,48 +2459,50 @@ export default function SuperAdminDashboardView({
                   <p style={sectionSubStyle}>S3 Object Storage bandligi: <b>42.8 GB / 500 GB (8.5%)</b> • Avtomatik kunlik backup soat 04:00 da</p>
                 </div>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
-                      <th style={{ padding: '10px' }}>Snapshot ID</th>
-                      <th style={{ padding: '10px' }}>Yaratilgan Vaqti</th>
-                      <th style={{ padding: '10px' }}>Zaxira Turi</th>
-                      <th style={{ padding: '10px' }}>Hajmi</th>
-                      <th style={{ padding: '10px' }}>Holati</th>
-                      <th style={{ padding: '10px', textAlign: 'right' }}>Yuklab Olish</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {backups.map(b => (
-                      <tr key={b.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
-                        <td style={{ padding: '10px', fontWeight: 700, fontFamily: 'monospace' }}>{b.id}</td>
-                        <td style={{ padding: '10px' }}>{b.date}</td>
-                        <td style={{ padding: '10px', fontWeight: 600 }}>{b.type}</td>
-                        <td style={{ padding: '10px', fontWeight: 700, color: THEME.primary }}>{b.size}</td>
-                        <td style={{ padding: '10px' }}>
-                          <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: '#ECFDF5', color: THEME.green, fontWeight: 700, fontSize: 11 }}>
-                            {b.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'right' }}>
-                          <button
-                            className="sa-btn"
-                            onClick={() => {
-                              const blob = new Blob([JSON.stringify({ backupId: b.id, timestamp: b.date, schools: schoolsList }, null, 2)], { type: 'application/json' });
-                              const a = document.createElement('a');
-                              a.href = URL.createObjectURL(blob);
-                              a.setAttribute('download', `${b.id}_dump.json`);
-                              a.click();
-                              showToast(`💾 ${b.id} zaxira nusxasi yuklab olindi!`);
-                            }}
-                            style={{ ...secondaryBtnStyle, padding: '6px 12px', display: 'inline-flex' }}>
-                            <Download size={13} /> Yuklab olish
-                          </button>
-                        </td>
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                  <table style={{ width: '100%', minWidth: 650, borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
+                        <th style={{ padding: '10px' }}>Snapshot ID</th>
+                        <th style={{ padding: '10px' }}>Yaratilgan Vaqti</th>
+                        <th style={{ padding: '10px' }}>Zaxira Turi</th>
+                        <th style={{ padding: '10px' }}>Hajmi</th>
+                        <th style={{ padding: '10px' }}>Holati</th>
+                        <th style={{ padding: '10px', textAlign: 'right' }}>Yuklab Olish</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {backups.map(b => (
+                        <tr key={b.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
+                          <td style={{ padding: '10px', fontWeight: 700, fontFamily: 'monospace' }}>{b.id}</td>
+                          <td style={{ padding: '10px' }}>{b.date}</td>
+                          <td style={{ padding: '10px', fontWeight: 600 }}>{b.type}</td>
+                          <td style={{ padding: '10px', fontWeight: 700, color: THEME.primary }}>{b.size}</td>
+                          <td style={{ padding: '10px' }}>
+                            <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: '#ECFDF5', color: THEME.green, fontWeight: 700, fontSize: 11 }}>
+                              {b.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px', textAlign: 'right' }}>
+                            <button
+                              className="sa-btn"
+                              onClick={() => {
+                                const blob = new Blob([JSON.stringify({ backupId: b.id, timestamp: b.date, schools: schoolsList }, null, 2)], { type: 'application/json' });
+                                const a = document.createElement('a');
+                                a.href = URL.createObjectURL(blob);
+                                a.setAttribute('download', `${b.id}_dump.json`);
+                                a.click();
+                                showToast(`${b.id} zaxira nusxasi yuklab olindi!`);
+                              }}
+                              style={{ ...secondaryBtnStyle, padding: '6px 12px', display: 'inline-flex' }}>
+                              <Download size={13} /> Yuklab olish
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -2451,11 +2513,13 @@ export default function SuperAdminDashboardView({
           {superTab === 'support' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               <div className="sa-card" style={cardBoxStyle}>
-                <h3 style={sectionTitleStyle}>📢 Barcha Maktablar Paneliga Rasmiy Xabarnoma Chiqarish</h3>
+                <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Bell size={16} color={THEME.primary} /> Barcha Maktablar Paneliga Rasmiy Xabarnoma Chiqarish
+                </h3>
                 <p style={sectionSubStyle}>Bu yerga yozilgan e'lon barcha maktab direktorlarining ish stolida yuqori banner sifatida ko‘rinadi</p>
                 <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                   <input
-                    placeholder="Masalan: 📢 Diqqat! 20-oktyabr kuni soat 23:00 da AI Face ID serverlari yangilanadi."
+                    placeholder="Masalan: Diqqat! 20-oktyabr kuni soat 23:00 da AI Face ID serverlari yangilanadi."
                     value={broadcastInput}
                     onChange={e => setBroadcastInput(e.target.value)}
                     style={{ ...inputFieldStyle, flex: 1, marginTop: 0 }}
@@ -2465,7 +2529,7 @@ export default function SuperAdminDashboardView({
                     onClick={() => {
                       if (onUpdateAnnouncement) onUpdateAnnouncement(broadcastInput.trim());
                       appendAuditLog('BROADCAST_ANNOUNCEMENT', 'Barcha Maktablar', broadcastInput.trim() || 'E\'lon tozalandi');
-                      showToast(broadcastInput.trim() ? '📢 Rasmiy e\'lon barcha maktablar paneliga chiqarildi!' : '🗑️ Global e\'lon olib tashlandi.');
+                      showToast(broadcastInput.trim() ? 'Rasmiy e\'lon barcha maktablar paneliga chiqarildi!' : 'Global e\'lon olib tashlandi.');
                     }}
                     style={primaryBtnStyle}>
                     <Send size={15} /> Barcha Maktablarga Chiqarish
@@ -2475,7 +2539,9 @@ export default function SuperAdminDashboardView({
 
               <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 22 }}>
                 <div className="sa-card" style={cardBoxStyle}>
-                  <h3 style={sectionTitleStyle}>🎫 Maktab Direktorlaridan Kelgan Murojaatlar</h3>
+                  <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <MessageSquare size={16} color={THEME.primary} /> Maktab Direktorlaridan Kelgan Murojaatlar
+                  </h3>
                   <p style={sectionSubStyle}>Texnik yordam so‘rovlari va ularga javob berish</p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
@@ -2491,7 +2557,7 @@ export default function SuperAdminDashboardView({
                             backgroundColor: t.status === 'OPEN' ? '#FFFBEB' : '#ECFDF5',
                             color: t.status === 'OPEN' ? '#D97706' : THEME.green,
                           }}>
-                            {t.status === 'OPEN' ? 'OCHIQ MUROJAAT' : 'HAL QILINDI ✅'}
+                            {t.status === 'OPEN' ? 'OCHIQ MUROJAAT' : 'HAL QILINDI'}
                           </span>
                         </div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>{t.subject}</div>
@@ -2517,10 +2583,10 @@ export default function SuperAdminDashboardView({
                                 const replyText = (activeTicketReply[t.id] || 'Muammo texnik bo‘lim to‘monidan hal qilindi.').trim();
                                 setTickets(tickets.map(item => item.id === t.id ? { ...item, status: 'RESOLVED', reply: replyText } : item));
                                 appendAuditLog('RESOLVE_TICKET', t.id, replyText);
-                                showToast(`✅ ${t.id} murojaati yopildi!`);
+                                showToast(`${t.id} murojaati yopildi!`);
                               }}
                               style={{ ...primaryBtnStyle, padding: '8px 14px' }}>
-                              Yopish ✓
+                              Yopish <Check size={13} />
                             </button>
                           </div>
                         )}
@@ -2530,13 +2596,17 @@ export default function SuperAdminDashboardView({
                 </div>
 
                 <div className="sa-card" style={cardBoxStyle}>
-                  <h3 style={sectionTitleStyle}>📚 Tez-tez Uchraydigan Savollar (FAQ)</h3>
+                  <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <HelpCircle size={16} color={THEME.primary} /> Tez-tez Uchraydigan Savollar (FAQ)
+                  </h3>
                   <p style={sectionSubStyle}>Maktab direktorlari va ustozlar uchun yo‘riqnomalar</p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
                     {faqs.map(f => (
                       <div key={f.id} style={{ padding: 15, borderRadius: 16, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}` }}>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>❓ {f.q}</div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <HelpCircle size={14} color={THEME.primary} /> {f.q}
+                        </div>
                         <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 6, lineHeight: 1.5 }}>{f.a}</div>
                       </div>
                     ))}
@@ -2561,7 +2631,7 @@ export default function SuperAdminDashboardView({
             setSelectedSchoolId(createdSchool.id);
             setShowOnboardingWizard(false);
             appendAuditLog('ONBOARD_NEW_SCHOOL', createdSchool.name, `Yangi maktab qo'shildi (Login: ${createdSchool.username})`);
-            showToast(`🎉 "${createdSchool.name}" muvaffaqiyatli qo'shildi!`);
+            showToast(`"${createdSchool.name}" muvaffaqiyatli qo'shildi!`);
           }}
         />
       )}
@@ -2575,7 +2645,7 @@ export default function SuperAdminDashboardView({
             onUpdateSchools(updated);
             setEditingSchool(null);
             appendAuditLog('UPDATE_SCHOOL', updatedSchool.name, 'Maktab rekvizitlari yangilandi');
-            showToast(`✅ "${updatedSchool.name}" ma'lumotlari saqlandi!`);
+            showToast(`"${updatedSchool.name}" ma'lumotlari saqlandi!`);
           }}
         />
       )}
@@ -2583,7 +2653,9 @@ export default function SuperAdminDashboardView({
       {warningModalSchool && (
         <div style={modalBackdropStyle}>
           <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)' }}>
-            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>📢 "{warningModalSchool.name}" ga Ogohlantirish</h3>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Bell size={18} color="#D97706" /> "{warningModalSchool.name}" ga Ogohlantirish
+            </h3>
             <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 4 }}>
               Ushbu xabar maktab direktorining ichki kabinetida ogohlantirish banneri bo‘lib chiqadi.
             </p>
@@ -2615,7 +2687,7 @@ export default function SuperAdminDashboardView({
             setInvoices([inv, ...invoices]);
             setShowNewInvoiceModal(false);
             appendAuditLog('CREATE_INVOICE', inv.schoolName, `${inv.id} (${inv.amount}) hisob-fakturasi yaratildi`);
-            showToast(`💳 ${inv.id} fakturasi yaratildi!`);
+            showToast(`${inv.id} fakturasi yaratildi!`);
           }}
         />
       )}
@@ -2699,7 +2771,9 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
             <div style={{ fontWeight: 800, fontSize: 18, color: THEME.textDark }}>Yangi Maktab Qo‘shish</div>
             <div style={{ fontSize: 12, color: THEME.textMuted }}>Qadam {step} / 4</div>
           </div>
-          <button onClick={onClose} style={{ border: 'none', background: '#F1F5F9', borderRadius: 12, width: 34, height: 34, cursor: 'pointer' }}>✕</button>
+          <button onClick={onClose} style={{ border: 'none', background: '#F1F5F9', borderRadius: 12, width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={15} color={THEME.textMuted} />
+          </button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
@@ -2788,20 +2862,23 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
           {step === 4 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { key: 'faceIdEnabled', title: '🧠 Face ID Biometrik Kirish va Turniket', desc: '3x4 rasm orqali yuzni solishtirish va turniket integratsiyasi' },
-                { key: 'qrAttendanceEnabled', title: '📱 25-soniyalik Dinamik QR Davomat', desc: 'Soxtalashtirishga qarshi har 25 soniyada yangilanuvchi QR kod' },
-                { key: 'telegramBotEnabled', title: '🤖 Ota-onalar Telegram Bildirishnomasi', desc: 'O‘quvchi maktabga kirganda ota-onaga avtomatik xabar yuborish' },
+                { key: 'faceIdEnabled', icon: <ScanFace size={16} color={THEME.primary} />, title: 'Face ID Biometrik Kirish va Turniket', desc: '3x4 rasm orqali yuzni solishtirish va turniket integratsiyasi' },
+                { key: 'qrAttendanceEnabled', icon: <QrCode size={16} color={THEME.cyan} />, title: '25-soniyalik Dinamik QR Davomat', desc: 'Soxtalashtirishga qarshi har 25 soniyada yangilanuvchi QR kod' },
+                { key: 'telegramBotEnabled', icon: <Bot size={16} color="#0EA5E9" />, title: 'Ota-onalar Telegram Bildirishnomasi', desc: 'O‘quvchi maktabga kirganda ota-onaga avtomatik xabar yuborish' },
               ].map(mod => (
                 <div
                   key={mod.key}
                   onClick={() => setForm({ ...form, [mod.key]: !form[mod.key] })}
                   style={{ padding: 14, borderRadius: 16, border: `1px solid ${form[mod.key] ? THEME.primary : THEME.border}`, backgroundColor: form[mod.key] ? THEME.primaryLight : '#F8FAFC', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>{mod.title}</div>
-                    <div style={{ fontSize: 11.5, color: THEME.textMuted, marginTop: 2 }}>{mod.desc}</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ marginTop: 2 }}>{mod.icon}</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{mod.title}</div>
+                      <div style={{ fontSize: 11.5, color: THEME.textMuted, marginTop: 2 }}>{mod.desc}</div>
+                    </div>
                   </div>
-                  <span style={{ fontWeight: 800, color: form[mod.key] ? THEME.primary : THEME.textMuted }}>
-                    {form[mod.key] ? 'YOQILGAN ✅' : 'O‘CHIQ'}
+                  <span style={{ fontWeight: 800, color: form[mod.key] ? THEME.primary : THEME.textMuted, fontSize: 11 }}>
+                    {form[mod.key] ? 'YOQILGAN' : 'O‘CHIQ'}
                   </span>
                 </div>
               ))}
@@ -2811,7 +2888,7 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
             {step > 1 ? (
               <button type="button" onClick={() => setStep(step - 1)} style={{ ...secondaryBtnStyle, flex: 1, justifyContent: 'center' }}>
-                ⬅ Orqaga
+                Orqaga
               </button>
             ) : (
               <button type="button" onClick={onClose} style={{ ...secondaryBtnStyle, flex: 1, justifyContent: 'center' }}>
@@ -2821,11 +2898,11 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
 
             {step < 4 ? (
               <button type="button" onClick={() => setStep(step + 1)} style={{ ...primaryBtnStyle, flex: 1.5, justifyContent: 'center' }}>
-                Keyingi Qadam ({step + 1}/4) ➔
+                Keyingi Qadam ({step + 1}/4) <ChevronRight size={14} />
               </button>
             ) : (
               <button type="submit" style={{ ...primaryBtnStyle, flex: 1.5, justifyContent: 'center' }}>
-                ✅ Maktabni Ishga Tushirish
+                <CheckCircle2 size={16} /> Maktabni Ishga Tushirish
               </button>
             )}
           </div>
@@ -2900,7 +2977,9 @@ function NewInvoiceModal({ schoolsList, onClose, onCreate }) {
   return (
     <div style={modalBackdropStyle}>
       <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28, width: '100%', maxWidth: 440, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)' }}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>💳 Yangi Hisob-Faktura Yaratish</h3>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CreditCard size={18} color={THEME.primary} /> Yangi Hisob-Faktura Yaratish
+        </h3>
         <form
           onSubmit={e => {
             e.preventDefault();
@@ -2997,63 +3076,63 @@ function TariffPlanModal({ tier, onClose, onSave }) {
   const MODULE_DEFINITIONS = [
     {
       key: 'face_id',
-      icon: '🧠',
+      icon: <ScanFace size={18} color={THEME.primary} />,
       title: 'Face ID Biometrik Identifikatsiya',
       desc: '3x4 fotosurat orqali yuzni tanish va eshik/turniketlarda avtomatik ochish',
       badge: 'AI Vision v2.4',
     },
     {
       key: 'dynamic_qr',
-      icon: '📱',
+      icon: <QrCode size={18} color={THEME.cyan} />,
       title: '25-soniyalik Dinamik QR Kod Davomat',
       desc: 'Har 25 soniyada yangilanuvchi xavfsiz QR orqali darsga kirishni qayd etish',
       badge: 'Anti-Clone',
     },
     {
       key: 'telegram_bot',
-      icon: '🤖',
+      icon: <Bot size={18} color="#0EA5E9" />,
       title: 'Ota-onalar Avtomat Telegram Boti',
       desc: 'Farzandi maktabga kirgani va chiqqani haqida oniy xabarnoma yuborish',
       badge: 'Telegram API',
     },
     {
       key: 'turnstile_api',
-      icon: '🚪',
+      icon: <DoorOpen size={18} color={THEME.orange} />,
       title: 'Turniket va Darvoza Apparat Integratsiyasi',
       desc: 'Hikvision, Dahua va ZKTeco kontrollerlari bilan to‘g‘ridan-to‘g‘ri apparat aloqasi',
       badge: 'Hardware SDK',
     },
     {
       key: 'anti_spoofing',
-      icon: '🛡️',
+      icon: <ShieldCheck size={18} color="#10B981" />,
       title: 'Anti-Spoofing (Liveness Detection)',
       desc: 'Yuz o‘rniga telefon ekrani yoki qog‘oz rasm tutilganda darhol soxtalashtirishni aniqlash',
       badge: 'Security v3',
     },
     {
       key: 'sms_alerts',
-      icon: '📩',
+      icon: <Send size={18} color={THEME.primary} />,
       title: 'SMS Xabarnomalar (Eskiz.uz)',
       desc: 'Telegrami yo‘q ota-onalar yoki favqulodda e’lonlar uchun to‘g‘ridan-to‘g‘ri SMS shlyuzi',
       badge: 'SMS Gateway',
     },
     {
       key: 'journal_matrix',
-      icon: '📊',
+      icon: <FileSpreadsheet size={18} color="#10B981" />,
       title: 'Elektron Jurnal va Dars Matritsasi',
       desc: 'Kundalik baholash, choraklik hisobotlar va dars jadvali matritsasini to‘liq yuritish',
       badge: 'Jurnal Core',
     },
     {
       key: 'gps_geofence',
-      icon: '📍',
+      icon: <MapPin size={18} color="#EF4444" />,
       title: 'GPS Geofence (Xaritadagi Metka)',
       desc: 'O‘qituvchi va xodimlar faqat belgilangan radius ichida davomat qila olishi',
       badge: 'Geolocation',
     },
     {
       key: 'vip_support',
-      icon: '⚡',
+      icon: <Zap size={18} color="#F59E0B" />,
       title: '24/7 Shaxsiy VIP SLA Texnik Yordam',
       desc: 'Alohida ajratilgan server quvvati, kunlik avtomatik backup va shaxsiy muhandis',
       badge: 'VIP SLA',
@@ -3127,8 +3206,8 @@ function TariffPlanModal({ tier, onClose, onSave }) {
                 backgroundColor: form.color || THEME.primary,
                 boxShadow: `0 0 10px ${form.color || THEME.primary}`,
               }} />
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: THEME.textDark }}>
-                {form.name ? `🛠️ "${form.name}" Tarifini To‘liq Sozlash` : '✨ Yangi Tarif Rejasi'}
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sliders size={18} color={form.color || THEME.primary} /> {form.name ? `"${form.name}" Tarifini To‘liq Sozlash` : 'Yangi Tarif Rejasi'}
               </h3>
             </div>
             <p style={{ margin: '4px 0 0 0', fontSize: 12, color: THEME.textMuted }}>
@@ -3150,7 +3229,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
               fontWeight: 800,
               color: THEME.textMuted,
             }}>
-            ✕
+            <X size={16} />
           </button>
         </div>
 
@@ -3209,7 +3288,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
                     onChange={e => setForm({ ...form, popular: e.target.checked })}
                     style={{ cursor: 'pointer', width: 16, height: 16 }}
                   />
-                  ⭐ Eng Ommabop
+                  <Star size={13} fill="#F59E0B" color="#F59E0B" /> Eng Ommabop
                 </label>
               </div>
             </div>
@@ -3361,7 +3440,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
                     }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 18 }}>{mod.icon}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center' }}>{mod.icon}</span>
                         <div>
                           <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark }}>
                             {mod.title}
@@ -3380,7 +3459,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
                         color: isEnabled ? '#FFFFFF' : '#64748B',
                         flexShrink: 0,
                       }}>
-                        {isEnabled ? 'YOQILGAN ✅' : 'O‘CHIQ'}
+                        {isEnabled ? 'YOQILGAN' : 'O‘CHIQ'}
                       </span>
                     </div>
                     <div style={{ fontSize: 11, color: THEME.textMuted, lineHeight: 1.35 }}>
@@ -3422,11 +3501,12 @@ function TariffPlanModal({ tier, onClose, onSave }) {
                       border: 'none',
                       color: '#94A3B8',
                       cursor: 'pointer',
-                      fontSize: 13,
+                      display: 'inline-flex',
+                      alignItems: 'center',
                       padding: 0,
                       marginLeft: 2,
                     }}>
-                    ✕
+                    <X size={12} />
                   </button>
                 </span>
               ))}
@@ -3477,7 +3557,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
                 justifyContent: 'center',
                 background: form.color ? `linear-gradient(135deg, ${form.color} 0%, #4338CA 100%)` : THEME.gradient,
               }}>
-              ✅ Tarif Rejasini Saqlash
+              <CheckCircle2 size={16} /> Tarif Rejasini Saqlash
             </button>
           </div>
         </form>
@@ -3563,11 +3643,11 @@ function MetricCard({ icon, title, value, sub, color, badge }) {
 
 function StatusBadge({ status }) {
   const map = {
-    ACTIVE: { label: 'Faol ✅', bg: '#ECFDF5', color: '#10B981' },
-    TRIAL: { label: 'Sinov muddati 🧪', bg: '#EFF6FF', color: '#2563EB' },
-    SUSPENDED: { label: 'To‘xtatilgan ⏸', bg: '#FFFBEB', color: '#D97706' },
-    ARCHIVED: { label: 'Arxivlangan 📦', bg: '#F1F5F9', color: '#64748B' },
-    BLOCKED: { label: 'Bloklangan ⛔', bg: '#FFF1F2', color: '#E11D48' },
+    ACTIVE: { label: 'Faol', bg: '#ECFDF5', color: '#10B981' },
+    TRIAL: { label: 'Sinov muddati', bg: '#EFF6FF', color: '#2563EB' },
+    SUSPENDED: { label: 'To‘xtatilgan', bg: '#FFFBEB', color: '#D97706' },
+    ARCHIVED: { label: 'Arxivlangan', bg: '#F1F5F9', color: '#64748B' },
+    BLOCKED: { label: 'Bloklangan', bg: '#FFF1F2', color: '#E11D48' },
   };
   const st = map[status] || map.ACTIVE;
   return (
