@@ -1434,23 +1434,46 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           </button>
         )}
 
-        {/* Bottom Profile */}
-        <div style={{ paddingTop: 16, borderTop: `1px solid ${THEME.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Bottom Profile (BENTO MINI-TILE) */}
+        <div style={{
+          marginTop: 'auto',
+          padding: '12px 14px',
+          borderRadius: 16,
+          backgroundColor: '#FAF9FE',
+          border: '1px solid rgba(108, 92, 231, 0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: THEME.primaryLight, color: THEME.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 14, flexShrink: 0 }}>
+            <div style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: THEME.gradient,
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: 13,
+              boxShadow: '0 4px 10px rgba(108, 92, 231, 0.25)',
+              flexShrink: 0
+            }}>
               {currentUser?.isSuperAdminImpersonating ? 'SA' : 'DR'}
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {currentUser?.isSuperAdminImpersonating ? 'Super Admin (Boshqaruvda)' : (schoolConfig?.director_name || currentUser?.name || "Maktab Direktori")}
+              <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {currentUser?.isSuperAdminImpersonating ? 'Super Admin' : (schoolConfig?.director_name || currentUser?.name || "Maktab Direktori")}
               </div>
-              <div style={{ fontSize: 11, color: THEME.green, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: THEME.green }}></span> Maktab #{schoolId} izolyatsiyada
+              <div style={{ fontSize: 10.5, color: THEME.green, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: THEME.green }}></span> Maktab #{schoolId}
               </div>
             </div>
           </div>
-          <button onClick={handleLogout} title="Chiqish" style={{ background: '#F8F9FE', border: 'none', color: '#EF4444', padding: 9, borderRadius: 12, cursor: 'pointer', flexShrink: 0 }}>
-            <LogOut size={16} />
+          <button onClick={handleLogout} title="Chiqish" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#EF4444', padding: 8, borderRadius: 10, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <LogOut size={15} />
           </button>
         </div>
       </aside>
@@ -1458,8 +1481,18 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       {/* MAIN CONTENT AREA */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         
-        {/* Top Bar — Sahifaga qarab o'zgaruvchi dinamik tugmalar */}
-        <header style={{ padding: '20px 32px', backgroundColor: '#FFFFFF', borderBottom: `1px solid ${THEME.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        {/* Top Bar (BENTO COMMAND HEADER) */}
+        <header style={{
+          padding: '18px 32px',
+          backgroundColor: '#FFFFFF',
+          borderBottom: '1px solid rgba(108, 92, 231, 0.08)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 16,
+          flexWrap: 'wrap',
+          boxShadow: '0 2px 8px rgba(108, 92, 231, 0.02)'
+        }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: 20, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
@@ -1666,8 +1699,54 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           </div>
         )}
 
+        {/* TOP EXECUTIVE BENTO METRICS BAR (ZAMONAVIY BENTO GRID TEZKOR STATISTIKA) */}
+        <div style={{ padding: '24px 32px 0 32px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: 16,
+          }}>
+            <KpiCard
+              title={`Maktab ${terms.groupPlural}i`}
+              value={`${classesList.length} ta`}
+              sub={`1-smena: ${classesList.filter(c => c.shift !== 2).length} • 2-smena: ${classesList.filter(c => c.shift === 2).length}`}
+              color={THEME.primary}
+              icon={<FolderOpen size={16} />}
+              active={activeTab === 'groups'}
+              onClick={() => setActiveTab('groups')}
+            />
+            <KpiCard
+              title={`Jami ${terms.studentPlural}`}
+              value={`${realStudents.length} nafar`}
+              sub="Faol ro'yxatga olinganlar"
+              color={THEME.green}
+              icon={<Users size={16} />}
+              active={activeTab === 'students'}
+              onClick={() => setActiveTab('students')}
+            />
+            <KpiCard
+              title="O'qituvchilar"
+              value={`${teachersList.length} nafar`}
+              sub="Pedagogik jamoa tarkibi"
+              color={THEME.orange}
+              icon={<GraduationCap size={16} />}
+              active={activeTab === 'teachers'}
+              onClick={() => setActiveTab('teachers')}
+            />
+            <KpiCard
+              title={`${terms.lessonSingular} Jadvali`}
+              value={`${schedulesList.length} ta`}
+              sub="Haftalik dars soatlari"
+              color="#6366F1"
+              icon={<Calendar size={16} />}
+              active={activeTab === 'schedule'}
+              onClick={() => setActiveTab('schedule')}
+            />
+          </div>
+        </div>
+
         {/* Tab Contents */}
-        <div style={{ padding: 32, flex: 1 }}>
+        <div style={{ padding: '20px 32px 32px 32px', flex: 1 }}>
           
           {/* TAB 1: DARS MATRITSASI */}
           {activeTab === 'matrix' && (
@@ -1950,8 +2029,19 @@ function AttendanceMatrixSection({ realStudents, schoolName, terms = buildSchool
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Legend & Summary */}
-      <div style={{ backgroundColor: '#FFFFFF', padding: 22, borderRadius: 24, border: `1px solid ${THEME.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+      {/* Legend & Summary (BENTO CARD) */}
+      <div style={{ 
+        backgroundColor: '#FFFFFF', 
+        padding: '20px 24px', 
+        borderRadius: 20, 
+        border: '1px solid rgba(108, 92, 231, 0.08)', 
+        boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        flexWrap: 'wrap', 
+        gap: 14 
+      }}>
         <div>
           <div style={{ fontWeight: 800, fontSize: 16, color: THEME.textDark }}>Haftalik {terms.lessonSingular} Davomati Matritsasi — {schoolName}</div>
           <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 4 }}>Faqat ushbu maktabga tegishli {terms.studentPluralLower}ning {terms.lessonPluralLower} va kunlar kesimidagi davomat paneli</div>
@@ -1966,8 +2056,15 @@ function AttendanceMatrixSection({ realStudents, schoolName, terms = buildSchool
         </div>
       </div>
 
-      {/* Matritsa Jadvali */}
-      <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 24, border: `1px solid ${THEME.border}`, overflowX: 'auto' }}>
+      {/* Matritsa Jadvali (BENTO CARD) */}
+      <div style={{ 
+        backgroundColor: '#FFFFFF', 
+        padding: 24, 
+        borderRadius: 20, 
+        border: '1px solid rgba(108, 92, 231, 0.08)', 
+        boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+        overflowX: 'auto' 
+      }}>
         {realStudents.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center', color: THEME.textMuted }}>
             <Users size={42} color={THEME.primary} style={{ opacity: 0.35, marginBottom: 10 }} />
@@ -2118,13 +2215,13 @@ function GroupsManagementSection({
           width: 320,
           flexShrink: 0,
           backgroundColor: '#FFFFFF',
-          borderRadius: 26,
-          border: `1px solid ${THEME.border}`,
+          borderRadius: 20,
+          border: '1px solid rgba(108, 92, 231, 0.08)',
           padding: 20,
           display: 'flex',
           flexDirection: 'column',
           gap: 14,
-          boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)',
+          boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
           position: 'sticky',
           top: 20,
         }}>
@@ -2413,19 +2510,19 @@ function GroupsManagementSection({
       {/* ================================================================= */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
         
-        {/* Tanlangan Sinf / Guruh Yuqori Boshqaruv Kartasi */}
+        {/* Tanlangan Sinf / Guruh Yuqori Boshqaruv Kartasi (BENTO CARD) */}
         <div
           style={{
             backgroundColor: '#FFFFFF',
             padding: '22px 26px',
-            borderRadius: 26,
-            border: `1px solid ${THEME.border}`,
+            borderRadius: 20,
+            border: '1px solid rgba(108, 92, 231, 0.08)',
             display: 'flex',
             flexWrap: 'wrap',
             justifyContent: 'space-between',
             alignItems: 'center',
             gap: 16,
-            boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)',
+            boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
           }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
             <div
@@ -3570,8 +3667,8 @@ function ScheduleManagementSection({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       
-      {/* 1. YUQORI SINF/GURUH TANLASH VA BOSHQARUV PANELİ */}
-      <div style={{ backgroundColor: '#FFFFFF', padding: 22, borderRadius: 26, border: `1px solid ${THEME.border}`, boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)' }}>
+      {/* 1. YUQORI SINF/GURUH TANLASH VA BOSHQARUV PANELİ (BENTO CARD) */}
+      <div style={{ backgroundColor: '#FFFFFF', padding: 22, borderRadius: 20, border: '1px solid rgba(108, 92, 231, 0.08)', boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 16 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -4002,8 +4099,8 @@ function ScheduleManagementSection({
           })()}
         </div>
       ) : (
-        /* HAFTALIK MATRITSA JADVALI */
-        <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 26, border: `1px solid ${THEME.border}`, overflowX: 'auto', boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)' }}>
+        /* HAFTALIK MATRITSA JADVALI (BENTO CARD) */
+        <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 20, border: '1px solid rgba(108, 92, 231, 0.08)', overflowX: 'auto', boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <div>
               <div style={{ fontWeight: 900, fontSize: 17, color: THEME.textDark }}>
@@ -4435,7 +4532,7 @@ function AddEditLessonModal({
 // =========================================================================
 function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerms({}), searchTerm, setSearchTerm, onStudentClick, onEditStudent, onDeleteStudent, onAddStudent, onPreviewImage }) {
   return (
-    <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 26, border: `1px solid ${THEME.border}` }}>
+    <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 20, border: '1px solid rgba(108, 92, 231, 0.08)', boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
         <div>
           <h3 style={{ fontSize: 18, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
@@ -4642,7 +4739,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
   });
 
   return (
-    <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 26, border: `1px solid ${THEME.border}` }}>
+    <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 20, border: '1px solid rgba(108, 92, 231, 0.08)', boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)' }}>
       {/* Sarlavha va Qidiruv (Xuddi O'quvchilar sahifasidek) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
         <div>
@@ -5366,37 +5463,42 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         </div>
       )}
 
-      {/* 2. REAL-VAQT KPI STATISTIKA KARTALARI */}
+      {/* 2. REAL-VAQT KPI STATISTIKA KARTALARI (BENTO GRID) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}>
         <KpiCard
           title="Bino Ichida (Turniket)"
           value={`${stats.inside_count || 0} nafar`}
           sub="Turniketdan o'tgan o'quvchilar"
           color={THEME.green}
+          icon={<DoorOpen size={16} />}
         />
         <KpiCard
           title="Bugungi Kirishlar"
           value={`${stats.today_entries || 0} ta`}
           sub="Yuz tanish / Karta orqali"
           color={THEME.primary}
+          icon={<TrendingUp size={16} />}
         />
         <KpiCard
           title="Bugungi Chiqishlar"
           value={`${stats.today_exits || 0} ta`}
           sub="Turniket 2 orqali chiqish"
           color={THEME.orange}
+          icon={<DoorOpen size={16} />}
         />
         <KpiCard
           title="Face ID Aniqligi"
           value={`${stats.success_rate || 99.2}%`}
           sub="Biometrik o'xshashlik"
           color="#10B981"
+          icon={<ScanFace size={16} />}
         />
         <KpiCard
           title="Noma'lum / Begonalar"
           value={`${stats.unrecognized_today || 0} ta`}
           sub={stats.unrecognized_today > 0 ? "Xavfsizlik signali" : "Xavfsizlik nazorati me'yorda"}
           color={stats.unrecognized_today > 0 ? "#EF4444" : THEME.textMuted}
+          icon={<AlertTriangle size={16} />}
         />
       </div>
 
@@ -7847,17 +7949,27 @@ function NavButton({ active, onClick, icon, label, badge, badgeColor }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '12px 16px',
-        borderRadius: 16,
-        border: 'none',
+        padding: '11px 14px',
+        borderRadius: 14,
+        border: active ? `1px solid rgba(108, 92, 231, 0.18)` : '1px solid transparent',
         background: active ? THEME.primaryLight : 'transparent',
         color: active ? THEME.primary : THEME.textDark,
         fontWeight: active ? 800 : 600,
-        fontSize: 13.5,
+        fontSize: 13,
         cursor: 'pointer',
         transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={e => {
+        if (!active) {
+          e.currentTarget.style.backgroundColor = '#F8FAFC';
+        }
+      }}
+      onMouseLeave={e => {
+        if (!active) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }
       }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {icon}
         <span>{label}</span>
       </div>
@@ -7878,12 +7990,78 @@ function NavButton({ active, onClick, icon, label, badge, badgeColor }) {
   );
 }
 
-function KpiCard({ title, value, sub, color }) {
+function KpiCard({ title, value, sub, color = THEME.primary, icon, onClick, active }) {
   return (
-    <div style={{ backgroundColor: '#FFFFFF', padding: 20, borderRadius: 22, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ fontSize: 12, color: THEME.textMuted, fontWeight: 600 }}>{title}</div>
-      <div style={{ fontSize: 24, fontWeight: 900, color: color }}>{value}</div>
-      <div style={{ fontSize: 11, color: THEME.textMuted }}>{sub}</div>
+    <div 
+      onClick={onClick}
+      style={{ 
+        backgroundColor: '#FFFFFF', 
+        padding: '20px 22px', 
+        borderRadius: 20, 
+        border: active ? `2px solid ${color}` : '1px solid rgba(108, 92, 231, 0.08)', 
+        boxShadow: active 
+          ? `0 12px 28px -4px ${color}25` 
+          : '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between',
+        minHeight: 112,
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+      onMouseEnter={e => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = `0 12px 28px -4px ${color}20`;
+          e.currentTarget.style.borderColor = color;
+        }
+      }}
+      onMouseLeave={e => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = active 
+            ? `0 12px 28px -4px ${color}25` 
+            : '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)';
+          e.currentTarget.style.borderColor = active ? color : 'rgba(108, 92, 231, 0.08)';
+        }
+      }}>
+      
+      {/* Yuqori qator: Sarlavha va Ikonka nishoni */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontSize: 11.5, color: THEME.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          {title}
+        </span>
+        {icon && (
+          <div style={{
+            width: 34,
+            height: 34,
+            borderRadius: 10,
+            backgroundColor: `${color}18`,
+            color: color,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            {icon}
+          </div>
+        )}
+      </div>
+
+      {/* O'rta: Katta Bento ko'rsatkich */}
+      <div style={{ fontSize: 26, fontWeight: 900, color: THEME.textDark, marginTop: 6, letterSpacing: -0.5 }}>
+        {value}
+      </div>
+
+      {/* Past: Izoh / Trend ko'rsatkichi */}
+      {sub && (
+        <div style={{ fontSize: 11.5, color: THEME.textMuted, fontWeight: 600, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
+          <span>{sub}</span>
+        </div>
+      )}
     </div>
   );
 }
