@@ -1699,54 +1699,8 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           </div>
         )}
 
-        {/* TOP EXECUTIVE BENTO METRICS BAR (ZAMONAVIY BENTO GRID TEZKOR STATISTIKA) */}
-        <div style={{ padding: '24px 32px 0 32px' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-            gap: 16,
-          }}>
-            <KpiCard
-              title={`Maktab ${terms.groupPlural}i`}
-              value={`${classesList.length} ta`}
-              sub={`1-smena: ${classesList.filter(c => c.shift !== 2).length} • 2-smena: ${classesList.filter(c => c.shift === 2).length}`}
-              color={THEME.primary}
-              icon={<FolderOpen size={16} />}
-              active={activeTab === 'groups'}
-              onClick={() => setActiveTab('groups')}
-            />
-            <KpiCard
-              title={`Jami ${terms.studentPlural}`}
-              value={`${realStudents.length} nafar`}
-              sub="Faol ro'yxatga olinganlar"
-              color={THEME.green}
-              icon={<Users size={16} />}
-              active={activeTab === 'students'}
-              onClick={() => setActiveTab('students')}
-            />
-            <KpiCard
-              title="O'qituvchilar"
-              value={`${teachersList.length} nafar`}
-              sub="Pedagogik jamoa tarkibi"
-              color={THEME.orange}
-              icon={<GraduationCap size={16} />}
-              active={activeTab === 'teachers'}
-              onClick={() => setActiveTab('teachers')}
-            />
-            <KpiCard
-              title={`${terms.lessonSingular} Jadvali`}
-              value={`${schedulesList.length} ta`}
-              sub="Haftalik dars soatlari"
-              color="#6366F1"
-              icon={<Calendar size={16} />}
-              active={activeTab === 'schedule'}
-              onClick={() => setActiveTab('schedule')}
-            />
-          </div>
-        </div>
-
         {/* Tab Contents */}
-        <div style={{ padding: '20px 32px 32px 32px', flex: 1 }}>
+        <div style={{ padding: 32, flex: 1 }}>
           
           {/* TAB 1: DARS MATRITSASI */}
           {activeTab === 'matrix' && (
