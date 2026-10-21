@@ -126,10 +126,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         user['username'] ??
         '23089';
 
-    final passport = studentData['passport_series'] ??
-        user['passport_series'] ??
-        'AA 2308901';
-
     final phoneNumber = (studentData['phone_number'] != null && studentData['phone_number'].toString().isNotEmpty)
         ? studentData['phone_number'].toString()
         : (user['phone_number']?.toString().isNotEmpty == true
@@ -266,13 +262,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     value: studentId,
                     isCopyable: true,
                     onTap: () => _copyToClipboard("O'quvchi ID", studentId),
-                  ),
-                  _buildDataRow(
-                    icon: Icons.credit_card_rounded,
-                    label: "Hujjat (Pasport) seriyasi",
-                    value: passport,
-                    isCopyable: true,
-                    onTap: () => _copyToClipboard("Pasport seriyasi", passport),
                   ),
                   _buildDataRow(
                     icon: Icons.calendar_today_rounded,
