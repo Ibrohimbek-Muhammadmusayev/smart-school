@@ -38,6 +38,9 @@ dependencies:
   camera: ^0.12.1
   mobile_scanner: ^5.2.3
   google_generative_ai: ^0.4.6
+  shared_preferences: ^2.5.6
+  permission_handler: 11.3.1
+  connectivity_plus: ^7.3.2
 
 
 dev_dependencies:

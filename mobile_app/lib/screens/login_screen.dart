@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
+import '../services/network_service.dart';
 import '../theme.dart';
 import 'face_verify_screen.dart';
 
@@ -56,6 +57,12 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
 
   void _onLogin() async {
+    final online = await NetworkService.hasInternet();
+    if (!online && mounted) {
+      await NetworkService.showOfflineDialog(context);
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
