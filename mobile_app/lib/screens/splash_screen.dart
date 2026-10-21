@@ -141,21 +141,28 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       width: 110,
                       height: 110,
                       decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: BorderRadius.circular(32),
+                        borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primary.withValues(alpha: 0.35),
-                            blurRadius: 30,
-                            offset: const Offset(0, 12),
+                            color: AppTheme.primary.withValues(alpha: 0.28),
+                            blurRadius: 28,
+                            offset: const Offset(0, 10),
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.school_rounded,
-                          size: 60,
-                          color: Colors.white,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: Image.asset(
+                          'assets/images/icon.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Container(
+                            decoration: const BoxDecoration(
+                              gradient: AppTheme.primaryGradient,
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.school_rounded, size: 60, color: Colors.white),
+                            ),
+                          ),
                         ),
                       ),
                     ),

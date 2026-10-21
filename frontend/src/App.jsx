@@ -585,11 +585,12 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
     <div style={{ display: 'flex', width: '100vw', minHeight: '100vh', backgroundColor: THEME.bgSoft, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ width: '100%', maxWidth: 460, backgroundColor: '#FFFFFF', borderRadius: 28, padding: 36, boxShadow: '0 20px 40px -15px rgba(108, 92, 231, 0.15)', border: `1px solid ${THEME.border}` }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ width: 68, height: 68, borderRadius: 22, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', boxShadow: '0 10px 24px rgba(108, 92, 231, 0.35)' }}>
-            <School size={34} />
-          </div>
-          <h2 style={{ fontSize: 24, fontWeight: 900, color: THEME.textDark, margin: 0 }}>Idrok Edu</h2>
-          <p style={{ fontSize: 13, color: THEME.textMuted, marginTop: 6 }}>Yagona Ta'lim va Davomat Boshqaruv Ekotizimi</p>
+          <img 
+            src="/idrok_logo.png" 
+            alt="Idrok Edu" 
+            style={{ height: 68, objectFit: 'contain', margin: '0 auto 12px auto', display: 'block' }} 
+          />
+          <p style={{ fontSize: 13, color: THEME.textMuted, marginTop: 4 }}>Yagona Ta'lim va Davomat Boshqaruv Ekotizimi</p>
         </div>
 
         {loginError && (
@@ -1326,9 +1327,18 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
       <aside style={{ width: 286, backgroundColor: '#FFFFFF', borderRight: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', padding: '24px 18px', zIndex: 10 }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22, paddingLeft: 6 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 16, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 18px rgba(108, 92, 231, 0.3)', flexShrink: 0 }}>
-            <School size={24} />
-          </div>
+          <img 
+            src="/idrok_icon.png" 
+            alt="Idrok Edu" 
+            style={{ 
+              width: 44, 
+              height: 44, 
+              borderRadius: 14, 
+              objectFit: 'contain', 
+              boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', 
+              flexShrink: 0 
+            }} 
+          />
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontWeight: 900, fontSize: 15, color: THEME.textDark }}>Idrok Edu</span>
@@ -7485,9 +7495,18 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
       {/* Teacher Sidebar */}
       <aside style={{ width: 280, backgroundColor: '#FFFFFF', borderRight: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', padding: '24px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 30, paddingLeft: 6 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 16, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <GraduationCap size={24} />
-          </div>
+          <img 
+            src="/idrok_icon.png" 
+            alt="Idrok Edu" 
+            style={{ 
+              width: 44, 
+              height: 44, 
+              borderRadius: 14, 
+              objectFit: 'contain', 
+              boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', 
+              flexShrink: 0 
+            }} 
+          />
           <div>
             <div style={{ fontWeight: 900, fontSize: 16, color: THEME.textDark }}>Idrok Edu • Ustoz</div>
             <div style={{ fontSize: 11, color: THEME.textMuted }}>{displaySchoolName}</div>

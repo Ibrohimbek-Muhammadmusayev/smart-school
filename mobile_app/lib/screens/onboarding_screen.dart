@@ -107,12 +107,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(7),
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
                           borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primary.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                        child: const Icon(Icons.school_rounded, color: Colors.white, size: 20),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset(
+                            'assets/images/icon.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: AppTheme.primary,
+                              child: const Icon(Icons.school_rounded, color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 10),
                       const Text(

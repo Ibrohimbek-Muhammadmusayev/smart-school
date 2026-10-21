@@ -587,20 +587,18 @@ export default function SuperAdminDashboardView({
         }}>
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingLeft: 6 }}>
-          <div
+          <img
+            src="/idrok_icon.png"
+            alt="Idrok Edu"
             style={{
               width: 44,
               height: 44,
-              borderRadius: 15,
-              background: THEME.gradient,
-              color: '#FFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 8px 20px rgba(108, 92, 231, 0.28)',
-            }}>
-            <Shield size={22} />
-          </div>
+              borderRadius: 14,
+              objectFit: 'contain',
+              boxShadow: '0 8px 20px rgba(108, 92, 231, 0.25)',
+              flexShrink: 0,
+            }}
+          />
           <div>
             <div style={{ fontWeight: 800, fontSize: 15.5, color: THEME.textDark, letterSpacing: '-0.2px' }}>Idrok Edu • Super Admin</div>
             <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>Idrok Core Markaziy Boshqaruvi</div>
@@ -972,7 +970,10 @@ export default function SuperAdminDashboardView({
                   {/* Modul 1: Idrok Edu */}
                   <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: 13, color: THEME.primary }}>🌐 Idrok Edu</span>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <img src="/idrok_icon.png" alt="Idrok" style={{ width: 17, height: 17, borderRadius: 5, objectFit: 'contain' }} />
+                        <span>Idrok Edu</span>
+                      </span>
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800 }}>Master Brand</span>
                     </div>
                     <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Bosh ekotizim brendi</div>
