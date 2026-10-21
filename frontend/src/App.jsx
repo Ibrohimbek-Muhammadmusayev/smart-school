@@ -732,6 +732,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
   const [selectedStudentForModal, setSelectedStudentForModal] = useState(null);
   const [selectedTeacherForModal, setSelectedTeacherForModal] = useState(null);
   const [editingStudent, setEditingStudent] = useState(null);
+  const [editingTeacher, setEditingTeacher] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
@@ -788,7 +789,6 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
     subject: '',
     phone: '+998 ',
     group: '',
-    rooms: '',
     password: '',
     photo: null,
     photoPreview: null,
@@ -1142,7 +1142,6 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         fd.append('subject', newTeacher.subject.trim());
         fd.append('phone', newTeacher.phone?.trim() || "+998 90 000-00-00");
         fd.append('group', newTeacher.group?.trim() || "Fan o'qituvchisi");
-        fd.append('rooms', newTeacher.rooms?.trim() || "Asosiy bino");
         fd.append('password', newTeacher.password?.trim() || "teacher123");
         fd.append('school_id', schoolId);
         fd.append('school_name', schoolName);
@@ -1157,7 +1156,6 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           subject: newTeacher.subject.trim(),
           phone: newTeacher.phone.trim() || "+998 90 000-00-00",
           group: newTeacher.group.trim() || "Fan o'qituvchisi",
-          rooms: newTeacher.rooms.trim() || "Asosiy bino",
           password: newTeacher.password?.trim() || "teacher123",
           school_id: schoolId,
           school_name: schoolName,
@@ -1186,6 +1184,30 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         `🔒 Maxfiy Parol: ${createdTeacher.initial_password || newTeacher.password?.trim() || 'teacher123'}\n\n` +
         `O'qituvchi ushbu 5 xonali unikal ID va parol orqali veb-kabinetga hamda mobil ilovaga kirishi mumkin.`
       );
+    } catch (err) {
+      alert("Xatolik: " + err.message);
+    }
+  };
+
+  const handleUpdateTeacher = async (teacherId, formData) => {
+    try {
+      formData.append('school_id', schoolId);
+      const res = await fetch(`/api/teachers/${teacherId}/?school_id=${encodeURIComponent(schoolId)}`, {
+        method: 'PUT',
+        body: formData
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || errData.error || "O'qituvchi ma'lumotlarini yangilashda xatolik");
+      }
+      const updated = await res.json();
+      setTeachersList(teachersList.map(t => t.id === teacherId ? updated : t));
+      if (selectedTeacherForModal && selectedTeacherForModal.id === teacherId) {
+        setSelectedTeacherForModal(updated);
+      }
+      setEditingTeacher(null);
+      appendGlobalAudit('UPDATE_TEACHER', updated.name, `Ustoz "${updated.name}" ma'lumotlari "${actorLabel}" tomonidan yangilandi`);
+      alert(`✅ Ustoz "${updated.name}" ma'lumotlari muvaffaqiyatli yangilandi!`);
     } catch (err) {
       alert("Xatolik: " + err.message);
     }
@@ -1734,6 +1756,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               terms={terms}
               onTeacherClick={setSelectedTeacherForModal}
               onAddTeacher={() => setShowAddTeacherModal(true)}
+              onEditTeacher={setEditingTeacher}
               onDeleteTeacher={handleDeleteTeacher}
               onPreviewImage={setPreviewImage}
             />
@@ -1868,11 +1891,26 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           schoolName={schoolName}
           onPreviewImage={setPreviewImage}
           onClose={() => setSelectedTeacherForModal(null)} 
+          onEdit={(teacher) => {
+            setSelectedTeacherForModal(null);
+            setEditingTeacher(teacher);
+          }}
           onDelete={() => {
             const id = selectedTeacherForModal.id;
             const name = selectedTeacherForModal.name;
             handleDeleteTeacher(id, name);
           }}
+        />
+      )}
+
+      {/* O'qituvchini tahrirlash modali */}
+      {editingTeacher && (
+        <EditTeacherModal
+          teacher={editingTeacher}
+          classesList={classesList}
+          terms={terms}
+          onClose={() => setEditingTeacher(null)}
+          onSave={handleUpdateTeacher}
         />
       )}
 
@@ -3253,7 +3291,7 @@ function DetailRow({ label, value, isCode }) {
 // =========================================================================
 // 5.1 O'QITUVCHI MA'LUMOTLARI DRAWER/MODAL (TARIXI VA REKVIZITLARI)
 // =========================================================================
-function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName, onPreviewImage, onClose, onDelete }) {
+function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName, onPreviewImage, onClose, onEdit, onDelete }) {
   const [showPassword, setShowPassword] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
 
@@ -3400,7 +3438,6 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
 
           <DetailRow label="Fan Yo'nalishi" value={teacher.subject} />
           <DetailRow label={`Biriktirilgan ${terms.groupSingular}`} value={terms.formatGroupBadge(teacher.group)} />
-          <DetailRow label="Auditoriya / Xona" value={teacher.rooms} />
           <DetailRow label="Telefon Raqami" value={teacher.phone} />
           <DetailRow label="Tegishli Maktab Bazasi" value={teacher.school_name || schoolName} />
           <DetailRow label="Kim tomonidan yaratilgan" value={teacher.created_by || "Maktab Direktori"} />
@@ -3410,6 +3447,13 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          {onEdit && (
+            <button 
+              onClick={() => onEdit(teacher)} 
+              style={{ padding: '13px 18px', background: '#EEF2FF', color: '#4F46E5', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Edit size={16} /> Tahrirlash
+            </button>
+          )}
           {onDelete && (
             <button 
               onClick={onDelete} 
@@ -4529,7 +4573,7 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
 // =========================================================================
 // 7. O'QITUVCHILAR RO'YXATI VA YARATILGANLIK TARIXI SAHIFASI
 // =========================================================================
-function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTerms({}), onTeacherClick, onAddTeacher, onDeleteTeacher, onPreviewImage }) {
+function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTerms({}), onTeacherClick, onAddTeacher, onEditTeacher, onDeleteTeacher, onPreviewImage }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [copiedKey, setCopiedKey] = useState(null);
@@ -4549,7 +4593,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
   const filteredTeachers = teachers.filter(t => {
     const q = searchTerm.toLowerCase().trim();
     if (!q) return true;
-    const full = `${t.name || ''} ${t.teacher_id || t.username || ''} ${t.subject || ''} ${t.group || ''} ${t.rooms || ''} ${t.phone || ''} ${t.created_by || ''}`.toLowerCase();
+    const full = `${t.name || ''} ${t.teacher_id || t.username || ''} ${t.subject || ''} ${t.group || ''} ${t.phone || ''} ${t.created_by || ''}`.toLowerCase();
     return full.includes(q);
   });
 
@@ -4758,6 +4802,14 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
                         style={{ padding: '7px 11px', background: THEME.primaryLight, border: 'none', color: THEME.primary, borderRadius: 10, fontWeight: 800, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                         Tarix & Ko'rish
                       </button>
+                      {onEditTeacher && (
+                        <button 
+                          onClick={() => onEditTeacher(t)}
+                          title="Tahrirlash"
+                          style={{ padding: '7px 9px', background: '#EEF2FF', border: 'none', color: '#4F46E5', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Edit size={14} />
+                        </button>
+                      )}
                       {onDeleteTeacher && (
                         <button 
                           onClick={() => onDeleteTeacher(t.id, t.name)}
@@ -8662,26 +8714,14 @@ function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = 
             </datalist>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Auditoriya / Xona</label>
-              <input
-                placeholder="Masalan: 305-xona"
-                value={newTeacher.rooms}
-                onChange={e => setNewTeacher({ ...newTeacher, rooms: e.target.value })}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Telefon raqami</label>
-              <input
-                placeholder="+998 90 123-45-67"
-                value={newTeacher.phone}
-                onChange={e => setNewTeacher({ ...newTeacher, phone: e.target.value })}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
-              />
-            </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Telefon raqami</label>
+            <input
+              placeholder="+998 90 123-45-67"
+              value={newTeacher.phone}
+              onChange={e => setNewTeacher({ ...newTeacher, phone: e.target.value })}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+            />
           </div>
 
           <div>
@@ -8753,6 +8793,180 @@ function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = 
               type="submit"
               style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
               Saqlash va Qo'shish
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// =========================================================================
+// 12.5. O'QITUVCHINI TAHRIRLASH MODALI (EDIT TEACHER MODAL)
+// =========================================================================
+function EditTeacherModal({ teacher, classesList = [], terms = buildSchoolTerms(), onClose, onSave }) {
+  const [name, setName] = useState(teacher.name || '');
+  const [subject, setSubject] = useState(teacher.subject || '');
+  const [group, setGroup] = useState(teacher.group || '');
+  const [phone, setPhone] = useState(teacher.phone || '');
+  const [password, setPassword] = useState(teacher.initial_password || '');
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(teacher.photo_3x4 ? normalizeMediaUrl(teacher.photo_3x4) : null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name.trim() || !subject.trim()) {
+      alert("Iltimos, o'qituvchi F.I.Sh. va fan yo'nalishini kiriting!");
+      return;
+    }
+    setSubmitting(true);
+    const fd = new FormData();
+    fd.append('name', name.trim());
+    fd.append('subject', subject.trim());
+    fd.append('group', group.trim() || "Fan o'qituvchisi");
+    fd.append('phone', phone.trim() || "+998 90 000-00-00");
+    if (password.trim()) {
+      fd.append('password', password.trim());
+    }
+    if (photoFile) {
+      fd.append('photo_3x4', photoFile);
+    }
+
+    try {
+      await onSave(teacher.id, fd);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 130, padding: 20 }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>O'qituvchi Ma'lumotlarini Tahrirlash</div>
+            <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>ID: <b>{teacher.teacher_id || teacher.username}</b> • {teacher.name}</div>
+          </div>
+          <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>O'qituvchi F.I.Sh. *</label>
+            <input
+              required
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Masalan: Rustamov Sherzod"
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Fan yo'nalishi *</label>
+            <input
+              required
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              placeholder="Masalan: Kimyo & Biologiya"
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Biriktirilgan {terms.groupSingular.toLowerCase()}</label>
+            <input
+              list="edit-teacher-group-options"
+              value={group}
+              onChange={e => setGroup(e.target.value)}
+              placeholder={`Masalan: 11-A ${terms.groupLeader.toLowerCase()}`}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+            />
+            <datalist id="edit-teacher-group-options">
+              {classesList.map(c => (
+                <option key={c.id} value={`${c.name} ${terms.groupLeader.toLowerCase()}`} />
+              ))}
+            </datalist>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Telefon raqami</label>
+            <input
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="+998 90 123-45-67"
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+            />
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Maxfiy Parol</label>
+              <span style={{ fontSize: 11, color: THEME.textMuted }}>O'zgartirish ixtiyoriy</span>
+            </div>
+            <input
+              type="text"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Yangi parol (yoki avvalgisi saqlanadi)"
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>3x4 Foto (Face ID va profil uchun)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6 }}>
+              <div style={{ width: 56, height: 72, borderRadius: 10, border: '2px dashed #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', backgroundColor: '#F8FAFC' }}>
+                {photoPreview ? (
+                  <img src={photoPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: 10, color: THEME.textMuted, textAlign: 'center', padding: 4 }}>Foto yo'q</span>
+                )}
+              </div>
+              <div>
+                <input
+                  type="file"
+                  id="edit-teacher-photo-input"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  style={{ display: 'none' }}
+                />
+                <label
+                  htmlFor="edit-teacher-photo-input"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, border: `1px solid ${THEME.border}`, backgroundColor: '#F8FAFC', fontSize: 12, fontWeight: 700, color: THEME.textDark, cursor: 'pointer' }}>
+                  <FolderOpen size={14} color={THEME.primary} />
+                  Yangi Rasm Tanlash
+                </label>
+                <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                  JPG, PNG formatida (pasport yoki rasmiy 3x4)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ flex: 1, padding: 13, backgroundColor: '#F1F5F9', color: THEME.textDark, borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+              Bekor qilish
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{ flex: 1, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 14, cursor: submitting ? 'wait' : 'pointer', boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', opacity: submitting ? 0.7 : 1 }}>
+              {submitting ? 'Saqlanmoqda...' : 'Saqlash'}
             </button>
           </div>
         </form>

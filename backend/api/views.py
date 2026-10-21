@@ -1775,6 +1775,51 @@ class TeacherManagementView(views.APIView):
 
         return Response(self._serialize_teacher(teacher, request), status=status.HTTP_201_CREATED)
 
+    def put(self, request, pk=None):
+        teacher_id = pk or request.data.get('id')
+        school_id = str(request.data.get('school_id') or request.query_params.get('school_id') or '').strip()
+        try:
+            teacher = User.objects.get(id=teacher_id, role='TEACHER')
+        except User.DoesNotExist:
+            return Response({'detail': "O'qituvchi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        if school_id and teacher.school_id != school_id:
+            return Response({'detail': "Boshqa maktab o'qituvchisini tahrirlash mumkin emas!"}, status=status.HTTP_403_FORBIDDEN)
+
+        name = str(request.data.get('name', '')).strip()
+        subject = str(request.data.get('subject', '')).strip()
+        phone = str(request.data.get('phone', '')).strip()
+        group = str(request.data.get('group', '')).strip()
+        password = str(request.data.get('password', '')).strip()
+        photo_3x4 = request.FILES.get('photo_3x4') or request.FILES.get('photo')
+
+        if name:
+            parts = name.split(None, 1)
+            teacher.first_name = parts[0]
+            teacher.last_name = parts[1] if len(parts) > 1 else ''
+
+        if subject:
+            teacher.teacher_subject = subject
+
+        if group is not None:
+            teacher.teacher_group = group
+
+        if phone:
+            teacher.phone_number = phone
+
+        if password:
+            teacher.set_password(password)
+            teacher.raw_initial_password = password
+
+        if photo_3x4:
+            teacher.photo_3x4 = photo_3x4
+
+        teacher.save()
+        return Response(self._serialize_teacher(teacher, request))
+
+    def patch(self, request, pk=None):
+        return self.put(request, pk)
+
     def delete(self, request, pk=None):
         teacher_id = pk or request.data.get('id')
         school_id = str(request.query_params.get('school_id') or request.data.get('school_id') or '').strip()
