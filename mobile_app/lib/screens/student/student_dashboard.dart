@@ -644,7 +644,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                                     const SizedBox(width: 5),
                                     Flexible(
                                       child: Text(
-                                        _isInsideBuilding ? "Bino ichida ($_buildingEntryTime)" : "Tashqarida",
+                                        _isInsideBuilding ? "Ichkarida" : "Tashqarida",
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -928,20 +928,28 @@ class _StudentDashboardState extends State<StudentDashboard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(10)),
-                  child: Row(
-                    children: [
-                      Icon(isBeforeFirstLesson ? Icons.wb_sunny_rounded : Icons.coffee_rounded, size: 14, color: Colors.white),
-                      const SizedBox(width: 4),
-                      Text(
-                        isBeforeFirstLesson ? "1-Dars kutilmoqda" : (isBigBreak ? "Katta Tanaffus ☕" : "Hozir Tanaffus"), 
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
-                      ),
-                    ],
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(10)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(isBeforeFirstLesson ? Icons.wb_sunny_rounded : Icons.coffee_rounded, size: 14, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            isBeforeFirstLesson ? "1-Dars kutilmoqda" : (isBigBreak ? "Katta Tanaffus ☕" : "Hozir Tanaffus"), 
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+                const SizedBox(width: 6),
                 Text(
                   isBeforeFirstLesson ? "Boshlanishiga: $countdownStr" : "Tanaffus tugashiga: $countdownStr", 
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
@@ -1047,34 +1055,42 @@ class _StudentDashboardState extends State<StudentDashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isAttended ? Icons.verified_rounded : Icons.warning_amber_rounded,
-                      size: 15,
-                      color: isAttended ? const Color(0xFF10AC84) : const Color(0xFFC0392B),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isAttended ? "DARSDA MAVJUD (Kelgan) ✅" : "DARSGA KIRMAGANSIZ! ⚠️",
-                      style: TextStyle(
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isAttended ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                        size: 15,
                         color: isAttended ? const Color(0xFF10AC84) : const Color(0xFFC0392B),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          isAttended ? "DARSDA (Kelgan) ✅" : "DARSGA KIRILMAGAN ⚠️",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isAttended ? const Color(0xFF10AC84) : const Color(0xFFC0392B),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(width: 6),
               Text(
                 "Tugashiga: $countdownStr",
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
@@ -1328,8 +1344,17 @@ class _StudentDashboardState extends State<StudentDashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Haftalik Dars Matritsasi", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+              const Flexible(
+                child: Text(
+                  "Haftalik Dars Matritsasi",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                ),
+              ),
+              const SizedBox(width: 8),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildLegend(AppTheme.success, "Bor"),
                   const SizedBox(width: 6),
@@ -1344,51 +1369,51 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
           // Grid
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(6, (dayIdx) {
               final dayRow = (dayIdx < gridData.length && gridData[dayIdx] is List)
                   ? (gridData[dayIdx] as List)
                   : [3, 3, 3];
               final slotCount = dayRow.length;
 
-              return Column(
-                children: [
-                  Text(days[dayIdx], style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
-                  const SizedBox(height: 8),
-                  ...List.generate(slotCount, (pairIdx) {
-                    final status = dayRow[pairIdx];
-                    Color blockColor;
-                    if (status == 0) {
-                      blockColor = AppTheme.success;
-                    } else if (status == 1) {
-                      blockColor = AppTheme.secondaryOrange;
-                    } else if (status == 2) {
-                      blockColor = Colors.red.shade600;
-                    } else {
-                      blockColor = Colors.grey.shade200;
-                    }
+              return Expanded(
+                child: Column(
+                  children: [
+                    Text(days[dayIdx], style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+                    const SizedBox(height: 8),
+                    ...List.generate(slotCount, (pairIdx) {
+                      final status = dayRow[pairIdx];
+                      Color blockColor;
+                      if (status == 0) {
+                        blockColor = AppTheme.success;
+                      } else if (status == 1) {
+                        blockColor = AppTheme.secondaryOrange;
+                      } else if (status == 2) {
+                        blockColor = Colors.red.shade600;
+                      } else {
+                        blockColor = Colors.grey.shade200;
+                      }
 
-                    return Container(
-                      width: 36,
-                      height: 22,
-                      margin: const EdgeInsets.only(bottom: 6),
-                      decoration: BoxDecoration(
-                        color: blockColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "${pairIdx + 1}",
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: status == 3 ? Colors.grey.shade500 : Colors.white,
+                      return Container(
+                        height: 22,
+                        margin: const EdgeInsets.only(bottom: 6, left: 2, right: 2),
+                        decoration: BoxDecoration(
+                          color: blockColor,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Center(
+                          child: Text(
+                            "${pairIdx + 1}",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: status == 3 ? Colors.grey.shade500 : Colors.white,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }),
-                ],
+                      );
+                    }),
+                  ],
+                ),
               );
             }),
           ),
@@ -1416,7 +1441,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       {"num": 3, "short": "Ch", "name": "Chorshanba"},
       {"num": 4, "short": "Pa", "name": "Payshanba"},
       {"num": 5, "short": "Ju", "name": "Juma"},
-      {"num": 6, "short": "Shan", "name": "Shanba"},
+      {"num": 6, "short": "Sha", "name": "Shanba"},
     ];
     final todayWeekday = DateTime.now().weekday;
 
@@ -1500,6 +1525,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
+  String _cleanTimeString(String t) {
+    if (t.isEmpty) return t;
+    // Faqat soniya qismi (:SS) bo'lsa uni olib tashlaydi, masalan: "17:00:00" -> "17:00"
+    return t.replaceAllMapped(
+      RegExp(r'(\b\d{1,2}:\d{2}):\d{2}\b'),
+      (m) => m[1]!,
+    );
+  }
+
   // Tanlangan kunning darslari bo'limi (Erkin tabiiy balandlik, qulay va yonga suriladigan)
   Widget _buildDayScheduleSection() {
     final days = [
@@ -1574,7 +1608,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: isToday ? AppTheme.primaryLight : Colors.grey.shade100,
+                        color: isToday ? AppTheme.primaryLight : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -1590,12 +1624,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         children: [
                           Row(
                             children: [
-                              Text(
-                                dayName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: AppTheme.textDark,
+                              Flexible(
+                                child: Text(
+                                  dayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: AppTheme.textDark,
+                                  ),
                                 ),
                               ),
                               if (isToday) ...[
@@ -1621,13 +1659,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
                           const SizedBox(height: 2),
                           Text(
                             isToday
-                                ? "Bugungi darslar va real davomat"
-                                : "Dars jadvali rejasi",
+                                ? "${lessonsList.length} ta dars • Real davomat"
+                                : "${lessonsList.length} ta dars rejasi",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 6),
                     if (!isToday) ...[
                       InkWell(
                         onTap: () {
@@ -1638,7 +1679,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         },
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                           decoration: BoxDecoration(
                             color: AppTheme.primaryLight,
                             borderRadius: BorderRadius.circular(8),
@@ -1662,69 +1703,51 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       ),
                       const SizedBox(width: 6),
                     ],
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        InkWell(
-                          onTap: _selectedScheduleDay > 1
-                              ? () {
-                                  HapticFeedback.selectionClick();
-                                  setState(() => _selectedScheduleDay--);
-                                }
-                              : null,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: _selectedScheduleDay > 1 ? Colors.grey.shade100 : Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.chevron_left_rounded,
-                              size: 20,
-                              color: _selectedScheduleDay > 1 ? AppTheme.textDark : Colors.grey.shade300,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            "${lessonsList.length} ta dars",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textMuted,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: _selectedScheduleDay > 1
+                                ? () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() => _selectedScheduleDay--);
+                                  }
+                                : null,
+                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(5),
+                              child: Icon(
+                                Icons.chevron_left_rounded,
+                                size: 18,
+                                color: _selectedScheduleDay > 1 ? AppTheme.textDark : Colors.grey.shade400,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        InkWell(
-                          onTap: _selectedScheduleDay < 6
-                              ? () {
-                                  HapticFeedback.selectionClick();
-                                  setState(() => _selectedScheduleDay++);
-                                }
-                              : null,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: _selectedScheduleDay < 6 ? Colors.grey.shade100 : Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.chevron_right_rounded,
-                              size: 20,
-                              color: _selectedScheduleDay < 6 ? AppTheme.textDark : Colors.grey.shade300,
+                          Container(width: 1, height: 14, color: Colors.grey.shade300),
+                          InkWell(
+                            onTap: _selectedScheduleDay < 6
+                                ? () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() => _selectedScheduleDay++);
+                                  }
+                                : null,
+                            borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(5),
+                              child: Icon(
+                                Icons.chevron_right_rounded,
+                                size: 18,
+                                color: _selectedScheduleDay < 6 ? AppTheme.textDark : Colors.grey.shade400,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -1795,16 +1818,24 @@ class _StudentDashboardState extends State<StudentDashboard> {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.swipe_rounded, size: 13, color: AppTheme.textMuted.withValues(alpha: 0.6)),
-            const SizedBox(width: 4),
-            Text(
-              "Kunlarni almashtirish uchun yonga suring yoki yuqoridagi kunni tanlang",
-              style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted.withValues(alpha: 0.8)),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.swipe_rounded, size: 13, color: AppTheme.textMuted.withValues(alpha: 0.6)),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  "Kunlarni almashtirish uchun yonga suring yoki tanlang",
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted.withValues(alpha: 0.8)),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1813,7 +1844,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Widget _buildPlannedLessonItem(dynamic lesson, int defaultOrder) {
     final order = lesson['order'] ?? lesson['lesson_order'] ?? defaultOrder;
     final subject = (lesson['subject_name'] ?? 'Umumiy Fan').toString();
-    final time = (lesson['time'] ?? "${lesson['start_time'] ?? ''} - ${lesson['end_time'] ?? ''}").toString();
+    final timeRaw = (lesson['time'] ?? "${lesson['start_time'] ?? ''} - ${lesson['end_time'] ?? ''}").toString();
+    final time = _cleanTimeString(timeRaw);
     final room = (lesson['room_number'] ?? lesson['room'] ?? '101-xona').toString();
     final teacher = (lesson['teacher_name'] ?? '').toString();
     final topic = (lesson['topic'] ?? '').toString();
@@ -1848,18 +1880,27 @@ class _StudentDashboardState extends State<StudentDashboard> {
               children: [
                 Text(
                   subject,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppTheme.textDark),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     Icon(Icons.access_time_rounded, size: 12, color: Colors.grey.shade500),
                     const SizedBox(width: 4),
                     Text(time, style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Icon(Icons.location_on_outlined, size: 12, color: Colors.grey.shade500),
                     const SizedBox(width: 3),
-                    Text(room, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                    Flexible(
+                      child: Text(
+                        room,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                    ),
                   ],
                 ),
                 if (teacher.isNotEmpty || topic.isNotEmpty) ...[
@@ -1874,6 +1915,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -1903,8 +1945,43 @@ class _StudentDashboardState extends State<StudentDashboard> {
     final String? attTime = lesson['attendance_time'];
     final bool isUrgentMissed = (status == 'ACTIVE' && !isAttended);
 
+    final rawStart = (lesson['start_time'] ?? '').toString();
+    final rawEnd = (lesson['end_time'] ?? '').toString();
+    final timeStr = _cleanTimeString("$rawStart - $rawEnd");
+    final room = (lesson['room'] ?? lesson['room_number'] ?? '101-xona').toString();
+    final teacher = (lesson['teacher_name'] ?? '-').toString();
+    final subject = (lesson['subject_name'] ?? 'Fan').toString();
+
+    // Badge configuration
+    Color badgeBg;
+    Color badgeColor;
+    String badgeText;
+    IconData badgeIcon;
+
+    if (isAttended) {
+      badgeBg = AppTheme.success.withValues(alpha: 0.12);
+      badgeColor = AppTheme.success;
+      badgeText = attTime != null ? "Kelgan ($attTime)" : "Kelgan ✅";
+      badgeIcon = Icons.check_circle_rounded;
+    } else if (status == 'ACTIVE') {
+      badgeBg = Colors.red.shade50;
+      badgeColor = Colors.red.shade700;
+      badgeText = "Kirmadingiz! ⚠️";
+      badgeIcon = Icons.warning_amber_rounded;
+    } else if (status == 'COMPLETED') {
+      badgeBg = Colors.red.shade50;
+      badgeColor = Colors.red.shade700;
+      badgeText = "NB (Kirmagan)";
+      badgeIcon = Icons.cancel_rounded;
+    } else {
+      badgeBg = Colors.blue.shade50;
+      badgeColor = Colors.blue.shade700;
+      badgeText = "Kutilmoqda";
+      badgeIcon = Icons.schedule_rounded;
+    }
+
     return InkWell(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       onTap: () {
         Navigator.push(
           context,
@@ -1912,17 +1989,17 @@ class _StudentDashboardState extends State<StudentDashboard> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isAttended
                 ? AppTheme.success.withValues(alpha: 0.35)
                 : (isUrgentMissed
                     ? Colors.red.shade400
                     : Colors.black.withValues(alpha: 0.05)),
-            width: (isAttended || isUrgentMissed) ? 1.8 : 1,
+            width: (isAttended || isUrgentMissed) ? 1.6 : 1,
           ),
           boxShadow: isUrgentMissed
               ? [BoxShadow(color: Colors.red.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4))]
@@ -1931,110 +2008,116 @@ class _StudentDashboardState extends State<StudentDashboard> {
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: isAttended
                     ? AppTheme.success.withValues(alpha: 0.12)
                     : (isUrgentMissed ? Colors.red.shade50 : AppTheme.primaryLight),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                isAttended
-                    ? Icons.check_circle_rounded
-                    : (isUrgentMissed ? Icons.warning_amber_rounded : Icons.menu_book_rounded),
-                color: isAttended
-                    ? AppTheme.success
-                    : (isUrgentMissed ? Colors.red.shade600 : AppTheme.primary),
-                size: 22,
+              child: Center(
+                child: Icon(
+                  isAttended
+                      ? Icons.check_circle_rounded
+                      : (isUrgentMissed ? Icons.warning_amber_rounded : Icons.menu_book_rounded),
+                  color: isAttended
+                      ? AppTheme.success
+                      : (isUrgentMissed ? Colors.red.shade600 : AppTheme.primary),
+                  size: 20,
+                ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    subject,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textDark),
+                  ),
+                  const SizedBox(height: 3),
                   Row(
                     children: [
-                      Flexible(
-                        child: Text(
-                          lesson['subject_name'] ?? 'Fan',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: AppTheme.textDark),
+                      Icon(Icons.access_time_rounded, size: 12, color: Colors.grey.shade500),
+                      const SizedBox(width: 4),
+                      Text(
+                        timeStr,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isAttended
+                              ? AppTheme.success
+                              : (isUrgentMissed ? Colors.red.shade600 : Colors.grey.shade600),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      if (isAttended)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(6)),
-                          child: Text(
-                            attTime != null ? "Kelgan ($attTime)" : "Kelgan ✅",
-                            style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
-                          ),
-                        )
-                      else if (status == 'ACTIVE')
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.red.shade600, borderRadius: BorderRadius.circular(6)),
-                          child: const Text("Kirmadingiz! ⚠️", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
-                        )
-                      else if (status == 'COMPLETED')
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.red.shade700, borderRadius: BorderRadius.circular(6)),
-                          child: const Text("NB (Kirmagan)", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.blue.shade600, borderRadius: BorderRadius.circular(6)),
-                          child: const Text("Kutilmoqda", style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      Icon(Icons.location_on_outlined, size: 12, color: Colors.grey.shade500),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          room,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                         ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    "Ustoz: ${lesson['teacher_name'] ?? '-'} • ${lesson['room'] ?? '101-xona'}",
+                    "Ustoz: $teacher",
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5),
+                    style: const TextStyle(color: AppTheme.textMuted, fontSize: 10.5),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  "${lesson['start_time']} - ${lesson['end_time']}",
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: isAttended
-                        ? AppTheme.success
-                        : (isUrgentMissed ? Colors.red.shade600 : AppTheme.primary),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(badgeIcon, size: 11, color: badgeColor),
+                      const SizedBox(width: 3),
+                      Text(
+                        badgeText,
+                        style: TextStyle(color: badgeColor, fontSize: 9.5, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
                 ),
-                if (isUrgentMissed)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: InkWell(
-                      onTap: () => _openLessonQRModal(lesson),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: const Text(
-                          "QR ochish",
-                          style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
+                if (isUrgentMissed) ...[
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () => _openLessonQRModal(lesson),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: const Text(
+                        "QR ochish",
+                        style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
+                ],
               ],
             ),
           ],

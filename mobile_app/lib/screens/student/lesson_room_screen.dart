@@ -382,7 +382,7 @@ class _LessonRoomScreenState extends State<LessonRoomScreen> {
                     children: [
                       const Icon(Icons.check_circle, color: Colors.green, size: 18),
                       const SizedBox(width: 8),
-                      Text(_homeworkSuccessMessage!, style: const TextStyle(color: Colors.green, fontSize: 13)),
+                      Expanded(child: Text(_homeworkSuccessMessage!, style: const TextStyle(color: Colors.green, fontSize: 13))),
                     ],
                   ),
                 ),
@@ -442,3 +442,4 @@ class _LessonRoomScreenState extends State<LessonRoomScreen> {
     );
   }
 }
+
