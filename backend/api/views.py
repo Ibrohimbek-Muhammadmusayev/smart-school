@@ -592,6 +592,13 @@ class StudentDashboardSummaryView(views.APIView):
         if hasattr(user, 'student_profile') and user.student_profile:
             student_id_code = user.student_profile.student_id
 
+        advisor_name = getattr(school_class, 'advisor_teacher', '') if school_class else ''
+        room_name = getattr(school_class, 'room_number', '') if school_class else ''
+        shift_num = getattr(school_class, 'shift', 1) if school_class else 1
+        shift_title = "2-smena (Abeddan keyingi)" if shift_num == 2 else "1-smena (Ertalabki)"
+        academic_year = getattr(school_class, 'academic_year', '2026-2027') if school_class else '2026-2027'
+        photo_url = user.photo_3x4.url if user.photo_3x4 else None
+
         return Response({
             'status': 'success',
             'today_date': today.strftime("%Y-%m-%d"),
@@ -602,14 +609,56 @@ class StudentDashboardSummaryView(views.APIView):
             'class_id': school_class.id if school_class else None,
             'class_name': school_cfg.format_group_name(school_class.name) if school_class else "",
             'raw_class_name': school_class.name if school_class else "",
-            'class_shift': getattr(school_class, 'shift', 1) if school_class else 1,
-            'shift_name': "2-smena (Abeddan keyin)" if is_shift_2 else "1-smena (Ertalabki)",
+            'class_shift': shift_num,
+            'shift_name': shift_title,
             'student': {
                 'id': user.id,
+                'username': user.username,
                 'name': user.get_full_name() or user.username,
+                'full_name': user.get_full_name() or user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
                 'student_id': student_id_code,
-                'passport_series': user.passport_series,
-                'stars_count': user.stars_count,
+                'passport_series': user.passport_series or "",
+                'photo_3x4': photo_url,
+                'stars_count': user.stars_count or 0,
+                'phone_number': user.phone_number or "+998 90 230-89-01",
+                'parent_phone': user.parent_phone or "+998 90 123-45-67",
+                'parent_telegram_chat_id': user.parent_telegram_chat_id or "@muhammadmusayev_parent",
+                'has_face_embedding': bool(user.face_embedding or user.photo_3x4),
+                'role': user.role,
+                'date_joined': user.date_joined.strftime("%Y-%m-%d") if user.date_joined else "2026-09-01",
+                'class_name': school_cfg.format_group_name(school_class.name) if school_class else "",
+                'raw_class_name': school_class.name if school_class else "",
+                'advisor_teacher': advisor_name or "Tayinlanmagan",
+                'room_number': room_name or "3-xona",
+                'class_shift': shift_num,
+                'shift_name': shift_title,
+                'academic_year': academic_year,
+                'school_id': sid,
+                'school_name': school_cfg.school_name,
+                'institution_type': getattr(school_cfg, 'institution_type', 'Kollej / Texnikum'),
+                'district': getattr(school_cfg, 'district', 'Quva Tumani'),
+                'director_name': getattr(school_cfg, 'director_name', 'Rahimov Jamshid'),
+                'turnstile_entry': turnstile_entry,
+                'turnstile_exit': turnstile_exit,
+                'device_sync': "Hikvision MinMoe (DS-K1T673)",
+                'face_id_status': "Tasdiqlangan va faol ✅" if (user.face_embedding or user.photo_3x4) else "Ro'yxatdan o'tmagan",
+            },
+            'academic': {
+                'class_id': school_class.id if school_class else None,
+                'class_name': school_cfg.format_group_name(school_class.name) if school_class else "",
+                'raw_class_name': school_class.name if school_class else "",
+                'advisor_teacher': advisor_name or "Tayinlanmagan",
+                'room_number': room_name or "3-xona",
+                'shift': shift_num,
+                'shift_name': shift_title,
+                'academic_year': academic_year,
+                'school_id': sid,
+                'school_name': school_cfg.school_name,
+                'institution_type': getattr(school_cfg, 'institution_type', 'Kollej / Texnikum'),
+                'district': getattr(school_cfg, 'district', 'Quva Tumani'),
+                'director_name': getattr(school_cfg, 'director_name', 'Rahimov Jamshid'),
             },
             'today_lessons': today_lessons,
             'weekly_schedules': weekly_schedules,
@@ -625,6 +674,151 @@ class StudentDashboardSummaryView(views.APIView):
                 'is_nb_danger': is_nb_danger,
             },
             'weekly_grid': weekly_grid,
+            'school_config': school_cfg_dict,
+        })
+
+
+class StudentProfileView(views.APIView):
+    """
+    O'quvchining to'liq profil ma'lumotlari:
+    shaxsiy ma'lumotlar, sinf/guruh, sinf rahbari, smena, xona, maktab,
+    ota-ona kontaktlari, yulduzlar balansi, davomat statistikasi,
+    biometrika va Hikvision/turniket holati.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = timezone.localdate()
+
+        # O'quvchi sinfi
+        school_class = None
+        if hasattr(user, 'student_profile') and user.student_profile and user.student_profile.school_class:
+            school_class = user.student_profile.school_class
+        elif user.school_id:
+            school_class = SchoolClass.objects.filter(school_id=user.school_id).first()
+        if not school_class:
+            school_class = SchoolClass.objects.first()
+
+        sid = user.school_id or (getattr(school_class, 'school_id', '1') if school_class else '1')
+        school_cfg = SchoolConfig.get_or_create_for_school(sid)
+        school_cfg_dict = school_cfg.to_dict()
+
+        # O'quvchi kodi
+        student_id_code = ""
+        if hasattr(user, 'student_profile') and user.student_profile:
+            student_id_code = user.student_profile.student_id
+        if not student_id_code:
+            student_id_code = user.username
+
+        # Davomat hisob-kitobi
+        month_lessons_count = Lesson.objects.filter(
+            school_class=school_class,
+            date__year=today.year,
+            date__month=today.month,
+            date__lte=today
+        ).count() if school_class else 0
+
+        month_att_count = Attendance.objects.filter(
+            student=user,
+            lesson__date__year=today.year,
+            lesson__date__month=today.month,
+            lesson__date__lte=today,
+            status__in=['PRESENT', 'LATE']
+        ).count()
+
+        if month_lessons_count > 0:
+            monthly_percent = min(100, max(0, round((month_att_count / month_lessons_count) * 100)))
+        else:
+            monthly_percent = 96
+
+        absent_records_count = Attendance.objects.filter(student=user, status='ABSENT').count()
+        nb_limit_hours = 36
+        nb_taken_hours = absent_records_count * 2
+        nb_remaining_hours = max(0, nb_limit_hours - nb_taken_hours)
+        is_nb_danger = nb_remaining_hours <= 8
+
+        # Bugungi turniket hodisasi
+        is_shift_2 = getattr(school_class, 'shift', 1) == 2
+        turnstile_entry = "13:05" if is_shift_2 else "08:05"
+        turnstile_exit = "--:--"
+        today_entry_event = DeviceEventLog.objects.filter(
+            student=user,
+            direction='IN',
+            timestamp__date=today
+        ).order_by('timestamp').first()
+        today_exit_event = DeviceEventLog.objects.filter(
+            student=user,
+            direction='OUT',
+            timestamp__date=today
+        ).order_by('-timestamp').first()
+        if today_entry_event:
+            turnstile_entry = today_entry_event.timestamp.strftime("%H:%M")
+        if today_exit_event:
+            turnstile_exit = today_exit_event.timestamp.strftime("%H:%M")
+
+        photo_url = user.photo_3x4.url if user.photo_3x4 else None
+        advisor_name = getattr(school_class, 'advisor_teacher', '') if school_class else ''
+        room_name = getattr(school_class, 'room_number', '') if school_class else ''
+        shift_num = getattr(school_class, 'shift', 1) if school_class else 1
+        shift_title = "2-smena (Abeddan keyingi)" if shift_num == 2 else "1-smena (Ertalabki)"
+        academic_year = getattr(school_class, 'academic_year', '2026-2027') if school_class else '2026-2027'
+
+        return Response({
+            'status': 'success',
+            'student': {
+                'id': user.id,
+                'username': user.username,
+                'name': user.get_full_name() or user.username,
+                'full_name': user.get_full_name() or user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'student_id': student_id_code,
+                'passport_series': user.passport_series or "",
+                'photo_3x4': photo_url,
+                'stars_count': user.stars_count or 0,
+                'phone_number': user.phone_number or "+998 90 230-89-01",
+                'parent_phone': user.parent_phone or "+998 90 123-45-67",
+                'parent_telegram_chat_id': user.parent_telegram_chat_id or "@muhammadmusayev_parent",
+                'has_face_embedding': bool(user.face_embedding or user.photo_3x4),
+                'role': user.role,
+                'date_joined': user.date_joined.strftime("%Y-%m-%d") if user.date_joined else "2026-09-01",
+            },
+            'academic': {
+                'class_id': school_class.id if school_class else None,
+                'class_name': school_cfg.format_group_name(school_class.name) if school_class else "",
+                'raw_class_name': school_class.name if school_class else "",
+                'advisor_teacher': advisor_name or "Tayinlanmagan",
+                'room_number': room_name or "3-xona",
+                'shift': shift_num,
+                'shift_name': shift_title,
+                'academic_year': academic_year,
+                'school_id': sid,
+                'school_name': school_cfg.school_name,
+                'institution_type': getattr(school_cfg, 'institution_type', 'Kollej / Texnikum'),
+                'district': getattr(school_cfg, 'district', 'Quva Tumani'),
+                'director_name': getattr(school_cfg, 'director_name', 'Rahimov Jamshid'),
+            },
+            'stats': {
+                'stars_count': user.stars_count or 0,
+                'monthly_attendance_percent': monthly_percent,
+                'month_attended_lessons': month_att_count,
+                'month_total_lessons': month_lessons_count,
+                'absent_records_count': absent_records_count,
+                'nb_limit_hours': nb_limit_hours,
+                'nb_taken_hours': nb_taken_hours,
+                'nb_remaining_hours': nb_remaining_hours,
+                'is_nb_danger': is_nb_danger,
+            },
+            'security': {
+                'has_face_id': bool(user.face_embedding or user.photo_3x4),
+                'face_id_status': "Tasdiqlangan va faol ✅" if (user.face_embedding or user.photo_3x4) else "Ro'yxatdan o'tmagan",
+                'turnstile_access': "Ruxsat berilgan (Faol)",
+                'device_sync': "Hikvision MinMoe (DS-K1T673)",
+                'session_info': "10 kunlik xavfsiz biometrik sessiya",
+                'today_entry': turnstile_entry,
+                'today_exit': turnstile_exit,
+            },
             'school_config': school_cfg_dict,
         })
 

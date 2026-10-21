@@ -5,6 +5,7 @@ from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView,
                     TeacherManagePasswordsView, GradesListView, FinishAttendanceView, CompleteLessonView,
                     SchoolClassesListView, StudentManagementView, TeacherManagementView, SchoolConfigView,
                     ClassScheduleManagementView, StudentDashboardSummaryView, StudentMonthlyAttendanceView,
+                    StudentProfileView,
                     DeviceEventIngestionView, DeviceLogsListView, DeviceSimulateView,
                     HikvisionTestConnectionView, HikvisionSyncStudentsView)
 
@@ -15,6 +16,7 @@ urlpatterns = [
     path('attendance/scan/', ScanAttendanceView.as_view(), name='scan_attendance'),
     path('lessons/today/', TodayLessonsView.as_view(), name='today_lessons'),
     path('student/dashboard-summary/', StudentDashboardSummaryView.as_view(), name='student_dashboard_summary'),
+    path('student/profile/', StudentProfileView.as_view(), name='student_profile'),
     path('student/monthly-attendance/', StudentMonthlyAttendanceView.as_view(), name='student_monthly_attendance'),
     path('lessons/<int:lesson_id>/room/', LessonRoomView.as_view(), name='lesson_room'),
     path('lessons/<int:lesson_id>/finish-attendance/', FinishAttendanceView.as_view(), name='finish_attendance'),

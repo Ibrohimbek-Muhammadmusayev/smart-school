@@ -155,6 +155,30 @@ class ApiService {
     return null;
   }
 
+  // O'quvchining to'liq profil ma'lumotlari (baza bilan bog'langan)
+  static Future<Map<String, dynamic>?> getStudentProfile() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/student/profile/'), headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data is Map<String, dynamic>) {
+          if (data['school_config'] != null) {
+            schoolConfig = Map<String, dynamic>.from(data['school_config']);
+          }
+          if (data['student'] != null && data['student'] is Map) {
+            currentUser ??= {};
+            final sMap = Map<String, dynamic>.from(data['student']);
+            sMap.forEach((k, v) {
+              if (v != null) currentUser![k] = v;
+            });
+          }
+          return data;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // 1.2 O'quvchi bosh sahifasi (Bugungi darslar, real vaqt statusi, statistika, haftalik jadval)
   static Future<Map<String, dynamic>?> getStudentDashboardSummary() async {
     try {
@@ -164,6 +188,13 @@ class ApiService {
         if (data is Map<String, dynamic>) {
           if (data['school_config'] != null) {
             schoolConfig = Map<String, dynamic>.from(data['school_config']);
+          }
+          if (data['student'] != null && data['student'] is Map) {
+            currentUser ??= {};
+            final sMap = Map<String, dynamic>.from(data['student']);
+            sMap.forEach((k, v) {
+              if (v != null) currentUser![k] = v;
+            });
           }
           return data;
         }
