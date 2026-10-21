@@ -647,21 +647,30 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
             type="button"
             onClick={() => setLoginForm({ username: 'maktab1', password: 'school123' })}
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === 'maktab1' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
-            <span>🏫 <b>1-Maktab Direktori:</b></span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <img src="/idrok_icon.png" alt="1-Maktab" style={{ width: 18, height: 18, borderRadius: 5, objectFit: 'contain' }} />
+              <b>1-Maktab Direktori:</b>
+            </span>
             <code>maktab1 / school123</code>
           </button>
           <button
             type="button"
             onClick={() => setLoginForm({ username: 'maktab2', password: 'school123' })}
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === 'maktab2' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
-            <span>🏫 <b>24-Prezident Maktabi Direktori:</b></span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <img src="/idrok_icon.png" alt="24-Maktab" style={{ width: 18, height: 18, borderRadius: 5, objectFit: 'contain' }} />
+              <b>24-Prezident Maktabi Direktori:</b>
+            </span>
             <code>maktab2 / school123</code>
           </button>
           <button
             type="button"
             onClick={() => setLoginForm({ username: '20101', password: 'teacher123' })}
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === '20101' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
-            <span>👨‍🏫 <b>O'qituvchi (5 xonali ID):</b></span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <img src="/idrok_icon.png" alt="O'qituvchi" style={{ width: 18, height: 18, borderRadius: 5, objectFit: 'contain' }} />
+              <b>O'qituvchi (5 xonali ID):</b>
+            </span>
             <code>20101 / teacher123</code>
           </button>
         </div>
