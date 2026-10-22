@@ -7304,7 +7304,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
     inside_count: 0,
     unique_students_today: 0,
     unrecognized_today: 0,
-    success_rate: 99.2,
+    success_rate: 0,
   });
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -7384,9 +7384,24 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
     }
   };
 
+  // Maktab o'zgarganda loglar va statistikani darhol 0 ga tozalash va yangitdan olish
+  useEffect(() => {
+    setLogs([]);
+    setStats({
+      total_today: 0,
+      today_entries: 0,
+      today_exits: 0,
+      inside_count: 0,
+      unique_students_today: 0,
+      unrecognized_today: 0,
+      success_rate: 0,
+    });
+    prevLogIdsRef.current = new Set();
+    fetchLogs(false);
+  }, [schoolId]);
+
   // Har 3 soniyada real vaqtda bazadan avtomatik yangilash (POLLING)
   useEffect(() => {
-    fetchLogs(false);
     let intervalId = null;
     if (autoRefresh) {
       intervalId = setInterval(() => {
@@ -7402,14 +7417,29 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
   const handleSendSimulateEvent = async (overrideData = null) => {
     setSimulating(true);
     try {
-      const payload = overrideData || {
-        student_id: simForm.studentId || (realStudents[0]?.student_id || '23089'),
-        direction: simForm.direction,
-        device_name: simForm.deviceName,
-        confidence: Number(simForm.confidence) || 99.2,
-        temperature: Number(simForm.temperature) || 36.5,
-        school_id: String(schoolId),
-      };
+      let payload = overrideData;
+      if (!payload) {
+        if (!simForm.studentId && (!realStudents || realStudents.length === 0)) {
+          alert("Ushbu maktabda hali o'quvchilar mavjud emas! Avval o'quvchi qo'shing.");
+          setSimulating(false);
+          return;
+        }
+        const defaultStudent = realStudents && realStudents.length > 0 ? realStudents[0] : null;
+        const targetId = simForm.studentId || (defaultStudent?.student_id || String(defaultStudent?.id || ''));
+        if (!targetId) {
+          alert("O'quvchi ID kodi topilmadi!");
+          setSimulating(false);
+          return;
+        }
+        payload = {
+          student_id: targetId,
+          direction: simForm.direction,
+          device_name: simForm.deviceName,
+          confidence: Number(simForm.confidence) || 99.2,
+          temperature: Number(simForm.temperature) || 36.5,
+          school_id: String(schoolId),
+        };
+      }
 
       const res = await fetch('/api/devices/event/', {
         method: 'POST',
@@ -7501,14 +7531,22 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
     }
   };
 
-  // Tezkor bir marta bosish bilan test qilish
+  // Tezkor bir marta bosish bilan test qilish (FAQAT SHU MAKTAB O'QUVCHILARI!)
   const handleQuickTest = (direction) => {
-    const randomStudent = realStudents.length > 0
-      ? realStudents[Math.floor(Math.random() * realStudents.length)]
-      : null;
-    const stId = randomStudent ? (randomStudent.student_id || String(randomStudent.id)) : '23089';
+    if (!realStudents || realStudents.length === 0) {
+      alert("Ushbu maktabda hali birorta o'quvchi mavjud emas! Avval Guruhlar yoki Bosh sahifadan o'quvchi qo'shing.");
+      return;
+    }
+    const randomStudent = realStudents[Math.floor(Math.random() * realStudents.length)];
+    const stId = randomStudent ? (randomStudent.student_id || String(randomStudent.id)) : '';
+    if (!stId) {
+      alert("Tanlangan o'quvchining ID kodi topilmadi!");
+      return;
+    }
     handleSendSimulateEvent({
       student_id: stId,
+      student_name: `${randomStudent.last_name || ''} ${randomStudent.first_name || ''}`.trim() || randomStudent.username,
+      class_name: randomStudent.class_name || "Guruhsiz",
       direction: direction,
       device_name: direction === 'IN' ? 'Hikvision MinMoe DS-K1T673 - Bosh Kirish' : 'Hikvision MinMoe DS-K1T673 - Chiqish Turniket 2',
       confidence: Math.round((98 + Math.random() * 1.8) * 10) / 10,
@@ -7591,9 +7629,10 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
   });
 
   const apiEndpointUrl = `${window.location.origin}/api/devices/event/`;
+  const sampleStudentId = realStudents.length > 0 ? (realStudents[0]?.student_id || realStudents[0]?.id) : 'STUDENT_ID';
   const curlExample = `curl -X POST ${apiEndpointUrl} \\
   -H "Content-Type: application/json" \\
-  -d '{"student_id": "${realStudents[0]?.student_id || '23089'}", "direction": "IN", "device_name": "Hikvision MinMoe DS-K1T673 - Bosh Kirish", "confidence": 99.4, "temperature": 36.5}'`;
+  -d '{"student_id": "${sampleStudentId}", "direction": "IN", "device_name": "Hikvision MinMoe DS-K1T673 - Bosh Kirish", "confidence": 99.4, "temperature": 36.5, "school_id": "${schoolId}"}'`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -7815,8 +7854,8 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         />
         <KpiCard
           title="Face ID Aniqligi"
-          value={`${stats.success_rate || 99.2}%`}
-          sub="Biometrik o'xshashlik"
+          value={typeof stats.success_rate === 'number' ? `${stats.success_rate}%` : '0%'}
+          sub={stats.total_today > 0 ? "Biometrik o'xshashlik" : "Bugungi skanlar mavjud emas"}
           color="#10B981"
           icon={<ScanFace size={16} />}
         />
@@ -8054,7 +8093,8 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               <div>Filtr bo'yicha hech qanday log topilmadi.</div>
             ) : (
               <div>
-                Hozircha birorta qurilma logi mavjud emas. Yuqoridagi <b>"Face ID Test Simulyatori"</b> orqali signal yuborib ko'rishingiz mumkin.
+                Hozircha ushbu maktab uchun birorta biometrik qurilma yoki turniket logi mavjud emas.<br />
+                Barcha ko'rsatkichlar 0 holatida. Yangi signal yuborish uchun yuqoridagi <b>"Face ID Test Simulyatori"</b> yoki <b>"Tezkor Test Sinovlari"</b> dan foydalanishingiz mumkin.
               </div>
             )}
           </div>
@@ -8288,7 +8328,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     fontSize: 13,
                     backgroundColor: '#FFF',
                   }}>
-                  <option value="">— Tasodifiy birinchi o'quvchi —</option>
+                  <option value="">— {realStudents.length > 0 ? "Birinchi o'quvchi tanlanadi" : "Ushbu maktabda o'quvchilar mavjud emas"} —</option>
                   {realStudents.map(st => (
                     <option key={st.id} value={st.student_id || st.id}>
                       {st.last_name} {st.first_name} ({st.class_name || 'Sinfsiz'}) — ID: {st.student_id}

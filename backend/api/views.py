@@ -1550,7 +1550,7 @@ class StudentManagementView(views.APIView):
         school_id = str(request.query_params.get('school_id', '')).strip()
         all_schools = str(request.query_params.get('all_schools', '')).strip() == '1'
 
-        students_qs = User.objects.filter(role='STUDENT').select_related('student_profile__school_class').order_by('-id')
+        students_qs = User.objects.filter(role='STUDENT', school_id=school_id).select_related('student_profile__school_class').order_by('-id')
         if school_id:
             students_qs = students_qs.filter(school_id=school_id)
         elif not all_schools:
@@ -2385,76 +2385,11 @@ class ClassScheduleManagementView(views.APIView):
 
 def seed_initial_device_logs(school_id='1'):
     """
-    Agar DeviceEventLog bo'sh bo'lsa, mavjud o'quvchilar asosida 12-15 ta
-    realistik Hikvision / Face ID turniket loglarini generatsiya qiladi.
+    Soxta loglar yaratilmaydi. Har bir maktab uchun ma'lumotlar faqat
+    haqiqiy qurilmalar yoki test simulyatoridan kelganida yoziladi.
+    Agar ma'lumotlar bo'lmasa, barcha ko'rsatkichlar 0 bo'lib turadi.
     """
-    if DeviceEventLog.objects.filter(school_id=school_id).exists():
-        return
-
-    students = list(User.objects.filter(role='STUDENT').select_related('student_profile__school_class'))
-    if not students:
-        return
-
-    now = timezone.now()
-    devices = [
-        ("Hikvision MinMoe DS-K1T673 - Bosh Kirish", "192.168.1.120"),
-        ("Hikvision MinMoe DS-K1T673 - Chiqish Turniket 2", "192.168.1.121"),
-        ("Hikvision DS-K5671 - Korpus B Turniket", "192.168.1.125"),
-    ]
-
-    initial_logs = []
-    total_samples = min(14, len(students) * 2)
-    for i in range(total_samples):
-        st = random.choice(students)
-        direction = 'IN' if i % 3 != 0 else 'OUT'
-        dev_name, dev_ip = devices[0] if direction == 'IN' else devices[1]
-        conf = round(random.uniform(97.5, 99.8), 1)
-        temp = round(random.uniform(36.3, 36.8), 1)
-        
-        mins_ago = (total_samples - i) * 12 + random.randint(1, 8)
-        event_time = now - datetime.timedelta(minutes=mins_ago)
-
-        sc = getattr(st.student_profile, 'school_class', None) if hasattr(st, 'student_profile') else None
-        st_code = getattr(st.student_profile, 'student_id', '') if hasattr(st, 'student_profile') else ''
-
-        initial_logs.append(DeviceEventLog(
-            school_id=school_id,
-            device_name=dev_name,
-            device_ip=dev_ip,
-            device_serial=f"DS-K1T673-2026{1000 + i}",
-            student=st,
-            student_name=st.get_full_name() or st.username,
-            student_code=st_code or f"STU-{1000 + st.id}",
-            class_name=sc.name if sc else "9-A",
-            event_type='FACE_RECOGNITION',
-            direction=direction,
-            status='SUCCESS',
-            confidence=conf,
-            temperature=temp,
-            details=f"Yuz tanish orqali {'KIRISH' if direction == 'IN' else 'CHIQISH'} ruxsat etildi",
-            timestamp=event_time
-        ))
-
-    # Realistik xavfsizlik sinovi uchun bitta noma'lum shaxs skani
-    initial_logs.append(DeviceEventLog(
-        school_id=school_id,
-        device_name="Hikvision MinMoe DS-K1T673 - Bosh Kirish",
-        device_ip="192.168.1.120",
-        device_serial="DS-K1T673-20269999",
-        student=None,
-        student_name="Noma'lum Shaxs (Mehmon)",
-        student_code="UNKNOWN_UID",
-        class_name="Begona",
-        event_type='FACE_RECOGNITION',
-        direction='IN',
-        status='UNKNOWN_PERSON',
-        confidence=42.1,
-        temperature=36.6,
-        details="Yuz bazada topilmadi — Xavfsizlik xizmati ogohlantirildi",
-        timestamp=now - datetime.timedelta(minutes=45)
-    ))
-
-    DeviceEventLog.objects.bulk_create(initial_logs)
+    pass
 
 
 class DeviceEventIngestionView(views.APIView):
@@ -2577,37 +2512,40 @@ class DeviceEventIngestionView(views.APIView):
                 'detail': f"Maktab ({school_cfg.school_name}) xizmatlari vaqtincha to'xtatilgan."
             }, status=status.HTTP_403_FORBIDDEN)
 
-        # 2. Bazadan o'quvchini qidirish
+        # 2. Bazadan o'quvchini qidirish (FAQAT SHU MAKTAB BO'YICHA!)
         student = None
         if raw_code:
             code_str = str(raw_code).strip()
-            # 2.1 StudentProfile.student_id bo'yicha
-            sp = StudentProfile.objects.filter(student_id__iexact=code_str).select_related('user', 'school_class').first()
+            # 2.1 StudentProfile.student_id bo'yicha (shu maktab o'quvchisi)
+            sp = StudentProfile.objects.filter(student_id__iexact=code_str, user__school_id=school_id).select_related('user', 'school_class').first()
             if sp:
                 student = sp.user
-            # 2.2 ID raqam bo'yicha
+            # 2.2 ID raqam bo'yicha (shu maktab)
             elif code_str.isdigit():
-                student = User.objects.filter(id=int(code_str), role='STUDENT').first()
-            # 2.3 Username yoki pasport seriya bo'yicha
+                student = User.objects.filter(id=int(code_str), role='STUDENT', school_id=school_id).first()
+            # 2.3 Username yoki pasport seriya bo'yicha (shu maktab)
             if not student:
                 student = User.objects.filter(
                     Q(username__iexact=code_str) | Q(passport_series__iexact=code_str),
-                    role='STUDENT'
+                    role='STUDENT',
+                    school_id=school_id
                 ).first()
 
-        # 2.4 Ism-familiya bo'yicha qidiruv (agar code orqali topilmasa)
+        # 2.4 Ism-familiya bo'yicha qidiruv (faqat shu maktab)
         if not student and raw_name:
             clean_name = str(raw_name).strip()
             name_parts = clean_name.split()
             if len(name_parts) >= 2:
                 student = User.objects.filter(
                     role='STUDENT',
+                    school_id=school_id,
                     first_name__icontains=name_parts[0],
                     last_name__icontains=name_parts[1]
                 ).first()
                 if not student:
                     student = User.objects.filter(
                         role='STUDENT',
+                        school_id=school_id,
                         first_name__icontains=name_parts[1],
                         last_name__icontains=name_parts[0]
                     ).first()
@@ -2723,21 +2661,23 @@ class DeviceLogsListView(views.APIView):
     """
     Maktab auditi sahifasi uchun har 3 soniyada real vaqtda loglarni qaytaruvchi endpoint.
     GET /api/devices/logs/?school_id=1&limit=50&direction=IN&search=...
+    Har bir maktab uchun mutlaqo alohida-alohida ishlaydi.
+    Agar hech qanday log bo'lmasa, hamma statistika 0 qaytariladi.
     """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        school_id = request.query_params.get('school_id', '1')
+        school_id = str(request.query_params.get('school_id', '1')).strip() or '1'
         limit = int(request.query_params.get('limit', 100))
         direction = request.query_params.get('direction', '').strip().upper()
         search = request.query_params.get('search', '').strip()
 
-        # Agar loglar hali yaratilmagan bo'lsa, seed qilib berish
-        seed_initial_device_logs(school_id)
-
         qs = DeviceEventLog.objects.filter(school_id=school_id)
         if direction in ['IN', 'OUT']:
             qs = qs.filter(direction=direction)
+        elif direction == 'UNKNOWN':
+            qs = qs.filter(status='UNKNOWN_PERSON')
+
         if search:
             qs = qs.filter(
                 Q(student_name__icontains=search) | 
@@ -2749,7 +2689,7 @@ class DeviceLogsListView(views.APIView):
         now = timezone.now()
         today = now.date()
 
-        # Bugungi statistika
+        # Bugungi statistika (FAQAT SHU MAKTAB UCHUN!)
         today_qs = DeviceEventLog.objects.filter(school_id=school_id, timestamp__date=today)
         total_today = today_qs.count()
         today_entries = today_qs.filter(direction='IN', status='SUCCESS').count()
@@ -2757,6 +2697,9 @@ class DeviceLogsListView(views.APIView):
         unique_students_today = today_qs.filter(student__isnull=False).values('student').distinct().count()
         unrecognized_today = today_qs.filter(status='UNKNOWN_PERSON').count()
         inside_count = max(0, today_entries - today_exits)
+
+        denom = today_entries + unrecognized_today
+        success_rate = round((today_entries / denom) * 100, 1) if denom > 0 else 0.0
 
         logs = [log.to_dict() for log in qs[:limit]]
 
@@ -2771,14 +2714,14 @@ class DeviceLogsListView(views.APIView):
                 'inside_count': inside_count,
                 'unique_students_today': unique_students_today,
                 'unrecognized_today': unrecognized_today,
-                'success_rate': round((today_entries / max(1, today_entries + unrecognized_today)) * 100, 1)
+                'success_rate': success_rate
             },
             'logs': logs
         })
 
     def delete(self, request):
         """Audit loglarini tozalash (faqat test / reset qilish uchun)"""
-        school_id = request.query_params.get('school_id', '1')
+        school_id = str(request.query_params.get('school_id', '1')).strip() or '1'
         DeviceEventLog.objects.filter(school_id=school_id).delete()
         return Response({'success': True, 'message': "Audit loglari tozalandi."})
 
@@ -2797,7 +2740,7 @@ class DeviceSimulateView(views.APIView):
         device_name = request.data.get('device_name', 'Hikvision MinMoe DS-K1T673 - Bosh Kirish')
 
         if not student_id:
-            st = User.objects.filter(role='STUDENT').order_by('?').first()
+            st = User.objects.filter(role='STUDENT', school_id=school_id).order_by('?').first()
             if st and hasattr(st, 'student_profile'):
                 student_id = st.student_profile.student_id or str(st.id)
 
@@ -2871,7 +2814,7 @@ class HikvisionSyncStudentsView(views.APIView):
         is_simulate = bool(request.data.get('simulate', False))
 
         # Sinxronlanadigan o'quvchilarni olish
-        qs = User.objects.filter(role='STUDENT').select_related('student_profile__school_class')
+        qs = User.objects.filter(role='STUDENT', school_id=school_id).select_related('student_profile__school_class')
         if student_id:
             qs = qs.filter(Q(student_profile__student_id=str(student_id)) | Q(id=int(student_id) if str(student_id).isdigit() else -1))
 
