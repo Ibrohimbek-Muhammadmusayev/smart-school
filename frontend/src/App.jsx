@@ -538,8 +538,21 @@ export default function App() {
     localStorage.setItem('smart_school_institutions', JSON.stringify(updated));
   };
 
-  // Backenddagi SchoolConfig sozlamalari bilan maktablar ro'yxatini sinxronlash
+  // Backenddagi 100% REAL BAZA ma'lumotlari bilan maktablar ro'yxatini sinxronlash
   useEffect(() => {
+    fetch('/api/superadmin/overview-stats/')
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data && Array.isArray(data.schools_list) && data.schools_list.length > 0) {
+          setSchoolsList(data.schools_list);
+          try {
+            localStorage.setItem('smart_school_institutions', JSON.stringify(data.schools_list));
+          } catch (_) {}
+          return;
+        }
+      })
+      .catch(() => {});
+
     fetch('/api/school-config/?all_schools=1')
       .then(r => (r.ok ? r.json() : []))
       .then(configs => {
@@ -1803,39 +1816,92 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           position: 'relative',
         }}>
         {/* Logo & Toggle Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: isSidebarCollapsed ? 'center' : 'space-between',
-            paddingBottom: 14,
-            marginBottom: 10,
-            borderBottom: '1px solid #F1F5F9',
-            paddingLeft: isSidebarCollapsed ? 0 : 4,
-            paddingRight: isSidebarCollapsed ? 0 : 4,
-          }}>
+        {isSidebarCollapsed ? (
           <div
             style={{
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: 10,
-              minWidth: 0,
-              cursor: 'pointer',
-            }}
-            onClick={() => setActiveTab('matrix')}
-            title={schoolName}>
+              gap: 8,
+              paddingBottom: 12,
+              marginBottom: 10,
+              borderBottom: '1px solid #F1F5F9',
+            }}>
             <img
               src="/idrok_icon.png"
               alt="Idrok Edu"
               style={{
-                width: 38,
-                height: 38,
+                width: 36,
+                height: 36,
                 borderRadius: 8,
                 objectFit: 'contain',
-                flexShrink: 0,
+                cursor: 'pointer',
               }}
+              onClick={() => setActiveTab('matrix')}
+              title={schoolName}
             />
-            {!isSidebarCollapsed && (
+            <button
+              onClick={toggleSidebarCollapse}
+              title="Yon panelni kengaytirish"
+              style={{
+                width: 32,
+                height: 26,
+                borderRadius: 6,
+                border: '1px solid #E2E8F0',
+                backgroundColor: '#F8FAFC',
+                color: '#64748B',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = '#EEF2FF';
+                e.currentTarget.style.color = THEME.primary;
+                e.currentTarget.style.borderColor = '#C7D2FE';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = '#F8FAFC';
+                e.currentTarget.style.color = '#64748B';
+                e.currentTarget.style.borderColor = '#E2E8F0';
+              }}>
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 14,
+              marginBottom: 10,
+              borderBottom: '1px solid #F1F5F9',
+              paddingLeft: 4,
+              paddingRight: 4,
+            }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                minWidth: 0,
+                cursor: 'pointer',
+              }}
+              onClick={() => setActiveTab('matrix')}
+              title={schoolName}>
+              <img
+                src="/idrok_icon.png"
+                alt="Idrok Edu"
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 8,
+                  objectFit: 'contain',
+                  flexShrink: 0,
+                }}
+              />
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14.5, color: THEME.textDark, letterSpacing: '-0.02em' }}>
@@ -1869,41 +1935,41 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                   {schoolName} • #{schoolId}
                 </div>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Collapse / Expand Toggle Button */}
-          <button
-            onClick={toggleSidebarCollapse}
-            title={isSidebarCollapsed ? "Yon panelni kengaytirish" : "Yon panelni ixchamlashtirish"}
-            style={{
-              width: 26,
-              height: 26,
-              borderRadius: 6,
-              border: '1px solid #E2E8F0',
-              backgroundColor: '#F8FAFC',
-              color: '#64748B',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease',
-              flexShrink: 0,
-              padding: 0,
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = '#EEF2FF';
-              e.currentTarget.style.color = THEME.primary;
-              e.currentTarget.style.borderColor = '#C7D2FE';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = '#F8FAFC';
-              e.currentTarget.style.color = '#64748B';
-              e.currentTarget.style.borderColor = '#E2E8F0';
-            }}>
-            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
-        </div>
+            {/* Collapse / Expand Toggle Button */}
+            <button
+              onClick={toggleSidebarCollapse}
+              title="Yon panelni ixchamlashtirish"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                border: '1px solid #E2E8F0',
+                backgroundColor: '#F8FAFC',
+                color: '#64748B',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+                flexShrink: 0,
+                padding: 0,
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = '#EEF2FF';
+                e.currentTarget.style.color = THEME.primary;
+                e.currentTarget.style.borderColor = '#C7D2FE';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = '#F8FAFC';
+                e.currentTarget.style.color = '#64748B';
+                e.currentTarget.style.borderColor = '#E2E8F0';
+              }}>
+              <ChevronLeft size={15} />
+            </button>
+          </div>
+        )}
 
         {/* Navigation Menus with Sections */}
         <div
@@ -2233,7 +2299,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         
         {/* Top Bar (BENTO COMMAND HEADER) */}
         <header style={{
-          padding: '18px 32px',
+          padding: '16px 28px',
           backgroundColor: '#FFFFFF',
           borderBottom: '1px solid #E2E8F0',
           display: 'flex',
@@ -2243,42 +2309,59 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           flexWrap: 'wrap',
           boxShadow: '0 2px 8px rgba(108, 92, 231, 0.02)'
         }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: 20, fontWeight: 600, color: THEME.textDark, margin: 0 }}>
-                {activeTab === 'matrix' && `Bosh Sahifa • Davomat & Analitika Markazi`}
-                {activeTab === 'schedule' && `${terms.groupPlural} Bo'yicha ${terms.lessonSingular} Jadvali & Rejasi`}
-                {activeTab === 'groups' && `Maktab ${terms.groupPlural}i & Ularning ${terms.studentPlural}i`}
-                {activeTab === 'students' && `Maktab ${terms.studentPlural} Bazasi & Yaratilganlik Tarixi`}
-                {activeTab === 'teachers' && "Maktab O'qituvchilari Ro'yxati"}
-                {activeTab === 'attendance' && `Idrok Vision • Bino va ${terms.groupPlural} Bo'yicha Jonli Davomat Auditi`}
-                {activeTab === 'settings' && "Maktab Sozlamalari va Tizim Konfiguratsiyasi (Nastroyka)"}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <button
+              onClick={toggleSidebarCollapse}
+              title={isSidebarCollapsed ? "Yon panelni kengaytirish" : "Yon panelni ixchamlashtirish"}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 7,
+                border: '1px solid #E2E8F0',
+                backgroundColor: '#F8FAFC',
+                color: '#475569',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+                flexShrink: 0,
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = '#EEF2FF';
+                e.currentTarget.style.color = THEME.primary;
+                e.currentTarget.style.borderColor = '#C7D2FE';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = '#F8FAFC';
+                e.currentTarget.style.color = '#475569';
+                e.currentTarget.style.borderColor = '#E2E8F0';
+              }}>
+              <Menu size={16} />
+            </button>
+
+            <div>
+              <h1 style={{ fontSize: 19, fontWeight: 700, color: THEME.textDark, margin: 0, letterSpacing: '-0.01em' }}>
+                {activeTab === 'matrix' && "Bosh Sahifa"}
+                {activeTab === 'groups' && `${terms.groupPlural} Boshqaruvi`}
+                {activeTab === 'schedule' && `${terms.lessonSingular} Jadvali`}
+                {activeTab === 'students' && terms.studentPlural}
+                {activeTab === 'teachers' && "O'qituvchilar"}
+                {activeTab === 'attendance' && "Jonli Davomat Auditi"}
+                {activeTab === 'settings' && "Maktab Sozlamalari"}
               </h1>
-              <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 600, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <Lock size={12} /> Faqat {schoolName} bazasi
-              </span>
-              <button
-                onClick={() => setActiveTab('settings')}
-                title="Maktab terminologiyasi va rejimini sozlash"
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 10,
-                  backgroundColor: '#ECFDF5',
-                  border: '1px solid #A7F3D0',
-                  color: THEME.green,
-                  fontWeight: 600,
-                  fontSize: 11.5,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                }}>
-                <Sliders size={12} /> Rejim: {terms.groupPlural} • {terms.lessonPlural} • {terms.studentPlural}
-              </button>
+              <p style={{ fontSize: 12, color: THEME.textMuted, margin: '3px 0 0 0', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span>O'quv yili: <b style={{ color: THEME.textDark }}>{schoolConfig?.academic_year || '2026-2027'}</b></span>
+                <span>•</span>
+                <span>Mas'ul: <b style={{ color: THEME.primary }}>{schoolConfig?.director_name || (currentUser?.name ? currentUser.name.replace(/\s*\(Direktor\)/i, '') : 'Direktor')}</b></span>
+                {schoolConfig?.district && (
+                  <>
+                    <span>•</span>
+                    <span>{schoolConfig.district}</span>
+                  </>
+                )}
+              </p>
             </div>
-            <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 4 }}>
-              {schoolName} • {schoolConfig?.district || currentUser?.district || "Real vaqt monitoringi"} • O'quv yili: <b>{schoolConfig?.academic_year || '2026-2027'}</b> • Mas'ul: <b style={{ color: THEME.primary }}>{actorLabel}</b>
-            </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

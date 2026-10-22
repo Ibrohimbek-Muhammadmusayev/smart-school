@@ -196,8 +196,10 @@ export default function SuperAdminDashboardView({
     }, 3400);
   };
 
-  // 1. Overview & Analytics Chart state
-  const [selectedRegion, setSelectedRegion] = useState(INITIAL_REGIONS[0]);
+  // 1. Overview & Analytics Chart state (100% REAL BAZA)
+  const [realStats, setRealStats] = useState(null);
+  const [regionsList, setRegionsList] = useState([]);
+  const [selectedRegion, setSelectedRegion] = useState(null);
   const [chartMode, setChartMode] = useState('CUMULATIVE'); // 'CUMULATIVE' | 'IMAGES' | 'FILES' | 'SCHOOLS' | 'CHANGES'
   const [selectedStageIdx, setSelectedStageIdx] = useState(5);
   const [chartHover, setChartHover] = useState(null);
@@ -206,68 +208,70 @@ export default function SuperAdminDashboardView({
   const [dbClasses, setDbClasses] = useState([]);
   const [exportedFilesCount, setExportedFilesCount] = useState(() => {
     try {
-      return Number(localStorage.getItem('smart_school_exports_count')) || 18;
+      return Number(localStorage.getItem('smart_school_exports_count')) || 0;
     } catch (_) {
-      return 18;
+      return 0;
     }
   });
 
-  useEffect(() => {
-    const loadRealProjectStats = async () => {
-      try {
-        const [stuRes, tchRes, clsRes, sysRes, schRes] = await Promise.all([
-          fetch('/api/students/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
-          fetch('/api/teachers/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
-          fetch('/api/classes/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
-          fetch('/api/system-config/', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
-          fetch('/api/school-config/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
-        ]);
-        if (stuRes.ok) {
-          const sData = await stuRes.json();
-          if (Array.isArray(sData)) setDbStudents(sData);
-        }
-        if (tchRes.ok) {
-          const tData = await tchRes.json();
-          if (Array.isArray(tData)) setDbTeachers(tData);
-        }
-        if (clsRes.ok) {
-          const cData = await clsRes.json();
-          if (Array.isArray(cData)) setDbClasses(cData);
-        }
-        if (sysRes.ok) {
-          const sysData = await sysRes.json();
-          setSystemConfig(prev => ({
-            ...prev,
-            maintenanceMode: Boolean(sysData.is_maintenance_mode),
-            maintenanceTitle: sysData.maintenance_title || "Tizimda profilaktika ishlari olib borilmoqda",
-            maintenanceMessage: sysData.maintenance_message || "Serverlarda rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi.",
-            estimatedEndTime: sysData.estimated_end_time || "14:00",
-            supportPhone: sysData.support_phone || "+998 71 200-00-00",
-          }));
-        }
-        if (schRes.ok) {
-          const schData = await schRes.json();
-          if (Array.isArray(schData) && schData.length > 0) {
-            const map = {};
-            schData.forEach(c => { if (c && c.school_id) map[String(c.school_id)] = c; });
-            const merged = schoolsList.map(s => {
-              const c = map[String(s.id)];
-              return c ? {
-                ...s,
-                status: c.status || s.status || 'ACTIVE',
-                statusReason: c.status_reason || s.statusReason || '',
-                warningBanner: c.warning_banner !== undefined ? c.warning_banner : (s.warningBanner || ''),
-                paymentStatus: c.payment_status || s.paymentStatus || 'PAID',
-                debtAmount: c.debt_amount || s.debtAmount || "0 so'm",
-                accessInfoDashboard: c.access_info_dashboard,
-                accessInfoMobile: c.access_info_mobile,
-              } : s;
-            });
-            onUpdateSchools(merged);
+  const loadRealProjectStats = async () => {
+    try {
+      const [overRes, stuRes, tchRes, clsRes, sysRes, schRes] = await Promise.all([
+        fetch('/api/superadmin/overview-stats/', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+        fetch('/api/students/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+        fetch('/api/teachers/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+        fetch('/api/classes/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+        fetch('/api/system-config/', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+        fetch('/api/school-config/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+      ]);
+      if (overRes.ok) {
+        const oData = await overRes.json();
+        if (oData && oData.success) {
+          setRealStats(oData);
+          if (Array.isArray(oData.schools_list) && oData.schools_list.length > 0) {
+            onUpdateSchools(oData.schools_list);
+          }
+          if (Array.isArray(oData.regions_list)) {
+            setRegionsList(oData.regions_list);
+            if (oData.regions_list.length > 0) {
+              setSelectedRegion(prev => prev || oData.regions_list[0]);
+            }
+          }
+          if (Array.isArray(oData.invoices)) {
+            setInvoices(oData.invoices);
+          }
+          if (Array.isArray(oData.audit_logs) && oData.audit_logs.length > 0) {
+            setAuditLogs(oData.audit_logs);
           }
         }
-      } catch (_) {}
-    };
+      }
+      if (stuRes.ok) {
+        const sData = await stuRes.json();
+        if (Array.isArray(sData)) setDbStudents(sData);
+      }
+      if (tchRes.ok) {
+        const tData = await tchRes.json();
+        if (Array.isArray(tData)) setDbTeachers(tData);
+      }
+      if (clsRes.ok) {
+        const cData = await clsRes.json();
+        if (Array.isArray(cData)) setDbClasses(cData);
+      }
+      if (sysRes.ok) {
+        const sysData = await sysRes.json();
+        setSystemConfig(prev => ({
+          ...prev,
+          maintenanceMode: Boolean(sysData.is_maintenance_mode),
+          maintenanceTitle: sysData.maintenance_title || "Tizimda profilaktika ishlari olib borilmoqda",
+          maintenanceMessage: sysData.maintenance_message || "Serverlarda rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi.",
+          estimatedEndTime: sysData.estimated_end_time || "14:00",
+          supportPhone: sysData.support_phone || "+998 71 200-00-00",
+        }));
+      }
+    } catch (_) {}
+  };
+
+  useEffect(() => {
     loadRealProjectStats();
   }, []);
 
@@ -470,16 +474,17 @@ export default function SuperAdminDashboardView({
     onEnterSchool(school);
   };
 
-  // Computed KPI metrics
-  const activeCount = schoolsList.filter(s => s.status === 'ACTIVE').length;
+  // Computed 100% REAL KPI metrics
+  const activeCount = realStats?.kpis?.active_schools ?? schoolsList.filter(s => s.status === 'ACTIVE').length;
   const trialCount = schoolsList.filter(s => s.status === 'TRIAL').length;
-  const blockedCount = schoolsList.filter(s => s.status === 'BLOCKED' || s.status === 'SUSPENDED' || s.status === 'ARCHIVED').length;
-  const totalStudents = schoolsList.reduce((acc, s) => acc + (Number(s.studentsCount) || 0), 0);
-  const totalTeachers = schoolsList.reduce((acc, s) => acc + (Number(s.teachersCount) || 0), 0);
-  const avgAttendance =
-    schoolsList.length > 0
-      ? (schoolsList.reduce((acc, s) => acc + (Number(s.attendanceRate) || 95), 0) / schoolsList.length).toFixed(1)
-      : '96.2';
+  const blockedCount = realStats?.kpis?.suspended_schools ?? schoolsList.filter(s => s.status === 'BLOCKED' || s.status === 'SUSPENDED' || s.status === 'ARCHIVED').length;
+  const totalStudents = realStats?.kpis?.total_students ?? schoolsList.reduce((acc, s) => acc + (Number(s.studentsCount) || 0), 0);
+  const totalTeachers = realStats?.kpis?.total_teachers ?? schoolsList.reduce((acc, s) => acc + (Number(s.teachersCount) || 0), 0);
+  const avgAttendance = realStats?.kpis?.avg_attendance_rate !== undefined
+    ? Number(realStats.kpis.avg_attendance_rate).toFixed(1)
+    : (schoolsList.length > 0
+        ? (schoolsList.reduce((acc, s) => acc + (Number(s.attendanceRate) || 0), 0) / schoolsList.length).toFixed(1)
+        : '0.0');
 
   const currentSelectedSchool =
     schoolsList.find(s => s.id === selectedSchoolId) || schoolsList[0] || null;
@@ -1327,7 +1332,7 @@ export default function SuperAdminDashboardView({
                   const totalFilesUploaded = exportedFilesCount + backups.length + invoices.length + schoolsList.length * 4;
                   const totalSystemChanges = auditLogs.length + schoolsList.length * 12 + exportedFilesCount * 3;
 
-                  const timeSeriesData = [
+                  const timeSeriesData = (realStats && Array.isArray(realStats.time_series_data) && realStats.time_series_data.length > 0) ? realStats.time_series_data : [
                     {
                       short: '08:00',
                       imagesLine: 36,
@@ -1886,47 +1891,57 @@ export default function SuperAdminDashboardView({
                           Hududlar bo‘yicha maktablar va o‘quvchilar zichligi
                         </p>
                       </div>
-                      <span style={pillBadgeStyle}>{INITIAL_REGIONS.length} hudud</span>
+                      <span style={pillBadgeStyle}>{regionsList.length} ta real hudud</span>
                     </div>
 
                     {/* Tanlangan hudud kartasi */}
-                    <div
-                      style={{
-                        padding: '15px 18px',
-                        borderRadius: 8,
-                        background: THEME.gradient,
-                        color: '#FFFFFF',
-                        marginBottom: 14,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        boxShadow: '0 10px 24px -6px rgba(108, 92, 231, 0.35)',
-                        transition: 'all 0.3s ease',
-                      }}>
-                      <div>
-                        <div style={{ fontSize: 10, opacity: 0.85, fontWeight: 700, letterSpacing: '0.5px' }}>TANLANGAN HUDUD</div>
-                        <div style={{ fontSize: 15.5, fontWeight: 800, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={16} /> {selectedRegion.name}</div>
+                    {selectedRegion ? (
+                      <div
+                        style={{
+                          padding: '15px 18px',
+                          borderRadius: 8,
+                          background: THEME.gradient,
+                          color: '#FFFFFF',
+                          marginBottom: 14,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          boxShadow: '0 10px 24px -6px rgba(108, 92, 231, 0.35)',
+                          transition: 'all 0.3s ease',
+                        }}>
+                        <div>
+                          <div style={{ fontSize: 10, opacity: 0.85, fontWeight: 700, letterSpacing: '0.5px' }}>TANLANGAN HUDUD</div>
+                          <div style={{ fontSize: 15.5, fontWeight: 800, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={16} /> {selectedRegion.name}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 14, textAlign: 'right' }}>
+                          <div>
+                            <div style={{ fontSize: 10, opacity: 0.8 }}>Maktab</div>
+                            <div style={{ fontSize: 14, fontWeight: 800 }}>{selectedRegion.schools} ta</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 10, opacity: 0.8 }}>O‘quvchi</div>
+                            <div style={{ fontSize: 14, fontWeight: 800 }}>{selectedRegion.students.toLocaleString()}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 10, opacity: 0.8 }}>Davomat</div>
+                            <div style={{ fontSize: 14, fontWeight: 800 }}>{selectedRegion.attendance}%</div>
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 14, textAlign: 'right' }}>
-                        <div>
-                          <div style={{ fontSize: 10, opacity: 0.8 }}>Maktab</div>
-                          <div style={{ fontSize: 14, fontWeight: 800 }}>{selectedRegion.schools} ta</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 10, opacity: 0.8 }}>O‘quvchi</div>
-                          <div style={{ fontSize: 14, fontWeight: 800 }}>{selectedRegion.students.toLocaleString()}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 10, opacity: 0.8 }}>Davomat</div>
-                          <div style={{ fontSize: 14, fontWeight: 800 }}>{selectedRegion.attendance}%</div>
-                        </div>
+                    ) : (
+                      <div style={{ padding: '16px', borderRadius: 8, backgroundColor: '#F8F9FE', border: `1px solid ${THEME.border}`, marginBottom: 14, textAlign: 'center', fontSize: 12, color: THEME.textMuted }}>
+                        Hozircha hudud tanlanmagan
                       </div>
-                    </div>
+                    )}
 
                     {/* Hududlar ro'yxati */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
-                      {INITIAL_REGIONS.map(reg => {
-                        const isSel = selectedRegion.id === reg.id;
+                      {regionsList.length === 0 ? (
+                        <div style={{ gridColumn: 'span 2', padding: 20, textAlign: 'center', color: THEME.textMuted, fontSize: 12 }}>
+                          Bazadagi maktablar bo‘yicha hududlar mavjud emas
+                        </div>
+                      ) : regionsList.map(reg => {
+                        const isSel = selectedRegion && selectedRegion.id === reg.id;
                         return (
                           <button
                             key={reg.id}
@@ -2310,10 +2325,47 @@ export default function SuperAdminDashboardView({
           {superTab === 'billing' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 14 }}>
-                  <MetricCard icon={<TrendingUp size={16} color={THEME.green} />} title="Oylik Daromad (MRR)" value="15 800 000 so‘m" sub="O‘tgan oyga nisbatan +18.5%" color={THEME.green} sparklineData={[12.4, 13.1, 13.8, 14.2, 14.9, 15.3, 15.8]} />
-                  <MetricCard icon={<Award size={16} color={THEME.primary} />} title="Yillik Proyeksiya (ARR)" value="189 600 000 so‘m" sub="Shartnomalar bo‘yicha yillik" color={THEME.primary} sparklineData={[150, 158, 165, 172, 179, 184, 189.6]} />
-                  <MetricCard icon={<AlertTriangle size={16} color="#EF4444" />} title="Umumiy Qarzdorlik" value="3 700 000 so‘m" sub="2 ta maktab to‘lovi kutilmoqda" color="#EF4444" sparklineData={[5.2, 4.8, 4.5, 4.2, 3.9, 3.8, 3.7]} />
-                  <MetricCard icon={<CheckCircle2 size={16} color={THEME.cyan} />} title="To‘lov Shlyuzlari" value="4 ta Faol" sub="Payme • Click • Uzum • Bank" color={THEME.cyan} badge="4 ta Shlyuz" />
+                  {(() => {
+                    const realMrr = invoices.filter(i => i.status === 'PAID').reduce((acc, i) => acc + (parseInt(String(i.amount).replace(/\D/g, '')) || 0), 0);
+                    const realDebt = schoolsList.reduce((acc, s) => acc + (parseInt(String(s.debtAmount || 0).replace(/\D/g, '')) || 0), 0);
+                    const realArr = realMrr * 12;
+                    return (
+                      <>
+                        <MetricCard
+                          icon={<TrendingUp size={16} color={THEME.green} />}
+                          title="Oylik Daromad (MRR)"
+                          value={realMrr > 0 ? `${realMrr.toLocaleString()} so‘m` : "0 so‘m"}
+                          sub={realMrr > 0 ? "Real tushumlar bo‘yicha" : "Hozircha tushumlar mavjud emas (0 so‘m)"}
+                          color={THEME.green}
+                          sparklineData={realMrr > 0 ? [10, 12, 14, 15] : [0, 0, 0, 0]}
+                        />
+                        <MetricCard
+                          icon={<Award size={16} color={THEME.primary} />}
+                          title="Yillik Proyeksiya (ARR)"
+                          value={realArr > 0 ? `${realArr.toLocaleString()} so‘m` : "0 so‘m"}
+                          sub="Shartnomalar va obunalar bo‘yicha"
+                          color={THEME.primary}
+                          sparklineData={realArr > 0 ? [100, 120, 140, 150] : [0, 0, 0, 0]}
+                        />
+                        <MetricCard
+                          icon={<AlertTriangle size={16} color="#EF4444" />}
+                          title="Umumiy Qarzdorlik"
+                          value={realDebt > 0 ? `${realDebt.toLocaleString()} so‘m` : "0 so‘m"}
+                          sub={realDebt > 0 ? "Muddati o‘tgan to‘lovlar" : "Qarzdor maktablar yo‘q (0 so‘m)"}
+                          color="#EF4444"
+                          sparklineData={realDebt > 0 ? [5, 4, 3, 2] : [0, 0, 0, 0]}
+                        />
+                        <MetricCard
+                          icon={<CheckCircle2 size={16} color={THEME.cyan} />}
+                          title="To‘lov Shlyuzlari"
+                          value="4 ta Integratsiya"
+                          sub="Payme • Click • Uzum • Bank"
+                          color={THEME.cyan}
+                          badge="Faol"
+                        />
+                      </>
+                    );
+                  })()}
                 </div>
 
               <div className="sa-card" style={cardBoxStyle}>
@@ -2462,7 +2514,15 @@ export default function SuperAdminDashboardView({
                       </tr>
                     </thead>
                     <tbody>
-                      {invoices.map(inv => (
+                      {invoices.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} style={{ padding: '36px 16px', textAlign: 'center', color: THEME.textMuted }}>
+                            <CheckCircle2 size={32} color={THEME.green} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.6 }} />
+                            <div style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>Hozircha hisob-fakturalar mavjud emas</div>
+                            <div style={{ fontSize: 12, marginTop: 4 }}>Barcha hisob-kitoblar va to‘lovlar 0 so‘m holatida</div>
+                          </td>
+                        </tr>
+                      ) : invoices.map(inv => (
                         <tr key={inv.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
                           <td style={{ padding: '12px', fontWeight: 700, fontFamily: 'monospace' }}>{inv.id}</td>
                           <td style={{ padding: '12px', fontWeight: 700 }}>{inv.schoolName}</td>
@@ -2884,7 +2944,15 @@ export default function SuperAdminDashboardView({
                       </tr>
                     </thead>
                     <tbody>
-                      {backups.map(b => (
+                      {backups.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '36px 16px', textAlign: 'center', color: THEME.textMuted }}>
+                            <Archive size={32} color={THEME.primary} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.6 }} />
+                            <div style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>Hozircha arxiv nusxalari yo‘q</div>
+                            <div style={{ fontSize: 12, marginTop: 4 }}>Yangi zaxira nusxasi yaratish uchun yuqoridagi tugmani bosing</div>
+                          </td>
+                        </tr>
+                      ) : backups.map(b => (
                         <tr key={b.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
                           <td style={{ padding: '10px', fontWeight: 700, fontFamily: 'monospace' }}>{b.id}</td>
                           <td style={{ padding: '10px' }}>{b.date}</td>
@@ -2957,7 +3025,13 @@ export default function SuperAdminDashboardView({
                   <p style={sectionSubStyle}>Texnik yordam so‘rovlari va ularga javob berish</p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
-                    {tickets.map(t => (
+                    {tickets.length === 0 ? (
+                      <div style={{ padding: '36px 16px', textAlign: 'center', color: THEME.textMuted, backgroundColor: '#FAFBFD', borderRadius: 8, border: `1px solid ${THEME.border}` }}>
+                        <CheckCircle2 size={32} color={THEME.green} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.6 }} />
+                        <div style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>Hozircha ochiq murojaatlar yo‘q</div>
+                        <div style={{ fontSize: 12, marginTop: 4 }}>Barcha maktablar barqaror va xatoliklarsiz ishlamoqda</div>
+                      </div>
+                    ) : tickets.map(t => (
                       <div key={t.id} style={{ padding: 16, borderRadius: 8, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: 800, fontSize: 13, color: THEME.primary }}>{t.id} • {t.school}</span>

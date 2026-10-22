@@ -8,9 +8,10 @@ from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView,
                     StudentProfileView,
                     DeviceEventIngestionView, DeviceLogsListView, DeviceSimulateView,
                     HikvisionTestConnectionView, HikvisionSyncStudentsView, SchoolDashboardAnalyticsView,
-                    SystemConfigView, SchoolStatusActionView, SchoolAccessCheckView)
+                    SystemConfigView, SchoolStatusActionView, SchoolAccessCheckView, SuperAdminOverviewStatsView)
 
 urlpatterns = [
+    path('superadmin/overview-stats/', SuperAdminOverviewStatsView.as_view(), name='superadmin_overview_stats'),
     path('system-config/', SystemConfigView.as_view(), name='system_config'),
     path('schools/<str:school_id>/status/', SchoolStatusActionView.as_view(), name='school_status_action'),
     path('schools/<str:school_id>/access-status/', SchoolAccessCheckView.as_view(), name='school_access_status'),
