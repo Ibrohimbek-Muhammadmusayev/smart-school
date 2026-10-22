@@ -11,7 +11,7 @@ import {
   Edit, Trash2, Copy, ZoomIn, ExternalLink,
   Radio, Play, Pause, Cpu, Upload, Settings,
   Sun, Sunset, Camera, ScanFace, DoorOpen, Globe, FileText, FileSpreadsheet,
-  Star, Zap, FlaskConical, ShieldCheck, CheckSquare, Square, Wrench
+  Star, Zap, FlaskConical, ShieldCheck, CheckSquare, Square, Wrench, LayoutDashboard
 } from 'lucide-react';
 import SuperAdminDashboardView from './SuperAdminDashboard';
 import SchoolMapPicker from './components/SchoolMapPicker';
@@ -1546,7 +1546,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
 
         {/* Navigation Menus */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <NavButton active={activeTab === 'matrix'} onClick={() => setActiveTab('matrix')} icon={<Calendar size={18} />} label={`${terms.lessonSingular} Matritsasi`} badge="Jonli" />
+          <NavButton active={activeTab === 'matrix'} onClick={() => setActiveTab('matrix')} icon={<LayoutDashboard size={18} />} label={`Bosh Sahifa (${terms.lessonSingular} Matritsasi)`} badge="Asosiy" />
           <NavButton active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} icon={<Calendar size={18} />} label={`${terms.lessonSingular} Jadvali`} badge={schedulesList.length > 0 ? `${schedulesList.length} ta` : undefined} />
           <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<FolderOpen size={18} />} label={`${terms.groupPlural} Boshqaruvi`} badge={`${classesList.length} ta`} />
           <NavButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} icon={<Users size={18} />} label={terms.studentPlural} badge={`${realStudents.length} ta`} />
@@ -1650,7 +1650,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: 20, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
-                {activeTab === 'matrix' && `${terms.lessonSingular} Matritsasi & Davomat Jadvali`}
+                {activeTab === 'matrix' && `Bosh Sahifa • ${terms.lessonSingular} Matritsasi & Nazorat Markazi`}
                 {activeTab === 'schedule' && `${terms.groupPlural} Bo'yicha ${terms.lessonSingular} Jadvali & Rejasi`}
                 {activeTab === 'groups' && `Maktab ${terms.groupPlural}i & Ularning ${terms.studentPlural}i`}
                 {activeTab === 'students' && `Maktab ${terms.studentPlural} Bazasi & Yaratilganlik Tarixi`}
