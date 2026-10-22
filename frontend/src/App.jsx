@@ -715,7 +715,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
 
   return (
     <div style={{ display: 'flex', width: '100vw', minHeight: '100vh', backgroundColor: THEME.bgSoft, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ width: '100%', maxWidth: 460, backgroundColor: '#FFFFFF', borderRadius: 28, padding: 36, boxShadow: '0 20px 40px -15px rgba(108, 92, 231, 0.15)', border: `1px solid ${THEME.border}` }}>
+      <div style={{ width: '100%', maxWidth: 460, backgroundColor: '#FFFFFF', borderRadius: 10, padding: 36, boxShadow: '0 20px 40px -15px rgba(108, 92, 231, 0.15)', border: `1px solid ${THEME.border}` }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <img 
             src="/idrok_logo.png" 
@@ -730,7 +730,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
             padding: '12px 16px',
             backgroundColor: '#FEF3C7',
             border: '1px solid #F59E0B',
-            borderRadius: 16,
+            borderRadius: 6,
             color: '#B45309',
             fontSize: 12,
             lineHeight: 1.5,
@@ -741,7 +741,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
           }}>
             <Wrench size={18} color="#D97706" style={{ flexShrink: 0 }} />
             <div>
-              <div style={{ fontWeight: 800 }}>Texnik profilaktika rejimi faol!</div>
+              <div style={{ fontWeight: 600 }}>Texnik profilaktika rejimi faol!</div>
               <div style={{ fontSize: 11, marginTop: 2 }}>
                 {systemMaintenance.maintenance_message || "Serverlarda rejali yangilanish olib borilmoqda."} (Faqat Super Admin kirishi mumkin)
               </div>
@@ -750,7 +750,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
         )}
 
         {loginError && (
-          <div style={{ padding: 12, backgroundColor: '#FFF0F0', border: '1px solid #FFD0D0', borderRadius: 14, color: '#D63031', fontSize: 13, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ padding: 12, backgroundColor: '#FFF0F0', border: '1px solid #FFD0D0', borderRadius: 6, color: '#D63031', fontSize: 13, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
             <AlertTriangle size={18} /> {loginError}
           </div>
         )}
@@ -763,7 +763,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
               placeholder="admin, maktab1 yoki 5 xonali ID (masalan: 20101)"
               value={loginForm.username}
               onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value.trim() })}
-              style={{ width: '100%', padding: '13px 16px', borderRadius: 16, border: `1px solid #E2E8F0`, marginTop: 6, boxSizing: 'border-box', fontSize: 14, outline: 'none' }}
+              style={{ width: '100%', padding: '13px 16px', borderRadius: 6, border: `1px solid #E2E8F0`, marginTop: 6, boxSizing: 'border-box', fontSize: 14, outline: 'none' }}
             />
           </div>
 
@@ -775,14 +775,14 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
               placeholder="••••••••"
               value={loginForm.password}
               onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-              style={{ width: '100%', padding: '13px 16px', borderRadius: 16, border: `1px solid #E2E8F0`, marginTop: 6, boxSizing: 'border-box', fontSize: 14, outline: 'none' }}
+              style={{ width: '100%', padding: '13px 16px', borderRadius: 6, border: `1px solid #E2E8F0`, marginTop: 6, boxSizing: 'border-box', fontSize: 14, outline: 'none' }}
             />
           </div>
 
           <button 
             type="submit" 
             disabled={loading}
-            style={{ width: '100%', padding: 15, background: THEME.gradient, color: 'white', borderRadius: 18, border: 'none', fontWeight: 800, fontSize: 15, cursor: loading ? 'wait' : 'pointer', marginTop: 10, boxShadow: '0 10px 20px rgba(108, 92, 231, 0.3)', opacity: loading ? 0.7 : 1 }}>
+            style={{ width: '100%', padding: 15, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 15, cursor: loading ? 'wait' : 'pointer', marginTop: 10, boxShadow: 'none', opacity: loading ? 0.7 : 1 }}>
             {loading ? "Tekshirilmoqda..." : (
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 Tizimga Kirish <ChevronRight size={16} />
@@ -791,12 +791,12 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
           </button>
         </form>
 
-        <div style={{ marginTop: 24, padding: 14, backgroundColor: THEME.primaryLight, borderRadius: 18, fontSize: 12, color: THEME.primary, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontWeight: 800, marginBottom: 2 }}>Tezkor Kirish (Bosib tanlang):</div>
+        <div style={{ marginTop: 24, padding: 14, backgroundColor: THEME.primaryLight, borderRadius: 6, fontSize: 12, color: THEME.primary, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontWeight: 600, marginBottom: 2 }}>Tezkor Kirish (Bosib tanlang):</div>
           <button
             type="button"
             onClick={() => setLoginForm({ username: 'admin', password: 'admin123' })}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === 'admin' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 6, border: `1px solid ${loginForm.username === 'admin' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <img src="/idrok_superadmin_icon.png" alt="Super Admin" style={{ width: 18, height: 18, borderRadius: 5, objectFit: 'contain' }} />
               <b>Super Admin (Barcha Maktablar):</b>
@@ -806,7 +806,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
           <button
             type="button"
             onClick={() => setLoginForm({ username: 'maktab1', password: 'school123' })}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === 'maktab1' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 6, border: `1px solid ${loginForm.username === 'maktab1' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <img src="/idrok_icon.png" alt="1-Maktab" style={{ width: 18, height: 18, borderRadius: 5, objectFit: 'contain' }} />
               <b>1-Maktab Direktori:</b>
@@ -816,7 +816,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
           <button
             type="button"
             onClick={() => setLoginForm({ username: 'maktab2', password: 'school123' })}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === 'maktab2' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 6, border: `1px solid ${loginForm.username === 'maktab2' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <img src="/idrok_icon.png" alt="24-Maktab" style={{ width: 18, height: 18, borderRadius: 5, objectFit: 'contain' }} />
               <b>24-Prezident Maktabi Direktori:</b>
@@ -826,7 +826,7 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
           <button
             type="button"
             onClick={() => setLoginForm({ username: '20101', password: 'teacher123' })}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 12, border: `1px solid ${loginForm.username === '20101' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 6, border: `1px solid ${loginForm.username === '20101' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <img src="/idrok_icon.png" alt="O'qituvchi" style={{ width: 18, height: 18, borderRadius: 5, objectFit: 'contain' }} />
               <b>O'qituvchi (5 xonali ID):</b>
@@ -1518,7 +1518,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
     <div style={{ display: 'flex', width: '100vw', height: '100vh', backgroundColor: THEME.bgSoft, overflow: 'hidden' }}>
       
       {/* SIDEBAR (EASY LEARN PURPLE THEME) */}
-      <aside style={{ width: 286, backgroundColor: '#FFFFFF', borderRight: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', padding: '24px 18px', zIndex: 10 }}>
+      <aside style={{ width: 260, backgroundColor: '#FFFFFF', borderRight: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', padding: '24px 18px', zIndex: 10 }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22, paddingLeft: 6 }}>
           <img 
@@ -1527,16 +1527,16 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             style={{ 
               width: 44, 
               height: 44, 
-              borderRadius: 14, 
+              borderRadius: 6, 
               objectFit: 'contain', 
-              boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', 
+              boxShadow: 'none', 
               flexShrink: 0 
             }} 
           />
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontWeight: 900, fontSize: 15, color: THEME.textDark }}>Idrok Edu</span>
-              <span style={{ fontSize: 9.5, padding: '1px 6px', borderRadius: 6, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800 }}>CORE</span>
+              <span style={{ fontWeight: 600, fontSize: 15, color: THEME.textDark }}>Idrok Edu</span>
+              <span style={{ fontSize: 9.5, padding: '1px 6px', borderRadius: 6, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 600 }}>CORE</span>
             </div>
             <div title={schoolName} style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {schoolName} • #{schoolId}
@@ -1571,18 +1571,18 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               width: '100%',
               padding: '12px 14px',
               marginBottom: 14,
-              borderRadius: 16,
+              borderRadius: 6,
               border: 'none',
               background: THEME.warmGradient,
               color: '#FFFFFF',
-              fontWeight: 800,
+              fontWeight: 600,
               fontSize: 12.5,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              boxShadow: '0 8px 18px rgba(255, 101, 132, 0.3)',
+              boxShadow: 'none',
             }}>
             <Shield size={16} /> Super Adminga Qaytish
           </button>
@@ -1592,9 +1592,9 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         <div style={{
           marginTop: 'auto',
           padding: '12px 14px',
-          borderRadius: 16,
+          borderRadius: 6,
           backgroundColor: '#FAF9FE',
-          border: '1px solid rgba(108, 92, 231, 0.08)',
+          border: '1px solid #E2E8F0',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -1610,15 +1610,15 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontWeight: 800,
+              fontWeight: 600,
               fontSize: 13,
-              boxShadow: '0 4px 10px rgba(108, 92, 231, 0.25)',
+              boxShadow: 'none',
               flexShrink: 0
             }}>
               {currentUser?.isSuperAdminImpersonating ? 'SA' : 'DR'}
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontWeight: 600, fontSize: 12.5, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {currentUser?.isSuperAdminImpersonating ? 'Super Admin' : (schoolConfig?.director_name || currentUser?.name || "Maktab Direktori")}
               </div>
               <div style={{ fontSize: 10.5, color: THEME.green, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
@@ -1639,7 +1639,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         <header style={{
           padding: '18px 32px',
           backgroundColor: '#FFFFFF',
-          borderBottom: '1px solid rgba(108, 92, 231, 0.08)',
+          borderBottom: '1px solid #E2E8F0',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -1649,7 +1649,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: 20, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
+              <h1 style={{ fontSize: 20, fontWeight: 600, color: THEME.textDark, margin: 0 }}>
                 {activeTab === 'matrix' && `Bosh Sahifa • Davomat & Analitika Markazi`}
                 {activeTab === 'schedule' && `${terms.groupPlural} Bo'yicha ${terms.lessonSingular} Jadvali & Rejasi`}
                 {activeTab === 'groups' && `Maktab ${terms.groupPlural}i & Ularning ${terms.studentPlural}i`}
@@ -1658,7 +1658,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                 {activeTab === 'attendance' && `Idrok Vision • Bino va ${terms.groupPlural} Bo'yicha Jonli Davomat Auditi`}
                 {activeTab === 'settings' && "Maktab Sozlamalari va Tizim Konfiguratsiyasi (Nastroyka)"}
               </h1>
-              <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 600, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <Lock size={12} /> Faqat {schoolName} bazasi
               </span>
               <button
@@ -1670,7 +1670,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                   backgroundColor: '#ECFDF5',
                   border: '1px solid #A7F3D0',
                   color: THEME.green,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 11.5,
                   cursor: 'pointer',
                   display: 'inline-flex',
@@ -1689,13 +1689,13 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             {onReturnToSuperAdmin && (
               <button
                 onClick={onReturnToSuperAdmin}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', backgroundColor: '#FFF0F3', border: '1px solid #FFCCD5', borderRadius: 14, fontWeight: 800, fontSize: 13, color: '#E11D48', cursor: 'pointer' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', backgroundColor: '#FFF0F3', border: '1px solid #FFCCD5', borderRadius: 6, fontWeight: 600, fontSize: 13, color: '#E11D48', cursor: 'pointer' }}>
                 <Shield size={14} /> Super Admin Paneli
               </button>
             )}
             <button 
               onClick={fetchBackendData} 
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}`, borderRadius: 14, fontWeight: 700, fontSize: 13, color: THEME.textDark, cursor: 'pointer' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}`, borderRadius: 6, fontWeight: 500, fontSize: 12.5, color: THEME.textDark, cursor: 'pointer' }}>
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Yangilash
             </button>
 
@@ -1703,7 +1703,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             {activeTab === 'matrix' && (
               <button 
                 onClick={() => handleExportCSV('matrix')} 
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', boxShadow: 'none' }}>
                 <Download size={16} /> Matritsani Yuklash (CSV)
               </button>
             )}
@@ -1715,7 +1715,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                   setEditingLessonSchedule(null);
                   setShowAddLessonModal(true);
                 }} 
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', boxShadow: 'none' }}>
                 <Plus size={16} /> + Yangi {terms.lessonSingular} Kiritish
               </button>
             )}
@@ -1724,7 +1724,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             {activeTab === 'groups' && (
               <button 
                 onClick={() => setShowAddGroupModal(true)} 
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', boxShadow: 'none' }}>
                 <Plus size={16} /> Yangi {terms.groupSingular} Yaratish
               </button>
             )}
@@ -1733,7 +1733,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             {activeTab === 'students' && (
               <button 
                 onClick={() => setShowAddStudentModal(true)} 
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', boxShadow: 'none' }}>
                 <UserPlus size={16} /> Yangi {terms.studentSingular} Qo'shish
               </button>
             )}
@@ -1742,7 +1742,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             {activeTab === 'teachers' && (
               <button 
                 onClick={() => setShowAddTeacherModal(true)} 
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', boxShadow: 'none' }}>
                 <GraduationCap size={16} /> Yangi O'qituvchi Qo'shish
               </button>
             )}
@@ -1751,7 +1751,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             {activeTab === 'attendance' && (
               <button 
                 onClick={() => handleExportCSV('attendance')} 
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', boxShadow: 'none' }}>
                 <Download size={16} /> Audit Hisobotini Yuklash
               </button>
             )}
@@ -1762,12 +1762,12 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         {(globalAnnouncement || currentUser?.warningBanner) && (
           <div style={{ padding: '14px 32px 0 32px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {globalAnnouncement && (
-              <div style={{ padding: '12px 18px', borderRadius: 16, background: THEME.gradient, color: '#FFFFFF', fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 18px rgba(108, 92, 231, 0.2)' }}>
+              <div style={{ padding: '12px 18px', borderRadius: 6, background: THEME.gradient, color: '#FFFFFF', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10, boxShadow: 'none' }}>
                 <Bell size={16} /> <span><b>Rasmiy Xabarnoma (Super Admin):</b> {globalAnnouncement}</span>
               </div>
             )}
             {currentUser?.warningBanner && (
-              <div style={{ padding: '12px 18px', borderRadius: 16, backgroundColor: '#FEF3C7', border: '1px solid #F59E0B', color: '#B45309', fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ padding: '12px 18px', borderRadius: 6, backgroundColor: '#FEF3C7', border: '1px solid #F59E0B', color: '#B45309', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <AlertTriangle size={16} /> <span>{currentUser.warningBanner}</span>
               </div>
             )}
@@ -1779,10 +1779,10 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           <div style={{ padding: '16px 32px 0 32px' }}>
             <div style={{
               padding: '18px 24px',
-              borderRadius: 22,
+              borderRadius: 10,
               background: 'linear-gradient(135deg, #FFF1F2 0%, #FEF2F2 100%)',
               border: '2px solid #F87171',
-              boxShadow: '0 12px 28px rgba(239, 68, 68, 0.16)',
+              boxShadow: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -1793,13 +1793,13 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                 <div style={{
                   width: 48,
                   height: 48,
-                  borderRadius: 16,
+                  borderRadius: 6,
                   backgroundColor: '#EF4444',
                   color: '#FFFFFF',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 8px 18px rgba(239, 68, 68, 0.35)',
+                  boxShadow: 'none',
                   flexShrink: 0
                 }}>
                   <MapPin size={26} />
@@ -1808,7 +1808,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{
                       fontSize: 10.5,
-                      fontWeight: 900,
+                      fontWeight: 600,
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
                       backgroundColor: '#FEE2E2',
@@ -1821,7 +1821,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                     }}>
                       <AlertTriangle size={12} /> TO'LDIRISH MAJBURIY
                     </span>
-                    <h4 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#991B1B' }}>
+                    <h4 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#991B1B' }}>
                       Diqqat: Maktab / Kollejning xaritadagi geometkasi belgilanmagan!
                     </h4>
                   </div>
@@ -1834,17 +1834,17 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                 onClick={() => setActiveTab('settings')}
                 style={{
                   padding: '12px 22px',
-                  borderRadius: 14,
+                  borderRadius: 6,
                   background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
                   color: '#FFFFFF',
-                  fontWeight: 900,
+                  fontWeight: 600,
                   fontSize: 13.5,
                   border: 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  boxShadow: '0 8px 20px rgba(220, 38, 38, 0.35)',
+                  boxShadow: 'none',
                   whiteSpace: 'nowrap'
                 }}>
                 <MapPin size={16} /> Sozlamalarga kirish va Xaritada belgilash →
@@ -3445,13 +3445,13 @@ function GroupsManagementSection({
           width: 320,
           flexShrink: 0,
           backgroundColor: '#FFFFFF',
-          borderRadius: 20,
-          border: '1px solid rgba(108, 92, 231, 0.08)',
+          borderRadius: 10,
+          border: '1px solid #E2E8F0',
           padding: 20,
           display: 'flex',
           flexDirection: 'column',
           gap: 14,
-          boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           position: 'sticky',
           top: 20,
         }}>
@@ -3463,7 +3463,7 @@ function GroupsManagementSection({
                 style={{
                   width: 36,
                   height: 36,
-                  borderRadius: 12,
+                  borderRadius: 6,
                   background: THEME.primaryLight,
                   color: THEME.primary,
                   display: 'flex',
@@ -3473,7 +3473,7 @@ function GroupsManagementSection({
                 <FolderOpen size={18} />
               </div>
               <div>
-                <div style={{ fontWeight: 900, fontSize: 15, color: THEME.textDark }}>Maktab {terms.groupPlural}i</div>
+                <div style={{ fontWeight: 600, fontSize: 15, color: THEME.textDark }}>Maktab {terms.groupPlural}i</div>
                 <div style={{ fontSize: 11, color: THEME.textMuted }}>Faqat shu maktab {terms.groupPlural.toLowerCase()}i</div>
               </div>
             </div>
@@ -3483,7 +3483,7 @@ function GroupsManagementSection({
                 borderRadius: 10,
                 backgroundColor: THEME.primaryLight,
                 color: THEME.primary,
-                fontWeight: 800,
+                fontWeight: 600,
                 fontSize: 11,
               }}>
               {classesList.length} ta {terms.groupSingularLower}
@@ -3494,7 +3494,7 @@ function GroupsManagementSection({
         {/* Sinflar / Guruhlar vertikal ro'yxati */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {classesList.length === 0 ? (
-            <div style={{ padding: '20px 14px', borderRadius: 16, backgroundColor: '#F8FAFC', border: `1px dashed ${THEME.border}`, textAlign: 'center', fontSize: 12, color: THEME.textMuted }}>
+            <div style={{ padding: '20px 14px', borderRadius: 6, backgroundColor: '#F8FAFC', border: `1px dashed ${THEME.border}`, textAlign: 'center', fontSize: 12, color: THEME.textMuted }}>
               Bu maktabda hali {terms.groupSingularLower} yaratilmagan. Quyidagi tugma orqali yangi {terms.groupSingularLower} yarating.
             </div>
           ) : (
@@ -3508,7 +3508,7 @@ function GroupsManagementSection({
                   style={{
                     width: '100%',
                     padding: '12px 14px',
-                    borderRadius: 18,
+                    borderRadius: 6,
                     border: `1px solid ${isSel ? THEME.primary : THEME.border}`,
                     background: isSel ? THEME.gradient : '#F8F9FE',
                     color: isSel ? '#FFFFFF' : THEME.textDark,
@@ -3527,13 +3527,13 @@ function GroupsManagementSection({
                       style={{
                         width: 42,
                         height: 42,
-                        borderRadius: 13,
+                        borderRadius: 6,
                         backgroundColor: isSel ? 'rgba(255,255,255,0.22)' : '#FFFFFF',
                         color: isSel ? '#FFFFFF' : THEME.primary,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontWeight: 900,
+                        fontWeight: 600,
                         fontSize: 13,
                         flexShrink: 0,
                         border: isSel ? 'none' : `1px solid ${THEME.border}`,
@@ -3543,7 +3543,7 @@ function GroupsManagementSection({
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div
                         style={{
-                          fontWeight: 800,
+                          fontWeight: 600,
                           fontSize: 14,
                           color: isSel ? '#FFFFFF' : THEME.textDark,
                           whiteSpace: 'nowrap',
@@ -3568,7 +3568,7 @@ function GroupsManagementSection({
                           padding: '1.5px 6px',
                           borderRadius: 6,
                           fontSize: 9.5,
-                          fontWeight: 800,
+                          fontWeight: 600,
                           backgroundColor: isSel ? 'rgba(255,255,255,0.25)' : (c.shift === 2 ? '#FEF3C7' : '#EFF6FF'),
                           color: isSel ? '#FFFFFF' : (c.shift === 2 ? '#B45309' : '#1D4ED8'),
                           display: 'inline-flex',
@@ -3594,7 +3594,7 @@ function GroupsManagementSection({
                         backgroundColor: isSel ? 'rgba(255,255,255,0.25)' : THEME.primaryLight,
                         color: isSel ? '#FFFFFF' : THEME.primary,
                         fontSize: 11,
-                        fontWeight: 800,
+                        fontWeight: 600,
                         cursor: 'pointer',
                       }}>
                       {count} nafar
@@ -3651,7 +3651,7 @@ function GroupsManagementSection({
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                borderRadius: 18,
+                borderRadius: 6,
                 border: `1px solid ${selectedFilter === 'Guruhsiz' ? THEME.orange : THEME.border}`,
                 background: selectedFilter === 'Guruhsiz' ? THEME.warmGradient : '#FFF9F2',
                 color: selectedFilter === 'Guruhsiz' ? '#FFFFFF' : THEME.textDark,
@@ -3661,7 +3661,7 @@ function GroupsManagementSection({
                 justifyContent: 'space-between',
                 textAlign: 'left',
               }}>
-              <div style={{ fontWeight: 800, fontSize: 13 }}>{terms.noGroupLabel} {terms.studentPluralLower}</div>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>{terms.noGroupLabel} {terms.studentPluralLower}</div>
               <span
                 style={{
                   padding: '3px 8px',
@@ -3669,7 +3669,7 @@ function GroupsManagementSection({
                   backgroundColor: selectedFilter === 'Guruhsiz' ? 'rgba(255,255,255,0.25)' : '#FFE8CC',
                   color: selectedFilter === 'Guruhsiz' ? '#FFF' : THEME.orange,
                   fontSize: 11,
-                  fontWeight: 800,
+                  fontWeight: 600,
                 }}>
                 {unassignedCount} nafar
               </span>
@@ -3684,11 +3684,11 @@ function GroupsManagementSection({
             style={{
               width: '100%',
               padding: '12px 16px',
-              borderRadius: 16,
+              borderRadius: 6,
               border: `1px solid ${selectedFilter === 'ALL' ? THEME.primary : THEME.border}`,
               background: selectedFilter === 'ALL' ? THEME.primaryLight : '#FFFFFF',
               color: selectedFilter === 'ALL' ? THEME.primary : THEME.textMuted,
-              fontWeight: 800,
+              fontWeight: 600,
               fontSize: 12.5,
               cursor: 'pointer',
               display: 'flex',
@@ -3705,7 +3705,7 @@ function GroupsManagementSection({
                 backgroundColor: selectedFilter === 'ALL' ? THEME.primary : '#F1F5F9',
                 color: selectedFilter === 'ALL' ? '#FFFFFF' : THEME.textDark,
                 fontSize: 11,
-                fontWeight: 800,
+                fontWeight: 600,
               }}>
               {realStudents.length} ta
             </span>
@@ -3717,11 +3717,11 @@ function GroupsManagementSection({
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                borderRadius: 16,
+                borderRadius: 6,
                 border: `1px dashed ${THEME.primary}`,
                 background: '#F8F9FE',
                 color: THEME.primary,
-                fontWeight: 800,
+                fontWeight: 600,
                 fontSize: 12.5,
                 cursor: 'pointer',
                 display: 'flex',
@@ -3745,36 +3745,36 @@ function GroupsManagementSection({
           style={{
             backgroundColor: '#FFFFFF',
             padding: '22px 26px',
-            borderRadius: 20,
-            border: '1px solid rgba(108, 92, 231, 0.08)',
+            borderRadius: 10,
+            border: '1px solid #E2E8F0',
             display: 'flex',
             flexWrap: 'wrap',
             justifyContent: 'space-between',
             alignItems: 'center',
             gap: 16,
-            boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
             <div
               style={{
                 width: 54,
                 height: 54,
-                borderRadius: 18,
+                borderRadius: 6,
                 background: THEME.gradient,
                 color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontWeight: 900,
+                fontWeight: 600,
                 fontSize: 17,
-                boxShadow: '0 8px 18px rgba(108, 92, 231, 0.28)',
+                boxShadow: 'none',
                 flexShrink: 0,
               }}>
               {selectedFilter === 'ALL' ? 'ALL' : selectedFilter}
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: 20, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 600, color: THEME.textDark, margin: 0 }}>
                   {selectedFilter === 'ALL'
                     ? `${schoolName} — Barcha ${terms.groupPlural} ${terms.studentPlural}i`
                     : `${selectedFilter} ${terms.groupGenitive} ${terms.studentPlural}i Tarkibi`}
@@ -3785,7 +3785,7 @@ function GroupsManagementSection({
                     borderRadius: 10,
                     backgroundColor: THEME.primaryLight,
                     color: THEME.primary,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     fontSize: 12,
                   }}>
                   {filteredStudents.length} nafar {terms.studentSingularLower}
@@ -3798,7 +3798,7 @@ function GroupsManagementSection({
                       backgroundColor: currentClassObj.shift === 2 ? '#FEF3C7' : '#EFF6FF',
                       color: currentClassObj.shift === 2 ? '#B45309' : '#1D4ED8',
                       border: currentClassObj.shift === 2 ? '1px solid #FDE68A' : '1px solid #BFDBFE',
-                      fontWeight: 800,
+                      fontWeight: 600,
                       fontSize: 12,
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -3852,7 +3852,7 @@ function GroupsManagementSection({
                         backgroundColor: THEME.primaryLight,
                         color: THEME.primary,
                         fontSize: 11,
-                        fontWeight: 800,
+                        fontWeight: 600,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -3880,7 +3880,7 @@ function GroupsManagementSection({
                 alignItems: 'center',
                 gap: 8,
                 padding: '9px 14px',
-                borderRadius: 14,
+                borderRadius: 6,
                 border: `1px solid ${THEME.border}`,
                 backgroundColor: THEME.bgSoft,
                 width: 230,
@@ -3894,7 +3894,7 @@ function GroupsManagementSection({
               />
             </div>
 
-            <div style={{ display: 'flex', backgroundColor: THEME.bgSoft, padding: 4, borderRadius: 12, border: `1px solid ${THEME.border}` }}>
+            <div style={{ display: 'flex', backgroundColor: THEME.bgSoft, padding: 4, borderRadius: 6, border: `1px solid ${THEME.border}` }}>
               <button
                 onClick={() => setViewMode('cards')}
                 style={{
@@ -3903,7 +3903,7 @@ function GroupsManagementSection({
                   border: 'none',
                   backgroundColor: viewMode === 'cards' ? '#FFFFFF' : 'transparent',
                   color: viewMode === 'cards' ? THEME.primary : THEME.textMuted,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
                   boxShadow: viewMode === 'cards' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
@@ -3918,7 +3918,7 @@ function GroupsManagementSection({
                   border: 'none',
                   backgroundColor: viewMode === 'table' ? '#FFFFFF' : 'transparent',
                   color: viewMode === 'table' ? THEME.primary : THEME.textMuted,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
                   boxShadow: viewMode === 'table' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
@@ -3938,9 +3938,9 @@ function GroupsManagementSection({
                   padding: '10px 15px',
                   backgroundColor: '#EEF2FF',
                   color: THEME.primary,
-                  borderRadius: 14,
+                  borderRadius: 6,
                   border: '1px solid #C7D2FE',
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12.5,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
@@ -3961,9 +3961,9 @@ function GroupsManagementSection({
                   padding: '10px 14px',
                   backgroundColor: '#FEF2F2',
                   color: '#EF4444',
-                  borderRadius: 14,
+                  borderRadius: 6,
                   border: '1px solid #FECACA',
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12.5,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
@@ -3983,12 +3983,12 @@ function GroupsManagementSection({
                   padding: '10px 16px',
                   background: THEME.gradient,
                   color: '#FFFFFF',
-                  borderRadius: 14,
+                  borderRadius: 6,
                   border: 'none',
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12.5,
                   cursor: 'pointer',
-                  boxShadow: '0 6px 14px rgba(108, 92, 231, 0.25)',
+                  boxShadow: 'none',
                 }}>
                 <Plus size={15} />
                 {selectedFilter === 'ALL' ? `${terms.studentSingular} Qo'shish` : `${selectedFilter} ga Qo'shish`}
@@ -4002,14 +4002,14 @@ function GroupsManagementSection({
           style={{
             backgroundColor: '#FFFFFF',
             padding: 26,
-            borderRadius: 26,
+            borderRadius: 10,
             border: `1px solid ${THEME.border}`,
             boxShadow: '0 8px 24px rgba(108, 92, 231, 0.03)',
           }}>
           {filteredStudents.length === 0 ? (
             <div style={{ padding: 50, textAlign: 'center', color: THEME.textMuted }}>
               <Users size={40} color={THEME.primary} style={{ opacity: 0.35, marginBottom: 10 }} />
-              <div style={{ fontWeight: 800, fontSize: 15, color: THEME.textDark }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: THEME.textDark }}>
                 {groupSearch ? `Qidiruv bo'yicha ${terms.studentSingularLower} topilmadi` : `Ushbu ${terms.groupSingularLower}da hozircha ${terms.studentPluralLower} biriktirilmagan`}
               </div>
               <div style={{ fontSize: 12, marginTop: 4 }}>
@@ -4023,7 +4023,7 @@ function GroupsManagementSection({
                   key={st.id}
                   style={{
                     padding: 16,
-                    borderRadius: 20,
+                    borderRadius: 10,
                     border: `1px solid ${THEME.border}`,
                     backgroundColor: '#FFFFFF',
                     transition: 'all 0.2s',
@@ -4055,7 +4055,7 @@ function GroupsManagementSection({
                     style={{
                       width: 52,
                       height: 68,
-                      borderRadius: 12,
+                      borderRadius: 6,
                       overflow: 'hidden',
                       backgroundColor: '#F1F5F9',
                       border: `1px solid ${THEME.border}`,
@@ -4084,7 +4084,7 @@ function GroupsManagementSection({
                           color: THEME.primary,
                           backgroundColor: THEME.primaryLight,
                           fontSize: 13,
-                          fontWeight: 900,
+                          fontWeight: 600,
                         }}>
                         {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
                       </div>
@@ -4096,7 +4096,7 @@ function GroupsManagementSection({
                     <div
                       title={`${st.last_name} ${st.first_name}`}
                       style={{
-                        fontWeight: 800,
+                        fontWeight: 600,
                         fontSize: 14,
                         color: THEME.textDark,
                         whiteSpace: 'nowrap',
@@ -4112,7 +4112,7 @@ function GroupsManagementSection({
                           backgroundColor: THEME.primaryLight,
                           color: THEME.primary,
                           borderRadius: 6,
-                          fontWeight: 900,
+                          fontWeight: 600,
                           fontSize: 11,
                           fontFamily: 'monospace',
                         }}>
@@ -4242,7 +4242,7 @@ function GroupsManagementSection({
                             style={{
                               color: THEME.primary,
                               fontSize: 11,
-                              fontWeight: 800,
+                              fontWeight: 600,
                             }}>
                             {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
                           </div>
@@ -4253,7 +4253,7 @@ function GroupsManagementSection({
                       onClick={() => onSelectStudent(st)}
                       style={{
                         padding: '14px',
-                        fontWeight: 800,
+                        fontWeight: 600,
                         color: THEME.textDark,
                         cursor: 'pointer',
                         maxWidth: 200,
@@ -4270,13 +4270,13 @@ function GroupsManagementSection({
                           backgroundColor: THEME.primaryLight,
                           color: THEME.primary,
                           borderRadius: 8,
-                          fontWeight: 800,
+                          fontWeight: 600,
                           fontSize: 11.5,
                         }}>
                         {terms.formatGroupBadge(st.class_name)}
                       </span>
                     </td>
-                    <td style={{ padding: '14px', fontFamily: 'monospace', fontWeight: 800, color: THEME.primary }}>
+                    <td style={{ padding: '14px', fontFamily: 'monospace', fontWeight: 600, color: THEME.primary }}>
                       <code>{st.student_id}</code>
                     </td>
                     <td style={{ padding: '14px' }}>
@@ -4298,7 +4298,7 @@ function GroupsManagementSection({
                             border: 'none',
                             color: THEME.primary,
                             borderRadius: 8,
-                            fontWeight: 800,
+                            fontWeight: 600,
                             cursor: 'pointer',
                             fontSize: 11.5,
                           }}>
@@ -4387,7 +4387,7 @@ function ImagePreviewModal({ image, onClose }) {
         style={{
           position: 'relative',
           backgroundColor: '#FFFFFF',
-          borderRadius: 26,
+          borderRadius: 10,
           padding: 20,
           maxWidth: 580,
           width: '100%',
@@ -4403,12 +4403,12 @@ function ImagePreviewModal({ image, onClose }) {
           <div style={{ minWidth: 0, flex: 1, paddingRight: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
               {badge && (
-                <span style={{ padding: '3px 9px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
+                <span style={{ padding: '3px 9px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
                   {badge}
                 </span>
               )}
               {idNumber && (
-                <span style={{ padding: '3px 8px', backgroundColor: '#F1F5F9', color: THEME.textDark, borderRadius: 8, fontSize: 11.5, fontWeight: 900, fontFamily: 'monospace' }}>
+                <span style={{ padding: '3px 8px', backgroundColor: '#F1F5F9', color: THEME.textDark, borderRadius: 8, fontSize: 11.5, fontWeight: 600, fontFamily: 'monospace' }}>
                   ID: {idNumber}
                 </span>
               )}
@@ -4418,7 +4418,7 @@ function ImagePreviewModal({ image, onClose }) {
                 </span>
               )}
             </div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {title}
             </div>
             {subtitle && (
@@ -4473,7 +4473,7 @@ function ImagePreviewModal({ image, onClose }) {
         {/* Kattalashtirilgan Rasm Konteyneri */}
         <div style={{
           width: '100%',
-          borderRadius: 20,
+          borderRadius: 10,
           overflow: 'hidden',
           backgroundColor: '#0F172A',
           display: 'flex',
@@ -4482,7 +4482,7 @@ function ImagePreviewModal({ image, onClose }) {
           minHeight: 320,
           maxHeight: 'calc(94vh - 160px)',
           border: `2px solid ${THEME.primary}`,
-          boxShadow: '0 12px 30px rgba(108, 92, 231, 0.25)',
+          boxShadow: 'none',
         }}>
           {url ? (
             <img
@@ -4521,17 +4521,17 @@ function ImagePreviewModal({ image, onClose }) {
 function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onPreviewImage, onClose, onEdit, onDelete }) {
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 500, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 32, width: '100%', maxWidth: 500, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>{terms.studentSingular} Pasporti va Yaratilganlik Tarixi</div>
+          <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark }}>{terms.studentSingular} Pasporti va Yaratilganlik Tarixi</div>
           <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>
 
         {/* 3x4 Rasm & Ism Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: 18, backgroundColor: THEME.bgSoft, borderRadius: 22, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: 18, backgroundColor: THEME.bgSoft, borderRadius: 10, marginBottom: 20 }}>
           <div 
             onClick={() => {
               if (student.photo_3x4 && onPreviewImage) {
@@ -4549,7 +4549,7 @@ function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onPreviewI
             style={{ 
               width: 68, 
               height: 86, 
-              borderRadius: 14, 
+              borderRadius: 6, 
               overflow: 'hidden', 
               backgroundColor: '#FFF', 
               border: `2px solid ${THEME.primary}`, 
@@ -4576,15 +4576,15 @@ function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onPreviewI
             )}
           </div>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: THEME.textDark }}>{student.last_name} {student.first_name}</div>
-            <div style={{ fontSize: 12, color: THEME.primary, fontWeight: 800, marginTop: 4 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: THEME.textDark }}>{student.last_name} {student.first_name}</div>
+            <div style={{ fontSize: 12, color: THEME.primary, fontWeight: 600, marginTop: 4 }}>
               {terms.formatGroupBadge(student.class_name)} • {student.school_name || `Maktab #${student.school_id}`}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-              <span style={{ padding: '3px 8px', backgroundColor: '#ECFDF5', color: THEME.green, borderRadius: 8, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ padding: '3px 8px', backgroundColor: '#ECFDF5', color: THEME.green, borderRadius: 8, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <ScanFace size={11} /> Face ID faol
               </span>
-              <span style={{ padding: '3px 8px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
+              <span style={{ padding: '3px 8px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
                 Maktab ID #{student.school_id || '1'}
               </span>
             </div>
@@ -4606,17 +4606,17 @@ function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onPreviewI
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           <button 
             onClick={onEdit} 
-            style={{ flex: 1, padding: 13, background: THEME.primaryLight, color: THEME.primary, borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            style={{ flex: 1, padding: 13, background: THEME.primaryLight, color: THEME.primary, borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Edit size={16} /> Tahrirlash
           </button>
           <button 
             onClick={onDelete} 
-            style={{ padding: '13px 18px', background: '#FEE2E2', color: '#EF4444', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            style={{ padding: '13px 18px', background: '#FEE2E2', color: '#EF4444', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Trash2 size={16} /> O'chirish
           </button>
           <button 
             onClick={onClose} 
-            style={{ flex: 1, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+            style={{ flex: 1, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
             Yopish
           </button>
         </div>
@@ -4627,10 +4627,10 @@ function StudentDetailDrawer({ student, terms = buildSchoolTerms({}), onPreviewI
 
 function DetailRow({ label, value, isCode }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#F8FAFC', borderRadius: 14 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#F8FAFC', borderRadius: 6 }}>
       <span style={{ fontSize: 12.5, color: THEME.textMuted, fontWeight: 600, flexShrink: 0 }}>{label}:</span>
       {isCode ? (
-        <code style={{ fontSize: 13, fontWeight: 800, color: THEME.primary, backgroundColor: THEME.primaryLight, padding: '2px 8px', borderRadius: 6 }}>
+        <code style={{ fontSize: 13, fontWeight: 600, color: THEME.primary, backgroundColor: THEME.primaryLight, padding: '2px 8px', borderRadius: 6 }}>
           {value}
         </code>
       ) : (
@@ -4663,17 +4663,17 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 520, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 32, width: '100%', maxWidth: 520, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)', maxHeight: '90vh', overflowY: 'auto' }}>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>Ustoz Pasporti va Yaratilganlik Tarixi</div>
+          <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark }}>Ustoz Pasporti va Yaratilganlik Tarixi</div>
           <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>
 
         {/* Bosh harf / Foto & Ism Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: 18, backgroundColor: THEME.bgSoft, borderRadius: 22, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: 18, backgroundColor: THEME.bgSoft, borderRadius: 10, marginBottom: 20 }}>
           <div
             onClick={() => {
               if (teacher.photo_3x4 && onPreviewImage) {
@@ -4691,15 +4691,15 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
             style={{ 
               width: 68, 
               height: 86, 
-              borderRadius: 16, 
+              borderRadius: 6, 
               background: teacher.photo_3x4 ? '#FFF' : THEME.gradient, 
               color: '#FFF', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center', 
-              fontWeight: 900, 
+              fontWeight: 600, 
               fontSize: 24, 
-              boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', 
+              boxShadow: 'none', 
               flexShrink: 0,
               overflow: 'hidden',
               cursor: teacher.photo_3x4 ? 'zoom-in' : 'default',
@@ -4722,20 +4722,20 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
             )}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 900, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {teacher.name}
             </div>
-            <div style={{ fontSize: 12.5, color: THEME.primary, fontWeight: 800, marginTop: 4 }}>
+            <div style={{ fontSize: 12.5, color: THEME.primary, fontWeight: 600, marginTop: 4 }}>
               {teacher.subject} • {teacher.school_name || schoolName}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-              <span style={{ padding: '3px 8px', backgroundColor: '#ECFDF5', color: THEME.green, borderRadius: 8, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ padding: '3px 8px', backgroundColor: '#ECFDF5', color: THEME.green, borderRadius: 8, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <QrCode size={11} /> Mobil QR faol
               </span>
-              <span style={{ padding: '3px 8px', backgroundColor: isSuperCreator ? '#FFF0F3' : '#F1F0FF', color: isSuperCreator ? '#E11D48' : THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
+              <span style={{ padding: '3px 8px', backgroundColor: isSuperCreator ? '#FFF0F3' : '#F1F0FF', color: isSuperCreator ? '#E11D48' : THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
                 {isSuperCreator ? 'SUPER ADMIN' : 'MAKTAB ADMINI'}
               </span>
-              <span style={{ padding: '3px 8px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
+              <span style={{ padding: '3px 8px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
                 Maktab ID #{teacher.school_id || '1'}
               </span>
             </div>
@@ -4745,10 +4745,10 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
         {/* Tafsilotlar jadvali */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
           {/* Kirish ID */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#F8FAFC', borderRadius: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#F8FAFC', borderRadius: 6 }}>
             <span style={{ fontSize: 12.5, color: THEME.textMuted, fontWeight: 600 }}>Kirish ID (5 xonali):</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <code style={{ fontSize: 14, fontWeight: 900, color: THEME.primary, backgroundColor: THEME.primaryLight, padding: '3px 10px', borderRadius: 8, fontFamily: 'monospace', letterSpacing: '0.06em' }}>
+              <code style={{ fontSize: 14, fontWeight: 600, color: THEME.primary, backgroundColor: THEME.primaryLight, padding: '3px 10px', borderRadius: 8, fontFamily: 'monospace', letterSpacing: '0.06em' }}>
                 {teacherId}
               </code>
               <button
@@ -4763,10 +4763,10 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
           </div>
 
           {/* Parol */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#F8FAFC', borderRadius: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#F8FAFC', borderRadius: 6 }}>
             <span style={{ fontSize: 12.5, color: THEME.textMuted, fontWeight: 600 }}>Mobil & Web Paroli:</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <code style={{ fontSize: 13, fontWeight: 800, color: THEME.textDark, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}`, padding: '3px 8px', borderRadius: 8, minWidth: 80, textAlign: 'center' }}>
+              <code style={{ fontSize: 13, fontWeight: 600, color: THEME.textDark, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}`, padding: '3px 8px', borderRadius: 8, minWidth: 80, textAlign: 'center' }}>
                 {showPassword ? teacherPwd : '••••••••'}
               </code>
               <button
@@ -4802,20 +4802,20 @@ function TeacherDetailDrawer({ teacher, terms = buildSchoolTerms({}), schoolName
           {onEdit && (
             <button 
               onClick={() => onEdit(teacher)} 
-              style={{ padding: '13px 18px', background: '#EEF2FF', color: '#4F46E5', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              style={{ padding: '13px 18px', background: '#EEF2FF', color: '#4F46E5', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <Edit size={16} /> Tahrirlash
             </button>
           )}
           {onDelete && (
             <button 
               onClick={onDelete} 
-              style={{ padding: '13px 18px', background: '#FEE2E2', color: '#EF4444', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              style={{ padding: '13px 18px', background: '#FEE2E2', color: '#EF4444', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <Trash2 size={16} /> O'chirish
             </button>
           )}
           <button 
             onClick={onClose} 
-            style={{ flex: 1, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+            style={{ flex: 1, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
             Yopish
           </button>
         </div>
@@ -4884,9 +4884,9 @@ function ScheduleManagementSection({
 
   if (classesList.length === 0) {
     return (
-      <div style={{ backgroundColor: '#FFFFFF', padding: 48, borderRadius: 26, border: `1px solid ${THEME.border}`, textAlign: 'center' }}>
+      <div style={{ backgroundColor: '#FFFFFF', padding: 48, borderRadius: 10, border: `1px solid ${THEME.border}`, textAlign: 'center' }}>
         <FolderOpen size={48} color={THEME.primary} style={{ opacity: 0.4, marginBottom: 12 }} />
-        <div style={{ fontSize: 18, fontWeight: 900, color: THEME.textDark }}>Hozircha birorta ham {terms.groupSingularLower} mavjud emas</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: THEME.textDark }}>Hozircha birorta ham {terms.groupSingularLower} mavjud emas</div>
         <div style={{ fontSize: 13, color: THEME.textMuted, marginTop: 6, marginBottom: 20 }}>
           {terms.lessonSingular} jadvalini kiritish uchun avval kamida bitta {terms.groupSingularLower} yarating.
         </div>
@@ -4898,15 +4898,15 @@ function ScheduleManagementSection({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       
       {/* 1. YUQORI SINF/GURUH TANLASH VA BOSHQARUV PANELİ (BENTO CARD) */}
-      <div style={{ backgroundColor: '#FFFFFF', padding: 22, borderRadius: 20, border: '1px solid rgba(108, 92, 231, 0.08)', boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', padding: 22, borderRadius: 10, border: '1px solid #E2E8F0', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 16 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 14, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 6, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Calendar size={20} />
               </div>
               <div>
-                <div style={{ fontWeight: 900, fontSize: 17, color: THEME.textDark }}>
+                <div style={{ fontWeight: 600, fontSize: 17, color: THEME.textDark }}>
                   {terms.groupPlural} Bo'yicha {terms.lessonSingular} Jadvali
                 </div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
@@ -4922,9 +4922,9 @@ function ScheduleManagementSection({
               onClick={() => onOpenAddModal({ class_id: currentClass?.id, day_of_week: activeDay === 'ALL' ? 1 : activeDay })}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px',
-                borderRadius: 14, border: 'none', background: THEME.gradient,
-                color: '#FFF', fontWeight: 800, fontSize: 13, cursor: 'pointer',
-                boxShadow: '0 6px 18px rgba(108, 92, 231, 0.28)'
+                borderRadius: 6, border: 'none', background: THEME.gradient,
+                color: '#FFF', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                boxShadow: 'none'
               }}>
               <Plus size={16} /> + {terms.lessonSingular} Qo'shish
             </button>
@@ -4935,9 +4935,9 @@ function ScheduleManagementSection({
                 title="Barcha asosiy fanlar va o'qituvchilarni biriktirgan holda to'liq haftalik jadvalni yaratish"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px',
-                  borderRadius: 14, border: `1px solid ${THEME.orange}`,
+                  borderRadius: 6, border: `1px solid ${THEME.orange}`,
                   backgroundColor: '#FFF9F2', color: THEME.orange,
-                  fontWeight: 800, fontSize: 12.5, cursor: 'pointer'
+                  fontWeight: 600, fontSize: 12.5, cursor: 'pointer'
                 }}>
                 <Sparkles size={15} /> Namuna Jadval Yuklash
               </button>
@@ -4949,9 +4949,9 @@ function ScheduleManagementSection({
                 title="Ushbu sinfning barcha dars jadvallarini tozalash"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px',
-                  borderRadius: 14, border: '1px solid #FCA5A5',
+                  borderRadius: 6, border: '1px solid #FCA5A5',
                   backgroundColor: '#FEF2F2', color: '#DC2626',
-                  fontWeight: 800, fontSize: 12.5, cursor: 'pointer'
+                  fontWeight: 600, fontSize: 12.5, cursor: 'pointer'
                 }}>
                 <Trash2 size={15} /> Tozalash
               </button>
@@ -4970,11 +4970,11 @@ function ScheduleManagementSection({
                 onClick={() => onSelectClassId(c.id)}
                 style={{
                   padding: '9px 16px',
-                  borderRadius: 14,
+                  borderRadius: 6,
                   border: `1.5px solid ${isSelected ? THEME.primary : THEME.border}`,
                   background: isSelected ? THEME.primaryLight : '#FFFFFF',
                   color: isSelected ? THEME.primary : THEME.textDark,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 13,
                   cursor: 'pointer',
                   display: 'flex',
@@ -5010,7 +5010,7 @@ function ScheduleManagementSection({
                 padding: '3px 8px',
                 borderRadius: 8,
                 fontSize: 11,
-                fontWeight: 800,
+                fontWeight: 600,
                 backgroundColor: classShift === 2 ? '#FEF3C7' : '#EFF6FF',
                 color: classShift === 2 ? '#B45309' : '#1D4ED8',
                 border: classShift === 2 ? '1px solid #FDE68A' : '1px solid #BFDBFE',
@@ -5038,7 +5038,7 @@ function ScheduleManagementSection({
                     borderRadius: 8,
                     padding: '3px 8px',
                     fontSize: 11,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     color: THEME.primary,
                     cursor: 'pointer',
                     display: 'inline-flex',
@@ -5050,7 +5050,7 @@ function ScheduleManagementSection({
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontWeight: 800, color: THEME.primary }}>
+              <span style={{ fontWeight: 600, color: THEME.primary }}>
                 Jami haftalik: {classSchedules.length} ta {terms.lessonSingularLower}
               </span>
             </div>
@@ -5075,11 +5075,11 @@ function ScheduleManagementSection({
                 }}
                 style={{
                   padding: '9px 16px',
-                  borderRadius: 14,
+                  borderRadius: 6,
                   border: `1px solid ${isDaySelected && viewMode === 'day' ? THEME.primary : THEME.border}`,
                   background: isDaySelected && viewMode === 'day' ? THEME.gradient : '#FFFFFF',
                   color: isDaySelected && viewMode === 'day' ? '#FFFFFF' : THEME.textDark,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12.5,
                   cursor: 'pointer',
                   display: 'flex',
@@ -5104,11 +5104,11 @@ function ScheduleManagementSection({
             onClick={() => setViewMode('grid')}
             style={{
               padding: '9px 16px',
-              borderRadius: 14,
+              borderRadius: 6,
               border: `1px solid ${viewMode === 'grid' ? THEME.primary : THEME.border}`,
               background: viewMode === 'grid' ? THEME.gradient : '#FFFFFF',
               color: viewMode === 'grid' ? '#FFFFFF' : THEME.textDark,
-              fontWeight: 800,
+              fontWeight: 600,
               fontSize: 12.5,
               cursor: 'pointer',
               display: 'flex',
@@ -5130,10 +5130,10 @@ function ScheduleManagementSection({
             const dayLessons = classSchedules.filter(s => s.day_of_week === activeDay).sort((a, b) => a.lesson_order - b.lesson_order);
 
             return (
-              <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 26, border: `1px solid ${THEME.border}`, boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)' }}>
+              <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 10, border: `1px solid ${THEME.border}`, boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                   <div>
-                    <div style={{ fontSize: 17, fontWeight: 900, color: THEME.textDark }}>
+                    <div style={{ fontSize: 17, fontWeight: 600, color: THEME.textDark }}>
                       {currentClass?.name} • {currentDayObj.name} kungi darslar
                     </div>
                     <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
@@ -5144,9 +5144,9 @@ function ScheduleManagementSection({
                     onClick={() => onOpenAddModal({ class_id: currentClass?.id, day_of_week: activeDay })}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
-                      borderRadius: 12, border: `1px solid ${THEME.primary}`,
+                      borderRadius: 6, border: `1px solid ${THEME.primary}`,
                       backgroundColor: THEME.primaryLight, color: THEME.primary,
-                      fontWeight: 800, fontSize: 12, cursor: 'pointer'
+                      fontWeight: 600, fontSize: 12, cursor: 'pointer'
                     }}>
                     <Plus size={14} /> + Bu kunga dars qo'shish
                   </button>
@@ -5164,7 +5164,7 @@ function ScheduleManagementSection({
                           key={lesson.id}
                           style={{
                             padding: 18,
-                            borderRadius: 18,
+                            borderRadius: 6,
                             border: `1.5px solid ${colorScheme.border}`,
                             backgroundColor: colorScheme.bg,
                             display: 'flex',
@@ -5180,7 +5180,7 @@ function ScheduleManagementSection({
                               style={{
                                 width: 46,
                                 height: 46,
-                                borderRadius: 14,
+                                borderRadius: 6,
                                 backgroundColor: '#FFFFFF',
                                 color: colorScheme.text,
                                 border: `1px solid ${colorScheme.border}`,
@@ -5188,7 +5188,7 @@ function ScheduleManagementSection({
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                fontWeight: 900,
+                                fontWeight: 600,
                                 fontSize: 12,
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                               }}>
@@ -5199,7 +5199,7 @@ function ScheduleManagementSection({
                             <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <span style={{ display: 'inline-flex', alignItems: 'center' }}>{colorScheme.badge}</span>
-                                <span style={{ fontWeight: 900, fontSize: 16, color: THEME.textDark }}>
+                                <span style={{ fontWeight: 600, fontSize: 16, color: THEME.textDark }}>
                                   {lesson.subject_name}
                                 </span>
                                 <span
@@ -5208,7 +5208,7 @@ function ScheduleManagementSection({
                                     borderRadius: 8,
                                     backgroundColor: '#FFFFFF',
                                     color: colorScheme.text,
-                                    fontWeight: 800,
+                                    fontWeight: 600,
                                     fontSize: 11,
                                     border: `1px solid ${colorScheme.border}`
                                   }}>
@@ -5228,12 +5228,12 @@ function ScheduleManagementSection({
 
                           {/* O'rta: O'qituvchi & Xona */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF', padding: '6px 12px', borderRadius: 12, border: `1px solid ${colorScheme.border}` }}>
-                              <div style={{ width: 26, height: 26, borderRadius: '50%', backgroundColor: THEME.primaryLight, color: THEME.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF', padding: '6px 12px', borderRadius: 6, border: `1px solid ${colorScheme.border}` }}>
+                              <div style={{ width: 26, height: 26, borderRadius: '50%', backgroundColor: THEME.primaryLight, color: THEME.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 11 }}>
                                 <GraduationCap size={14} />
                               </div>
                               <div>
-                                <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark }}>
+                                <div style={{ fontWeight: 600, fontSize: 12.5, color: THEME.textDark }}>
                                   {lesson.teacher_full_name || lesson.teacher_name || "O'qituvchi tayinlanmagan"}
                                 </div>
                                 <div style={{ fontSize: 10.5, color: THEME.textMuted }}>
@@ -5242,7 +5242,7 @@ function ScheduleManagementSection({
                               </div>
                             </div>
 
-                            <div style={{ backgroundColor: '#FFFFFF', padding: '8px 12px', borderRadius: 12, border: `1px solid ${colorScheme.border}`, fontWeight: 800, fontSize: 12, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <div style={{ backgroundColor: '#FFFFFF', padding: '8px 12px', borderRadius: 6, border: `1px solid ${colorScheme.border}`, fontWeight: 600, fontSize: 12, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                               <MapPin size={13} color={THEME.orange} />
                               <span>{lesson.room_number || currentClass?.room_number || "Xona belgilanmagan"}</span>
                             </div>
@@ -5297,7 +5297,7 @@ function ScheduleManagementSection({
                           onClick={() => onOpenAddModal({ class_id: currentClass?.id, day_of_week: activeDay, lesson_order: slot.order, start_time: slot.start, end_time: slot.end })}
                           style={{
                             padding: '14px 20px',
-                            borderRadius: 16,
+                            borderRadius: 6,
                             border: '1.5px dashed #CBD5E1',
                             backgroundColor: '#F8FAFC',
                             display: 'flex',
@@ -5309,14 +5309,14 @@ function ScheduleManagementSection({
                           onMouseEnter={e => e.currentTarget.style.borderColor = THEME.primary}
                           onMouseLeave={e => e.currentTarget.style.borderColor = '#CBD5E1'}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <span style={{ fontWeight: 800, fontSize: 13, color: THEME.textMuted }}>
+                            <span style={{ fontWeight: 600, fontSize: 13, color: THEME.textMuted }}>
                               {slot.order}-dars • {slot.start} - {slot.end}
                             </span>
                             <span style={{ fontSize: 12, color: THEME.textMuted }}>
                               (Bo'sh soat — dars rejalashtirilmagan)
                             </span>
                           </div>
-                          <span style={{ fontSize: 12, fontWeight: 800, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Plus size={14} /> Dars kiritish
                           </span>
                         </div>
@@ -5330,10 +5330,10 @@ function ScheduleManagementSection({
         </div>
       ) : (
         /* HAFTALIK MATRITSA JADVALI (BENTO CARD) */
-        <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 20, border: '1px solid rgba(108, 92, 231, 0.08)', overflowX: 'auto', boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)' }}>
+        <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 10, border: '1px solid #E2E8F0', overflowX: 'auto', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <div>
-              <div style={{ fontWeight: 900, fontSize: 17, color: THEME.textDark }}>
+              <div style={{ fontWeight: 600, fontSize: 17, color: THEME.textDark }}>
                 {currentClass?.name} — To'liq Haftalik Dars Jadvali
               </div>
               <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
@@ -5347,7 +5347,7 @@ function ScheduleManagementSection({
               <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}` }}>
                 <th style={{ padding: '12px 14px', textAlign: 'left', color: THEME.textMuted, width: 130 }}>Soat / Vaqt</th>
                 {daysList.map(d => (
-                  <th key={d.id} style={{ padding: '12px 10px', color: THEME.textDark, fontWeight: 900, fontSize: 13 }}>
+                  <th key={d.id} style={{ padding: '12px 10px', color: THEME.textDark, fontWeight: 600, fontSize: 13 }}>
                     {d.name}
                   </th>
                 ))}
@@ -5357,7 +5357,7 @@ function ScheduleManagementSection({
               {standardSlots.map(slot => (
                 <tr key={slot.order} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
                   <td style={{ padding: '14px 10px', textAlign: 'left' }}>
-                    <div style={{ fontWeight: 900, color: THEME.textDark }}>{slot.order}-dars</div>
+                    <div style={{ fontWeight: 600, color: THEME.textDark }}>{slot.order}-dars</div>
                     <div style={{ fontSize: 10.5, color: THEME.textMuted }}>{slot.start} - {slot.end}</div>
                   </td>
                   {daysList.map(d => {
@@ -5370,7 +5370,7 @@ function ScheduleManagementSection({
                           <div
                             style={{
                               padding: '10px 8px',
-                              borderRadius: 12,
+                              borderRadius: 6,
                               backgroundColor: colorScheme.bg,
                               border: `1px solid ${colorScheme.border}`,
                               textAlign: 'left',
@@ -5379,7 +5379,7 @@ function ScheduleManagementSection({
                               gap: 4,
                             }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span style={{ fontWeight: 900, color: THEME.textDark, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <span style={{ fontWeight: 600, color: THEME.textDark, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {colorScheme.badge} {item.subject_name}
                               </span>
                               <div style={{ display: 'flex', gap: 3 }}>
@@ -5553,16 +5553,16 @@ function AddEditLessonModal({
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, maxWidth: 540, width: '100%', maxHeight: '92vh', overflowY: 'auto', padding: 30, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, maxWidth: 540, width: '100%', maxHeight: '92vh', overflowY: 'auto', padding: 30, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
         
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 6, background: THEME.gradient, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Calendar size={22} />
             </div>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: THEME.textDark }}>
+              <div style={{ fontSize: 18, fontWeight: 600, color: THEME.textDark }}>
                 {isEdit ? `${terms.lessonSingular}ni Tahrirlash` : `Yangi ${terms.lessonSingular} Kiritish`}
               </div>
               <div style={{ fontSize: 12, color: THEME.textMuted }}>
@@ -5584,7 +5584,7 @@ function AddEditLessonModal({
                 <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>{terms.groupSingular}ni Tanlang *</label>
                 <span style={{
                   fontSize: 10,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   padding: '2px 6px',
                   borderRadius: 6,
                   backgroundColor: classShift === 2 ? '#FEF3C7' : '#EFF6FF',
@@ -5599,7 +5599,7 @@ function AddEditLessonModal({
               <select
                 value={classId}
                 onChange={e => handleClassChange(e.target.value)}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
                 {classesList.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name} ({c.shift === 2 ? "2-smena (Abeddan keyin)" : "1-smena (Ertalabki)"})
@@ -5613,7 +5613,7 @@ function AddEditLessonModal({
               <select
                 value={dayOfWeek}
                 onChange={e => setDayOfWeek(Number(e.target.value))}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
                 {days.map(d => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
@@ -5628,7 +5628,7 @@ function AddEditLessonModal({
               <select
                 value={lessonOrder}
                 onChange={e => handleLessonOrderChange(Number(e.target.value))}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700 }}>
                 {[1, 2, 3, 4, 5, 6, 7].map(num => (
                   <option key={num} value={num}>{num}-{terms.lessonSingularLower}</option>
                 ))}
@@ -5642,7 +5642,7 @@ function AddEditLessonModal({
                 placeholder="08:30"
                 value={startTime}
                 onChange={e => setStartTime(e.target.value)}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
               />
             </div>
 
@@ -5653,7 +5653,7 @@ function AddEditLessonModal({
                 placeholder="09:15"
                 value={endTime}
                 onChange={e => setEndTime(e.target.value)}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
               />
             </div>
           </div>
@@ -5669,7 +5669,7 @@ function AddEditLessonModal({
               placeholder="Masalan: Matematika, Fizika, Kimyo..."
               value={subjectName}
               onChange={e => setSubjectName(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700, boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700, boxSizing: 'border-box' }}
             />
             {/* Tezkor teglar */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
@@ -5700,7 +5700,7 @@ function AddEditLessonModal({
             <select
               value={teacherId}
               onChange={e => handleTeacherSelect(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 600 }}>
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 600 }}>
               <option value="">-- Maktab o'qituvchilaridan tanlang ({teachersList.length} nafar) --</option>
               {teachersList.map(t => (
                 <option key={t.id} value={t.id}>
@@ -5719,7 +5719,7 @@ function AddEditLessonModal({
                 placeholder="204-xona"
                 value={roomNumber}
                 onChange={e => setRoomNumber(e.target.value)}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
               />
             </div>
             <div>
@@ -5729,7 +5729,7 @@ function AddEditLessonModal({
                 placeholder="Mavzu nomi..."
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
               />
             </div>
           </div>
@@ -5739,13 +5739,13 @@ function AddEditLessonModal({
             <button
               type="button"
               onClick={onClose}
-              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               Bekor qilish
             </button>
             <button
               type="submit"
               disabled={submitting}
-              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}>
+              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}>
               {submitting ? "Saqlanmoqda..." : (isEdit ? "O'zgarishlarni Saqlash" : "Jadvalga Kiritish")}
             </button>
           </div>
@@ -5762,17 +5762,17 @@ function AddEditLessonModal({
 // =========================================================================
 function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerms({}), searchTerm, setSearchTerm, onStudentClick, onEditStudent, onDeleteStudent, onAddStudent, onPreviewImage }) {
   return (
-    <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 20, border: '1px solid rgba(108, 92, 231, 0.08)', boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)' }}>
+    <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 10, border: '1px solid #E2E8F0', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: THEME.textDark, margin: 0 }}>
             {schoolName} — {terms.studentPlural} Bazasi va Yaratilganlik Tarixi
           </h3>
           <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 4 }}>
             Ushbu maktab bazasida jami <b>{realStudents.length} nafar</b> {terms.studentSingularLower} ro'yxatga olingan (boshqa maktablarga ko'rinmaydi)
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', border: `1px solid ${THEME.border}`, borderRadius: 14, width: 300, backgroundColor: THEME.bgSoft }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', border: `1px solid ${THEME.border}`, borderRadius: 6, width: 300, backgroundColor: THEME.bgSoft }}>
           <Search size={16} color={THEME.textMuted} />
           <input 
             placeholder="Ism, ID yoki yaratgan shaxs..." 
@@ -5786,7 +5786,7 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
       {realStudents.length === 0 ? (
         <div style={{ padding: 48, textAlign: 'center', color: THEME.textMuted }}>
           <Users size={42} color={THEME.primary} style={{ opacity: 0.35, marginBottom: 10 }} />
-          <div style={{ fontWeight: 800, fontSize: 16, color: THEME.textDark }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: THEME.textDark }}>
             Ushbu maktab bazasida hozircha {terms.studentPluralLower} yo'q
           </div>
           <div style={{ fontSize: 12.5, marginTop: 6, marginBottom: 16 }}>
@@ -5795,7 +5795,7 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
           {onAddStudent && (
             <button
               onClick={onAddStudent}
-              style={{ padding: '10px 20px', borderRadius: 14, border: 'none', background: THEME.gradient, color: '#FFF', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ padding: '10px 20px', borderRadius: 6, border: 'none', background: THEME.gradient, color: '#FFF', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               + Yangi {terms.studentSingular} Yaratish
             </button>
           )}
@@ -5864,21 +5864,21 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
                             </div>
                           </>
                         ) : (
-                          <div style={{ color: THEME.primary, fontSize: 11, fontWeight: 800 }}>
+                          <div style={{ color: THEME.primary, fontSize: 11, fontWeight: 600 }}>
                             {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
                           </div>
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: '14px', fontWeight: 800, color: THEME.textDark }}>
+                    <td style={{ padding: '14px', fontWeight: 600, color: THEME.textDark }}>
                       {st.last_name} {st.first_name}
                     </td>
                     <td style={{ padding: '14px' }}>
-                      <span style={{ padding: '4px 10px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontWeight: 800, fontSize: 11.5 }}>
+                      <span style={{ padding: '4px 10px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontWeight: 600, fontSize: 11.5 }}>
                         {terms.formatGroupBadge(st.class_name)}
                       </span>
                     </td>
-                    <td style={{ padding: '14px', fontFamily: 'monospace', fontWeight: 800, color: THEME.primary }}>
+                    <td style={{ padding: '14px', fontFamily: 'monospace', fontWeight: 600, color: THEME.primary }}>
                       <code>{st.student_id}</code>
                     </td>
                     <td style={{ padding: '14px' }}>
@@ -5890,7 +5890,7 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
                           padding: '2px 7px',
                           borderRadius: 6,
                           fontSize: 10,
-                          fontWeight: 800,
+                          fontWeight: 600,
                           backgroundColor: isSuperCreator ? '#FFF0F3' : '#ECFDF5',
                           color: isSuperCreator ? '#E11D48' : THEME.green,
                         }}>
@@ -5914,7 +5914,7 @@ function StudentsListSection({ realStudents, schoolName, terms = buildSchoolTerm
                         <button 
                           onClick={() => onStudentClick(st)}
                           title="Batafsil va yaratilganlik tarixini ko'rish"
-                          style={{ padding: '7px 11px', background: THEME.primaryLight, border: 'none', color: THEME.primary, borderRadius: 10, fontWeight: 800, cursor: 'pointer', fontSize: 12 }}>
+                          style={{ padding: '7px 11px', background: THEME.primaryLight, border: 'none', color: THEME.primary, borderRadius: 10, fontWeight: 600, cursor: 'pointer', fontSize: 12 }}>
                           Tarix & Ko'rish
                         </button>
                         <button 
@@ -5969,11 +5969,11 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
   });
 
   return (
-    <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 20, border: '1px solid rgba(108, 92, 231, 0.08)', boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)' }}>
+    <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 10, border: '1px solid #E2E8F0', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
       {/* Sarlavha va Qidiruv (Xuddi O'quvchilar sahifasidek) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: THEME.textDark, margin: 0 }}>
             {schoolName} — O'qituvchilar Bazasi va Yaratilganlik Tarixi
           </h3>
           <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 4 }}>
@@ -5981,7 +5981,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', border: `1px solid ${THEME.border}`, borderRadius: 14, width: 280, backgroundColor: THEME.bgSoft }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', border: `1px solid ${THEME.border}`, borderRadius: 6, width: 280, backgroundColor: THEME.bgSoft }}>
             <Search size={16} color={THEME.textMuted} />
             <input 
               placeholder="Ism, 5 xonali ID yoki yaratgan shaxs..." 
@@ -5993,7 +5993,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
           {onAddTeacher && (
             <button
               onClick={onAddTeacher}
-              style={{ padding: '10px 18px', borderRadius: 14, border: 'none', background: THEME.gradient, color: '#FFF', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', whiteSpace: 'nowrap' }}>
+              style={{ padding: '10px 18px', borderRadius: 6, border: 'none', background: THEME.gradient, color: '#FFF', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: 'none', whiteSpace: 'nowrap' }}>
               <Plus size={16} /> + O'qituvchi Qo'shish
             </button>
           )}
@@ -6003,7 +6003,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
       {teachers.length === 0 ? (
         <div style={{ padding: 48, textAlign: 'center', color: THEME.textMuted }}>
           <GraduationCap size={42} color={THEME.primary} style={{ opacity: 0.35, marginBottom: 10 }} />
-          <div style={{ fontWeight: 800, fontSize: 16, color: THEME.textDark }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: THEME.textDark }}>
             Ushbu maktab bazasida hozircha o'qituvchilar yo'q
           </div>
           <div style={{ fontSize: 12.5, marginTop: 6, marginBottom: 16 }}>
@@ -6012,7 +6012,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
           {onAddTeacher && (
             <button
               onClick={onAddTeacher}
-              style={{ padding: '10px 20px', borderRadius: 14, border: 'none', background: THEME.gradient, color: '#FFF', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ padding: '10px 20px', borderRadius: 6, border: 'none', background: THEME.gradient, color: '#FFF', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               + Yangi O'qituvchi Yaratish
             </button>
           )}
@@ -6060,7 +6060,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
                       style={{ 
                         width: 42, 
                         height: 52, 
-                        borderRadius: 12, 
+                        borderRadius: 6, 
                         background: t.photo_3x4 ? '#FFF' : THEME.gradient, 
                         color: '#FFF', 
                         display: 'flex', 
@@ -6090,11 +6090,11 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
                       )}
                     </div>
                   </td>
-                  <td style={{ padding: '14px', fontWeight: 800, color: THEME.textDark }}>
+                  <td style={{ padding: '14px', fontWeight: 600, color: THEME.textDark }}>
                     {t.name}
                   </td>
                   <td style={{ padding: '14px' }}>
-                    <span style={{ padding: '4px 10px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontWeight: 800, fontSize: 11.5 }}>
+                    <span style={{ padding: '4px 10px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontWeight: 600, fontSize: 11.5 }}>
                       {t.subject}
                     </span>
                   </td>
@@ -6105,7 +6105,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
                   </td>
                   <td style={{ padding: '14px' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <code style={{ padding: '4px 8px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontFamily: 'monospace', fontWeight: 900, fontSize: 13, letterSpacing: '0.06em' }}>
+                      <code style={{ padding: '4px 8px', backgroundColor: THEME.primaryLight, color: THEME.primary, borderRadius: 8, fontFamily: 'monospace', fontWeight: 600, fontSize: 13, letterSpacing: '0.06em' }}>
                         {teacherId}
                       </code>
                       <button
@@ -6146,7 +6146,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
                         padding: '2px 7px',
                         borderRadius: 6,
                         fontSize: 10,
-                        fontWeight: 800,
+                        fontWeight: 600,
                         backgroundColor: isSuperCreator ? '#FFF0F3' : '#ECFDF5',
                         color: isSuperCreator ? '#E11D48' : THEME.green,
                       }}>
@@ -6170,7 +6170,7 @@ function TeachersListSection({ teachers = [], schoolName, terms = buildSchoolTer
                       <button 
                         onClick={() => onTeacherClick && onTeacherClick(t)}
                         title="Batafsil va yaratilganlik tarixini ko'rish"
-                        style={{ padding: '7px 11px', background: THEME.primaryLight, border: 'none', color: THEME.primary, borderRadius: 10, fontWeight: 800, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        style={{ padding: '7px 11px', background: THEME.primaryLight, border: 'none', color: THEME.primary, borderRadius: 10, fontWeight: 600, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                         Tarix & Ko'rish
                       </button>
                       {onEditTeacher && (
@@ -6503,7 +6503,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
       {/* 1. JONLI MONITORING STATUS PANELI */}
       <div style={{
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
+        borderRadius: 10,
         padding: '18px 24px',
         border: `1.5px solid ${autoRefresh ? '#86EFAC' : '#E2E8F0'}`,
         boxShadow: autoRefresh ? '0 10px 25px -5px rgba(34, 197, 94, 0.15)' : '0 4px 12px rgba(0,0,0,0.04)',
@@ -6520,12 +6520,12 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
             alignItems: 'center',
             gap: 7,
             padding: '7px 14px',
-            borderRadius: 18,
+            borderRadius: 6,
             background: 'linear-gradient(135deg, #6C5CE7 0%, #8E44AD 100%)',
             color: '#FFFFFF',
-            fontWeight: 800,
+            fontWeight: 600,
             fontSize: 12.5,
-            boxShadow: '0 4px 14px rgba(108, 92, 231, 0.25)',
+            boxShadow: 'none',
           }}>
             <Cpu size={15} />
             <span>Idrok Vision</span>
@@ -6537,7 +6537,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
             alignItems: 'center',
             gap: 8,
             padding: '7px 14px',
-            borderRadius: 20,
+            borderRadius: 10,
             backgroundColor: autoRefresh ? '#DCFCE7' : '#F1F5F9',
             border: `1px solid ${autoRefresh ? '#86EFAC' : '#CBD5E1'}`,
           }}>
@@ -6551,7 +6551,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
             }} />
             <span style={{
               fontSize: 12.5,
-              fontWeight: 800,
+              fontWeight: 600,
               color: autoRefresh ? '#15803D' : '#64748B',
               letterSpacing: '0.3px',
             }}>
@@ -6577,12 +6577,12 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               alignItems: 'center',
               gap: 6,
               padding: '9px 15px',
-              borderRadius: 14,
+              borderRadius: 6,
               border: `1.5px solid ${autoRefresh ? '#CBD5E1' : THEME.primary}`,
               backgroundColor: autoRefresh ? '#FFFFFF' : THEME.primaryLight,
               color: autoRefresh ? THEME.textDark : THEME.primary,
               fontSize: 12,
-              fontWeight: 800,
+              fontWeight: 600,
               cursor: 'pointer',
             }}>
             {autoRefresh ? <Pause size={14} /> : <Play size={14} />}
@@ -6596,7 +6596,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               alignItems: 'center',
               gap: 6,
               padding: '9px 15px',
-              borderRadius: 14,
+              borderRadius: 6,
               border: `1px solid #CBD5E1`,
               backgroundColor: '#FFFFFF',
               color: THEME.textDark,
@@ -6615,14 +6615,14 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               alignItems: 'center',
               gap: 7,
               padding: '9px 16px',
-              borderRadius: 14,
+              borderRadius: 6,
               border: 'none',
               background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
               color: '#FFFFFF',
               fontSize: 12,
-              fontWeight: 800,
+              fontWeight: 600,
               cursor: 'pointer',
-              boxShadow: '0 6px 14px rgba(16, 185, 129, 0.3)',
+              boxShadow: 'none',
             }}>
             <Sparkles size={14} />
             Face ID Test Simulyatori
@@ -6639,14 +6639,14 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               alignItems: 'center',
               gap: 7,
               padding: '9px 16px',
-              borderRadius: 14,
+              borderRadius: 6,
               border: 'none',
               background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
               color: '#FFFFFF',
               fontSize: 12,
-              fontWeight: 800,
+              fontWeight: 600,
               cursor: 'pointer',
-              boxShadow: '0 6px 14px rgba(99, 102, 241, 0.3)',
+              boxShadow: 'none',
             }}>
             <Upload size={14} />
             Terminalga Yuklash (ISAPI Sync)
@@ -6659,12 +6659,12 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               alignItems: 'center',
               gap: 6,
               padding: '9px 16px',
-              borderRadius: 14,
+              borderRadius: 6,
               border: `1.5px solid ${THEME.primary}`,
               backgroundColor: THEME.primaryLight,
               color: THEME.primary,
               fontSize: 12,
-              fontWeight: 800,
+              fontWeight: 600,
               cursor: 'pointer',
             }}>
             <Radio size={14} />
@@ -6677,11 +6677,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
       {actionNotice && (
         <div style={{
           padding: '13px 20px',
-          borderRadius: 16,
+          borderRadius: 6,
           backgroundColor: actionNotice.type === 'success' ? '#DCFCE7' : '#FEF3C7',
           border: `1.5px solid ${actionNotice.type === 'success' ? '#86EFAC' : '#FDE68A'}`,
           color: actionNotice.type === 'success' ? '#14532D' : '#92400E',
-          fontWeight: 800,
+          fontWeight: 600,
           fontSize: 13,
           display: 'flex',
           alignItems: 'center',
@@ -6735,7 +6735,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
       {/* 3. TEZKOR TEST VA MONITORING HARAKATLARI PANELI */}
       <div style={{
         backgroundColor: '#FFFFFF',
-        borderRadius: 22,
+        borderRadius: 10,
         padding: '16px 22px',
         border: `1px solid ${THEME.border}`,
         display: 'flex',
@@ -6745,7 +6745,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         gap: 14,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Zap size={14} color={THEME.primary} /> Tezkor Test Sinovlari:</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Zap size={14} color={THEME.primary} /> Tezkor Test Sinovlari:</span>
           <span style={{ fontSize: 11.5, color: THEME.textMuted }}>(Hikvision qurilmasidan keladigan signallarni sinab ko'rish)</span>
         </div>
 
@@ -6755,12 +6755,12 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
             disabled={simulating}
             style={{
               padding: '8px 14px',
-              borderRadius: 12,
+              borderRadius: 6,
               border: '1px solid #86EFAC',
               backgroundColor: '#F0FDF4',
               color: '#166534',
               fontSize: 12,
-              fontWeight: 800,
+              fontWeight: 600,
               cursor: simulating ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -6774,12 +6774,12 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
             disabled={simulating}
             style={{
               padding: '8px 14px',
-              borderRadius: 12,
+              borderRadius: 6,
               border: '1px solid #FED7AA',
               backgroundColor: '#FFF7ED',
               color: '#9A3412',
               fontSize: 12,
-              fontWeight: 800,
+              fontWeight: 600,
               cursor: simulating ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -6793,12 +6793,12 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
             disabled={simulating}
             style={{
               padding: '8px 14px',
-              borderRadius: 12,
+              borderRadius: 6,
               border: '1px solid #FECACA',
               backgroundColor: '#FEF2F2',
               color: '#991B1B',
               fontSize: 12,
-              fontWeight: 800,
+              fontWeight: 600,
               cursor: simulating ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -6810,10 +6810,10 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
       </div>
 
       {/* 4. ASOSIY AUDIT JADVALI VA FILTRLAR */}
-      <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 24, border: `1px solid ${THEME.border}` }}>
+      <div style={{ backgroundColor: '#FFFFFF', padding: 24, borderRadius: 10, border: `1px solid ${THEME.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 18 }}>
           <div>
-            <h3 style={{ fontSize: 17, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
+            <h3 style={{ fontSize: 17, fontWeight: 600, color: THEME.textDark, margin: 0 }}>
               Face ID va Turniket Maktab Auditi ({schoolName})
             </h3>
             <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
@@ -6829,12 +6829,12 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 alignItems: 'center',
                 gap: 6,
                 padding: '8px 14px',
-                borderRadius: 12,
+                borderRadius: 6,
                 border: '1px solid #CBD5E1',
                 backgroundColor: '#FFFFFF',
                 color: THEME.textDark,
                 fontSize: 12,
-                fontWeight: 800,
+                fontWeight: 600,
                 cursor: 'pointer',
               }}>
               <Download size={14} /> CSV Yuklash
@@ -6848,7 +6848,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                   alignItems: 'center',
                   gap: 6,
                   padding: '8px 14px',
-                  borderRadius: 12,
+                  borderRadius: 6,
                   border: '1px solid #FECACA',
                   backgroundColor: '#FFF1F2',
                   color: '#BE123C',
@@ -6869,11 +6869,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               onClick={() => setDirectionFilter('ALL')}
               style={{
                 padding: '7px 14px',
-                borderRadius: 12,
+                borderRadius: 6,
                 border: directionFilter === 'ALL' ? `2px solid ${THEME.primary}` : '1px solid #E2E8F0',
                 backgroundColor: directionFilter === 'ALL' ? THEME.primaryLight : '#FFF',
                 color: directionFilter === 'ALL' ? THEME.primary : THEME.textDark,
-                fontWeight: 800,
+                fontWeight: 600,
                 fontSize: 12,
                 cursor: 'pointer',
               }}>
@@ -6883,11 +6883,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               onClick={() => setDirectionFilter('IN')}
               style={{
                 padding: '7px 14px',
-                borderRadius: 12,
+                borderRadius: 6,
                 border: directionFilter === 'IN' ? `2px solid #22C55E` : '1px solid #E2E8F0',
                 backgroundColor: directionFilter === 'IN' ? '#DCFCE7' : '#FFF',
                 color: directionFilter === 'IN' ? '#15803D' : THEME.textDark,
-                fontWeight: 800,
+                fontWeight: 600,
                 fontSize: 12,
                 cursor: 'pointer',
                 display: 'inline-flex',
@@ -6900,11 +6900,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               onClick={() => setDirectionFilter('OUT')}
               style={{
                 padding: '7px 14px',
-                borderRadius: 12,
+                borderRadius: 6,
                 border: directionFilter === 'OUT' ? `2px solid ${THEME.orange}` : '1px solid #E2E8F0',
                 backgroundColor: directionFilter === 'OUT' ? '#FFF7ED' : '#FFF',
                 color: directionFilter === 'OUT' ? THEME.orange : THEME.textDark,
-                fontWeight: 800,
+                fontWeight: 600,
                 fontSize: 12,
                 cursor: 'pointer',
                 display: 'inline-flex',
@@ -6917,11 +6917,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               onClick={() => setDirectionFilter('UNKNOWN')}
               style={{
                 padding: '7px 14px',
-                borderRadius: 12,
+                borderRadius: 6,
                 border: directionFilter === 'UNKNOWN' ? `2px solid #EF4444` : '1px solid #E2E8F0',
                 backgroundColor: directionFilter === 'UNKNOWN' ? '#FEE2E2' : '#FFF',
                 color: directionFilter === 'UNKNOWN' ? '#B91C1C' : THEME.textDark,
-                fontWeight: 800,
+                fontWeight: 600,
                 fontSize: 12,
                 cursor: 'pointer',
                 display: 'inline-flex',
@@ -6941,7 +6941,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               style={{
                 width: '100%',
                 padding: '8px 12px 8px 34px',
-                borderRadius: 12,
+                borderRadius: 6,
                 border: '1px solid #CBD5E1',
                 fontSize: 12.5,
                 boxSizing: 'border-box',
@@ -6991,7 +6991,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                       }}>
                       {/* Vaqt */}
                       <td style={{ padding: '13px 14px', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 800, color: THEME.textDark, fontSize: 13 }}>
+                        <div style={{ fontWeight: 600, color: THEME.textDark, fontSize: 13 }}>
                           {log.time || '--:--:--'}
                         </div>
                         <div style={{ fontSize: 10.5, color: THEME.textMuted }}>
@@ -7001,10 +7001,10 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
 
                       {/* O'quvchi */}
                       <td style={{ padding: '13px 14px' }}>
-                        <div style={{ fontWeight: 800, color: isSuccess ? THEME.textDark : '#B91C1C', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ fontWeight: 600, color: isSuccess ? THEME.textDark : '#B91C1C', display: 'flex', alignItems: 'center', gap: 6 }}>
                           {log.student_name}
                           {isFresh && (
-                            <span style={{ fontSize: 9.5, padding: '2px 6px', borderRadius: 6, backgroundColor: '#22C55E', color: '#FFF', fontWeight: 900 }}>
+                            <span style={{ fontSize: 9.5, padding: '2px 6px', borderRadius: 6, backgroundColor: '#22C55E', color: '#FFF', fontWeight: 600 }}>
                               YANGI
                             </span>
                           )}
@@ -7034,7 +7034,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                           borderRadius: 10,
                           backgroundColor: isEntry ? '#DCFCE7' : '#FFEDD5',
                           color: isEntry ? '#15803D' : '#C2410C',
-                          fontWeight: 800,
+                          fontWeight: 600,
                           fontSize: 11.5,
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -7067,7 +7067,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                       {/* Aniqlik va Harorat */}
                       <td style={{ padding: '13px 14px', whiteSpace: 'nowrap' }}>
                         <div style={{
-                          fontWeight: 800,
+                          fontWeight: 600,
                           color: (log.confidence || 0) >= 90 ? THEME.green : '#D97706',
                           fontSize: 12.5,
                         }}>
@@ -7088,7 +7088,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                             borderRadius: 8,
                             backgroundColor: '#ECFDF5',
                             color: THEME.green,
-                            fontWeight: 800,
+                            fontWeight: 600,
                             fontSize: 11,
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -7102,7 +7102,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                             borderRadius: 8,
                             backgroundColor: '#FEE2E2',
                             color: '#B91C1C',
-                            fontWeight: 800,
+                            fontWeight: 600,
                             fontSize: 11,
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -7136,15 +7136,15 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         }}>
           <div style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: 28,
+            borderRadius: 10,
             padding: 30,
             width: '100%',
             maxWidth: 520,
-            boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
-                <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Zap size={18} color={THEME.primary} /> Face ID Test Simulyatori
                 </div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
@@ -7185,7 +7185,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                   style={{
                     width: '100%',
                     padding: '11px 14px',
-                    borderRadius: 14,
+                    borderRadius: 6,
                     border: '1.5px solid #CBD5E1',
                     marginTop: 6,
                     fontSize: 13,
@@ -7211,11 +7211,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     onClick={() => setSimForm({ ...simForm, direction: 'IN' })}
                     style={{
                       padding: '11px',
-                      borderRadius: 12,
+                      borderRadius: 6,
                       border: simForm.direction === 'IN' ? '2px solid #22C55E' : '1.5px solid #CBD5E1',
                       backgroundColor: simForm.direction === 'IN' ? '#DCFCE7' : '#FFF',
                       color: simForm.direction === 'IN' ? '#15803D' : THEME.textDark,
-                      fontWeight: 800,
+                      fontWeight: 600,
                       fontSize: 13,
                       cursor: 'pointer',
                       display: 'inline-flex',
@@ -7230,11 +7230,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     onClick={() => setSimForm({ ...simForm, direction: 'OUT' })}
                     style={{
                       padding: '11px',
-                      borderRadius: 12,
+                      borderRadius: 6,
                       border: simForm.direction === 'OUT' ? '2px solid #F97316' : '1.5px solid #CBD5E1',
                       backgroundColor: simForm.direction === 'OUT' ? '#FFEDD5' : '#FFF',
                       color: simForm.direction === 'OUT' ? '#C2410C' : THEME.textDark,
-                      fontWeight: 800,
+                      fontWeight: 600,
                       fontSize: 13,
                       cursor: 'pointer',
                       display: 'inline-flex',
@@ -7258,7 +7258,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                   style={{
                     width: '100%',
                     padding: '11px 14px',
-                    borderRadius: 14,
+                    borderRadius: 6,
                     border: '1.5px solid #CBD5E1',
                     marginTop: 6,
                     fontSize: 13,
@@ -7283,7 +7283,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     max="100"
                     value={simForm.confidence}
                     onChange={e => setSimForm({ ...simForm, confidence: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid #CBD5E1', marginTop: 5, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 5, boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
@@ -7295,7 +7295,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     max="42"
                     value={simForm.temperature}
                     onChange={e => setSimForm({ ...simForm, temperature: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid #CBD5E1', marginTop: 5, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 5, boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
@@ -7307,11 +7307,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                   style={{
                     flex: 1,
                     padding: 13,
-                    borderRadius: 14,
+                    borderRadius: 6,
                     border: 'none',
                     backgroundColor: '#F1F5F9',
                     color: THEME.textDark,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}>
                   Bekor qilish
@@ -7322,13 +7322,13 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                   style={{
                     flex: 1.6,
                     padding: 13,
-                    borderRadius: 14,
+                    borderRadius: 6,
                     border: 'none',
                     background: THEME.gradient,
                     color: '#FFF',
-                    fontWeight: 800,
+                    fontWeight: 600,
                     cursor: simulating ? 'wait' : 'pointer',
-                    boxShadow: '0 8px 16px rgba(108, 92, 231, 0.3)',
+                    boxShadow: 'none',
                   }}>
                   {simulating ? "Yuborilmoqda..." : (
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -7357,17 +7357,17 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         }}>
           <div style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: 28,
+            borderRadius: 10,
             padding: 32,
             width: '100%',
             maxWidth: 680,
             maxHeight: '90vh',
             overflowY: 'auto',
-            boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
-                <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Upload size={20} color="#6366F1" />
                   Idrok Vision • Hikvision MinMoe Sinxronizatsiya Markazi
                 </div>
@@ -7394,7 +7394,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Rejim tanlash (Test / Real) */}
-              <div style={{ display: 'flex', gap: 8, padding: 4, backgroundColor: '#F1F5F9', borderRadius: 14 }}>
+              <div style={{ display: 'flex', gap: 8, padding: 4, backgroundColor: '#F1F5F9', borderRadius: 6 }}>
                 <button
                   type="button"
                   onClick={() => setSyncSimulate(true)}
@@ -7405,7 +7405,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     border: 'none',
                     backgroundColor: syncSimulate ? '#FFFFFF' : 'transparent',
                     color: syncSimulate ? '#4F46E5' : THEME.textMuted,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     fontSize: 12,
                     cursor: 'pointer',
                     boxShadow: syncSimulate ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
@@ -7426,7 +7426,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                     border: 'none',
                     backgroundColor: !syncSimulate ? '#FFFFFF' : 'transparent',
                     color: !syncSimulate ? '#15803D' : THEME.textMuted,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     fontSize: 12,
                     cursor: 'pointer',
                     boxShadow: !syncSimulate ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
@@ -7440,8 +7440,8 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               </div>
 
               {/* Terminal ulanish parametrlari */}
-              <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 18, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 6, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Sliders size={14} color={THEME.primary} /> Hikvision Terminali Sozlamalari:
                 </div>
 
@@ -7500,7 +7500,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                       border: '1.5px solid #CBD5E1',
                       backgroundColor: '#FFFFFF',
                       color: THEME.textDark,
-                      fontWeight: 800,
+                      fontWeight: 600,
                       fontSize: 12,
                       cursor: syncTestingConnection ? 'wait' : 'pointer',
                       display: 'flex',
@@ -7520,7 +7520,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 {syncConnResult && (
                   <div style={{
                     padding: '10px 14px',
-                    borderRadius: 12,
+                    borderRadius: 6,
                     backgroundColor: syncConnResult.connected ? '#DCFCE7' : '#FEE2E2',
                     border: `1px solid ${syncConnResult.connected ? '#86EFAC' : '#FCA5A5'}`,
                     color: syncConnResult.connected ? '#15803D' : '#991B1B',
@@ -7548,7 +7548,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                   style={{
                     width: '100%',
                     padding: '11px 14px',
-                    borderRadius: 12,
+                    borderRadius: 6,
                     border: '1.5px solid #CBD5E1',
                     marginTop: 6,
                     fontSize: 13,
@@ -7571,14 +7571,14 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 style={{
                   width: '100%',
                   padding: '13px',
-                  borderRadius: 14,
+                  borderRadius: 6,
                   border: 'none',
                   background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
                   color: '#FFFFFF',
-                  fontWeight: 900,
+                  fontWeight: 600,
                   fontSize: 13.5,
                   cursor: syncing ? 'wait' : 'pointer',
-                  boxShadow: '0 8px 18px rgba(99, 102, 241, 0.35)',
+                  boxShadow: 'none',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -7593,17 +7593,17 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{
                     padding: '10px 14px',
-                    borderRadius: 12,
+                    borderRadius: 6,
                     backgroundColor: '#ECFDF5',
                     border: '1px solid #A7F3D0',
                     color: '#065F46',
-                    fontWeight: 800,
+                    fontWeight: 600,
                     fontSize: 12.5,
                   }}>
                     {syncResults.message}
                   </div>
 
-                  <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid #E2E8F0', borderRadius: 14 }}>
+                  <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid #E2E8F0', borderRadius: 6 }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
                       <thead style={{ backgroundColor: '#F8FAFC', color: THEME.textMuted }}>
                         <tr>
@@ -7616,7 +7616,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                       <tbody>
                         {(syncResults.results || []).map((item, idx) => (
                           <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                            <td style={{ padding: '8px 12px', fontWeight: 800 }}>{item.name}</td>
+                            <td style={{ padding: '8px 12px', fontWeight: 600 }}>{item.name}</td>
                             <td style={{ padding: '8px 12px', color: THEME.primary, fontWeight: 700 }}>{item.student_id}</td>
                             <td style={{ padding: '8px 12px' }}>
                               <span style={{ color: '#15803D', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -7661,17 +7661,17 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
         }}>
           <div style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: 28,
+            borderRadius: 10,
             padding: 32,
             width: '100%',
             maxWidth: 680,
             maxHeight: '90vh',
             overflowY: 'auto',
-            boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <div>
-                <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Radio size={20} color={THEME.primary} />
                   Hikvision & Face ID Qurilmalari API Integratsiyasi
                 </div>
@@ -7698,11 +7698,11 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Endpoint kartasi */}
-              <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, border: '1px solid #E2E8F0' }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, textTransform: 'uppercase' }}>API Qabul Qiluvchi URL (POST)</div>
+              <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 6, border: '1px solid #E2E8F0' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase' }}>API Qabul Qiluvchi URL (POST)</div>
                 <div style={{
                   fontSize: 13.5,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   color: THEME.primary,
                   marginTop: 4,
                   fontFamily: 'monospace',
@@ -7717,7 +7717,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
 
               {/* Qo'llab-quvvatlanadigan qurilmalar */}
               <div>
-                <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark, marginBottom: 6 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: THEME.textDark, marginBottom: 6 }}>
                   Qo'llab-quvvatlanadigan uskunalar:
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, fontSize: 12 }}>
@@ -7742,14 +7742,14 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
 
               {/* JSON Payload formati */}
               <div>
-                <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark, marginBottom: 6 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: THEME.textDark, marginBottom: 6 }}>
                   Standart JSON formati:
                 </div>
                 <pre style={{
                   backgroundColor: '#0F172A',
                   color: '#38BDF8',
                   padding: 14,
-                  borderRadius: 14,
+                  borderRadius: 6,
                   fontSize: 12,
                   fontFamily: 'monospace',
                   overflowX: 'auto',
@@ -7769,7 +7769,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               {/* Tayyor cURL buyrug'i */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: THEME.textDark }}>
                     Terminaldan to'g'ridan-to'g'ri sinash (cURL):
                   </span>
                   <button
@@ -7783,7 +7783,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                       border: 'none',
                       color: THEME.primary,
                       fontSize: 12,
-                      fontWeight: 800,
+                      fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -7796,7 +7796,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                   backgroundColor: '#0F172A',
                   color: '#A7F3D0',
                   padding: 14,
-                  borderRadius: 14,
+                  borderRadius: 6,
                   fontSize: 11.5,
                   fontFamily: 'monospace',
                   overflowX: 'auto',
@@ -7810,7 +7810,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
               {/* Integratsiya afzalliklari */}
               <div style={{
                 padding: '12px 16px',
-                borderRadius: 14,
+                borderRadius: 6,
                 backgroundColor: '#EFF6FF',
                 border: '1px solid #BFDBFE',
                 fontSize: 12,
@@ -7819,7 +7819,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
                 flexDirection: 'column',
                 gap: 4,
               }}>
-                <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Zap size={14} color="#1E40AF" /> Avtomatik Davomat va Bildirishnoma:
                 </div>
                 <div>1. Qurilmadan <code>KIRISH</code> kelganda, o'quvchining bugungi dars davomati avtomatik ravishda <b>Keldi (PRESENT)</b> yoki dars vaqtiga qarab <b>Kechikdi (LATE)</b> qilib belgilanadi.</div>
@@ -7996,7 +7996,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
       {/* Top Hero Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #1E1B4B 0%, #4338CA 60%, #6C5CE7 100%)',
-        borderRadius: 28,
+        borderRadius: 10,
         padding: '28px 32px',
         color: '#FFFFFF',
         display: 'flex',
@@ -8004,13 +8004,13 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
         alignItems: 'center',
         flexWrap: 'wrap',
         gap: 20,
-        boxShadow: '0 20px 45px rgba(67, 56, 202, 0.22)'
+        boxShadow: 'none'
       }}>
         <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 12px', borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.14)', fontSize: 11, fontWeight: 800, marginBottom: 10 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 12px', borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.14)', fontSize: 11, fontWeight: 600, marginBottom: 10 }}>
             <Sliders size={13} /> MAKTAB DARAJASIDAGI YAGONA KONFIGURATSIYA MARKAZI (MAKTAB #{schoolId})
           </div>
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900 }}>
+          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
             {form.school_name || `Maktab #${schoolId}`} — Tizim Sozlamalari (Nastroyka)
           </h2>
           <p style={{ margin: '8px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.82)', maxWidth: 740, lineHeight: 1.55 }}>
@@ -8020,13 +8020,13 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 800, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ padding: '6px 14px', borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 600, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <FolderOpen size={13} /> {liveTerms.groupSingular} / {liveTerms.groupPlural}
             </span>
-            <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 800, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ padding: '6px 14px', borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 600, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Clock size={13} /> {liveTerms.lessonSingular} / {liveTerms.lessonPlural}
             </span>
-            <span style={{ padding: '6px 14px', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 800, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ padding: '6px 14px', borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 600, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <GraduationCap size={13} /> {liveTerms.studentSingular} / {liveTerms.studentPlural}
             </span>
           </div>
@@ -8035,17 +8035,17 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
             disabled={saving}
             style={{
               padding: '13px 24px',
-              borderRadius: 16,
+              borderRadius: 6,
               border: 'none',
               background: '#10B981',
               color: '#FFFFFF',
-              fontWeight: 900,
+              fontWeight: 600,
               fontSize: 13.5,
               cursor: saving ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              boxShadow: '0 10px 25px rgba(16, 185, 129, 0.35)'
+              boxShadow: 'none'
             }}>
             <CheckCircle2 size={18} />
             {saving ? "Saqlanmoqda..." : "Barcha O'zgarishlarni Saqlash"}
@@ -8056,11 +8056,11 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
       {saveBanner && (
         <div style={{
           padding: '16px 22px',
-          borderRadius: 18,
+          borderRadius: 6,
           backgroundColor: saveBanner.type === 'success' ? '#ECFDF5' : '#FEF2F2',
           border: `1.5px solid ${saveBanner.type === 'success' ? '#10B981' : '#EF4444'}`,
           color: saveBanner.type === 'success' ? '#065F46' : '#991B1B',
-          fontWeight: 800,
+          fontWeight: 600,
           fontSize: 13.5,
           display: 'flex',
           justifyContent: 'space-between',
@@ -8078,24 +8078,24 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
         {/* LEFT COLUMN: 1) Maktab Pasporti & 2) Operatsion Qoidalar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* Card 1: Maktab Rasmiy Ma'lumotlari */}
-          <div style={{ backgroundColor: '#FFFFFF', borderRadius: 26, padding: 28, border: `1px solid ${THEME.border}` }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 28, border: `1px solid ${THEME.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Building2 size={19} color={THEME.primary} /> 1. Maktabning To'liq Rasmiy Nomi va Pasporti
                 </h3>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: THEME.textMuted }}>
                   Maktab nomi o'zgartirilganda barcha {liveTerms.studentPlural.toLowerCase()}, o'qituvchilar va {liveTerms.groupPlural.toLowerCase()} yozuvlarida ham avtomatik yangilanadi
                 </p>
               </div>
-              <span style={{ padding: '4px 10px', borderRadius: 8, backgroundColor: '#EEF2FF', color: '#4338CA', fontSize: 11, fontWeight: 800 }}>
+              <span style={{ padding: '4px 10px', borderRadius: 8, backgroundColor: '#EEF2FF', color: '#4338CA', fontSize: 11, fontWeight: 600 }}>
                 ID #{schoolId}
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 800, color: THEME.textDark }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: THEME.textDark }}>
                   Muassasaning To'liq Rasmiy Nomi *
                 </label>
                 <input
@@ -8106,11 +8106,11 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   style={{
                     width: '100%',
                     padding: '13px 16px',
-                    borderRadius: 14,
+                    borderRadius: 6,
                     border: '1.5px solid #CBD5E1',
                     marginTop: 6,
                     fontSize: 14,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     color: THEME.textDark,
                     boxSizing: 'border-box'
                   }}
@@ -8123,7 +8123,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   <select
                     value={form.institution_type}
                     onChange={e => setForm({ ...form, institution_type: e.target.value })}
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700, backgroundColor: '#FFF' }}>
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700, backgroundColor: '#FFF' }}>
                     <option value="MAKTAB">Umumta'lim / Ixtisoslashtirilgan Maktab</option>
                     <option value="LITSEY_KOLLEJ">Akademik Litsey / Kasb-hunar Kolleji</option>
                     <option value="PREZIDENT_IT">Prezident / IT Maktabi</option>
@@ -8138,7 +8138,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     value={form.academic_year}
                     onChange={e => setForm({ ...form, academic_year: e.target.value })}
                     placeholder="2026-2027"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, fontWeight: 700, boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
@@ -8150,7 +8150,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     value={form.director_name}
                     onChange={e => setForm({ ...form, director_name: e.target.value })}
                     placeholder="Masalan: Rahimov Jamshid"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
                   />
                 </div>
 
@@ -8160,7 +8160,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     value={form.phone}
                     onChange={e => setForm({ ...form, phone: e.target.value })}
                     placeholder="+998 90 100-11-22"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
@@ -8172,7 +8172,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     value={form.district}
                     onChange={e => setForm({ ...form, district: e.target.value })}
                     placeholder="Toshkent sh., Yunusobod tumani"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
                   />
                 </div>
 
@@ -8182,7 +8182,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     value={form.address}
                     onChange={e => setForm({ ...form, address: e.target.value })}
                     placeholder="Amir Temur shoh ko'chasi, 45-uy"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 6, border: '1px solid #CBD5E1', marginTop: 6, fontSize: 13, boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
@@ -8192,14 +8192,14 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
           {/* Card 2: Maktab Geometkasi va Xaritadagi GPS Joylashuvi (To'ldirish Majburiy) */}
           <div style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: 26,
+            borderRadius: 10,
             padding: 28,
             border: `1.5px solid ${isLocationSaved ? '#A7F3D0' : (form.latitude ? '#C7D2FE' : '#FCA5A5')}`,
             boxShadow: isLocationSaved ? '0 10px 30px rgba(16, 185, 129, 0.08)' : '0 10px 30px rgba(239, 68, 68, 0.12)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <MapPin size={20} color={isLocationSaved ? '#10B981' : '#EF4444'} /> 2. Maktab Geometkasi va GPS Joylashuvi (Xarita)
                 </h3>
                 <p style={{ margin: '4px 0 0', fontSize: 12.5, color: THEME.textMuted, lineHeight: 1.45 }}>
@@ -8212,12 +8212,12 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 {isLocationSaved ? (
                   <span style={{
                     padding: '6px 14px',
-                    borderRadius: 12,
+                    borderRadius: 6,
                     backgroundColor: '#ECFDF5',
                     border: '1.5px solid #10B981',
                     color: '#065F46',
                     fontSize: 12,
-                    fontWeight: 900,
+                    fontWeight: 600,
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
@@ -8227,12 +8227,12 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 ) : form.latitude ? (
                   <span style={{
                     padding: '6px 14px',
-                    borderRadius: 12,
+                    borderRadius: 6,
                     backgroundColor: '#EFF6FF',
                     border: '1.5px solid #3B82F6',
                     color: '#1E40AF',
                     fontSize: 12,
-                    fontWeight: 900,
+                    fontWeight: 600,
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
@@ -8242,12 +8242,12 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 ) : (
                   <span style={{
                     padding: '6px 14px',
-                    borderRadius: 12,
+                    borderRadius: 6,
                     backgroundColor: '#FEF2F2',
                     border: '1.5px solid #EF4444',
                     color: '#991B1B',
                     fontSize: 12,
-                    fontWeight: 900,
+                    fontWeight: 600,
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
@@ -8282,8 +8282,8 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
           </div>
 
           {/* Card 3: Davomat, QR va Baholash Parametrlari */}
-          <div style={{ backgroundColor: '#FFFFFF', borderRadius: 26, padding: 28, border: `1px solid ${THEME.border}` }}>
-            <h3 style={{ margin: '0 0 6px', fontSize: 17, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 28, border: `1px solid ${THEME.border}` }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 17, fontWeight: 600, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
               <QrCode size={19} color={THEME.primary} /> 3. Mobil QR Davomat va Baholash Qoidalari
             </h3>
             <p style={{ margin: '0 0 18px', fontSize: 12, color: THEME.textMuted }}>
@@ -8291,8 +8291,8 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-              <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block' }}>
+              <div style={{ padding: 14, borderRadius: 6, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, display: 'block' }}>
                   QR YANGILANISH VAQTI
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
@@ -8302,14 +8302,14 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     max={60}
                     value={form.qr_refresh_seconds}
                     onChange={e => setForm({ ...form, qr_refresh_seconds: Number(e.target.value) || 15 })}
-                    style={{ width: 70, padding: '8px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontWeight: 800, fontSize: 14 }}
+                    style={{ width: 70, padding: '8px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontWeight: 600, fontSize: 14 }}
                   />
                   <span style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>soniya</span>
                 </div>
               </div>
 
-              <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block' }}>
+              <div style={{ padding: 14, borderRadius: 6, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, display: 'block' }}>
                   KECHIKISH ME'YORI
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
@@ -8319,20 +8319,20 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     max={45}
                     value={form.late_threshold_minutes}
                     onChange={e => setForm({ ...form, late_threshold_minutes: Number(e.target.value) || 10 })}
-                    style={{ width: 70, padding: '8px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontWeight: 800, fontSize: 14 }}
+                    style={{ width: 70, padding: '8px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontWeight: 600, fontSize: 14 }}
                   />
                   <span style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>daqiqa</span>
                 </div>
               </div>
 
-              <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block' }}>
+              <div style={{ padding: 14, borderRadius: 6, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, display: 'block' }}>
                   BAHOLASH TIZIMI
                 </label>
                 <select
                   value={form.grading_scale}
                   onChange={e => setForm({ ...form, grading_scale: e.target.value })}
-                  style={{ width: '100%', padding: '9px 10px', borderRadius: 10, border: '1px solid #CBD5E1', marginTop: 8, fontWeight: 800, fontSize: 12.5, backgroundColor: '#FFF' }}>
+                  style={{ width: '100%', padding: '9px 10px', borderRadius: 10, border: '1px solid #CBD5E1', marginTop: 8, fontWeight: 600, fontSize: 12.5, backgroundColor: '#FFF' }}>
                   <option value="5-BALLIK">5 ballik tizim (2–5)</option>
                   <option value="100-FOIZLIK">100 ballik reyting</option>
                 </select>
@@ -8340,7 +8340,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
             </div>
 
             {schoolConfig?.updated_at && (
-              <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 12, backgroundColor: '#F8FAFC', fontSize: 11.5, color: THEME.textMuted, display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 6, backgroundColor: '#F8FAFC', fontSize: 11.5, color: THEME.textMuted, display: 'flex', justifyContent: 'space-between' }}>
                 <span>Oxirgi marta tahrirlangan: <b>{schoolConfig.updated_by || actorLabel}</b></span>
                 <span>Vaqt: <b>{schoolConfig.updated_at}</b></span>
               </div>
@@ -8350,10 +8350,10 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
         {/* RIGHT COLUMN: 4) Tizim Atamalari (Sinf vs Guruh, Dars vs Para, O'quvchi vs Talaba) + Live Preview */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <div style={{ backgroundColor: '#FFFFFF', borderRadius: 26, padding: 28, border: `1px solid ${THEME.border}` }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 28, border: `1px solid ${THEME.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Layers size={19} color={THEME.primary} /> 4. Tizim Atamalari Konfiguratsiyasi (Sinf yoki Guruh)
                 </h3>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: THEME.textMuted }}>
@@ -8364,7 +8364,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
             {/* Tezkor Shablonlar (Presets) */}
             <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Zap size={13} color={THEME.primary} /> Tezkor Shablon Tanlash:
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -8373,12 +8373,12 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   onClick={() => applyPreset('SINF_MODE')}
                   style={{
                     padding: '10px 12px',
-                    borderRadius: 12,
+                    borderRadius: 6,
                     border: form.group_term === 'SINF' && form.lesson_term === 'DARS' ? `2px solid ${THEME.primary}` : '1px solid #E2E8F0',
                     backgroundColor: form.group_term === 'SINF' && form.lesson_term === 'DARS' ? THEME.primaryLight : '#F8FAFC',
                     color: THEME.textDark,
                     fontSize: 11.5,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     cursor: 'pointer',
                     textAlign: 'left'
                   }}>
@@ -8392,12 +8392,12 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   onClick={() => applyPreset('GURUH_MODE')}
                   style={{
                     padding: '10px 12px',
-                    borderRadius: 12,
+                    borderRadius: 6,
                     border: form.group_term === 'GURUH' && form.student_term === 'OQUVCHI' ? `2px solid ${THEME.primary}` : '1px solid #E2E8F0',
                     backgroundColor: form.group_term === 'GURUH' && form.student_term === 'OQUVCHI' ? THEME.primaryLight : '#F8FAFC',
                     color: THEME.textDark,
                     fontSize: 11.5,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     cursor: 'pointer',
                     textAlign: 'left'
                   }}>
@@ -8411,12 +8411,12 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   onClick={() => applyPreset('TALABA_MODE')}
                   style={{
                     padding: '10px 12px',
-                    borderRadius: 12,
+                    borderRadius: 6,
                     border: form.group_term === 'GURUH' && form.student_term === 'TALABA' ? `2px solid ${THEME.primary}` : '1px solid #E2E8F0',
                     backgroundColor: form.group_term === 'GURUH' && form.student_term === 'TALABA' ? THEME.primaryLight : '#F8FAFC',
                     color: THEME.textDark,
                     fontSize: 11.5,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     cursor: 'pointer',
                     textAlign: 'left'
                   }}>
@@ -8430,7 +8430,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
             {/* 3.1 Bo'linma atamasi: SINF vs GURUH */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 800, color: THEME.textDark, display: 'block', marginBottom: 8 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: THEME.textDark, display: 'block', marginBottom: 8 }}>
                 A) O'quv bo'linmasi atamasi (Sinf yoki Guruh):
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -8455,14 +8455,14 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                       onClick={() => setForm({ ...form, group_term: opt.key })}
                       style={{
                         padding: 16,
-                        borderRadius: 18,
+                        borderRadius: 6,
                         border: active ? `2px solid ${THEME.primary}` : '1.5px solid #E2E8F0',
                         backgroundColor: active ? '#F5F3FF' : '#FFFFFF',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease'
                       }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 900, fontSize: 15, color: active ? THEME.primary : THEME.textDark }}>
+                        <span style={{ fontWeight: 600, fontSize: 15, color: active ? THEME.primary : THEME.textDark }}>
                           {opt.title}
                         </span>
                         <span style={{
@@ -8482,7 +8482,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
             {/* 3.2 Mashg'ulot atamasi: DARS vs PARA */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 800, color: THEME.textDark, display: 'block', marginBottom: 8 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: THEME.textDark, display: 'block', marginBottom: 8 }}>
                 B) O'quv mashg'uloti atamasi (Dars yoki Para):
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -8497,13 +8497,13 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                       onClick={() => setForm({ ...form, lesson_term: opt.key })}
                       style={{
                         padding: 14,
-                        borderRadius: 16,
+                        borderRadius: 6,
                         border: active ? `2px solid ${THEME.primary}` : '1.5px solid #E2E8F0',
                         backgroundColor: active ? '#F5F3FF' : '#FFFFFF',
                         cursor: 'pointer'
                       }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 900, fontSize: 14, color: active ? THEME.primary : THEME.textDark }}>{opt.title}</span>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: active ? THEME.primary : THEME.textDark }}>{opt.title}</span>
                         {active && <CheckCircle2 size={16} color={THEME.primary} />}
                       </div>
                       <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>{opt.sub}</div>
@@ -8515,7 +8515,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
             {/* 3.3 Ta'lim oluvchi atamasi: O'QUVCHI vs TALABA */}
             <div>
-              <label style={{ fontSize: 12, fontWeight: 800, color: THEME.textDark, display: 'block', marginBottom: 8 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: THEME.textDark, display: 'block', marginBottom: 8 }}>
                 C) Ta'lim oluvchi atamasi (O'quvchi yoki Talaba):
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -8530,13 +8530,13 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                       onClick={() => setForm({ ...form, student_term: opt.key })}
                       style={{
                         padding: 14,
-                        borderRadius: 16,
+                        borderRadius: 6,
                         border: active ? `2px solid ${THEME.primary}` : '1.5px solid #E2E8F0',
                         backgroundColor: active ? '#F5F3FF' : '#FFFFFF',
                         cursor: 'pointer'
                       }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 900, fontSize: 14, color: active ? THEME.primary : THEME.textDark }}>{opt.title}</span>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: active ? THEME.primary : THEME.textDark }}>{opt.title}</span>
                         {active && <CheckCircle2 size={16} color={THEME.primary} />}
                       </div>
                       <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>{opt.sub}</div>
@@ -8549,11 +8549,11 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
             {/* D) Dars Davomiyligi (Daqiqalarda) */}
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1.5px solid #F1F5F9' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <label style={{ fontSize: 13, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Clock size={16} color={THEME.primary} />
                   D) Standart {liveTerms.lessonSingular} Davomiyligi (Daqiqada) *
                 </label>
-                <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 8, backgroundColor: '#EFF6FF', color: '#1D4ED8', fontWeight: 800 }}>
+                <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 8, backgroundColor: '#EFF6FF', color: '#1D4ED8', fontWeight: 600 }}>
                   Joriy me'yor: {form.lesson_duration_minutes} daqiqa
                 </span>
               </div>
@@ -8577,11 +8577,11 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                       onClick={() => setForm({ ...form, lesson_duration_minutes: item.val })}
                       style={{
                         padding: '10px 8px',
-                        borderRadius: 14,
+                        borderRadius: 6,
                         border: isCur ? `2px solid ${THEME.primary}` : '1.5px solid #E2E8F0',
                         backgroundColor: isCur ? '#F5F3FF' : '#F8FAFC',
                         color: isCur ? THEME.primary : THEME.textDark,
-                        fontWeight: 800,
+                        fontWeight: 600,
                         fontSize: 12,
                         cursor: 'pointer',
                         textAlign: 'center',
@@ -8595,8 +8595,8 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
               </div>
 
               {/* Qo'lda ixtiyoriy daqiqa kiritish */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 14, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: THEME.textDark, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 6, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: THEME.textDark, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <Edit size={13} color={THEME.primary} /> Qo'lda ixtiyoriy daqiqa kiritish:
                 </span>
                 <input
@@ -8614,7 +8614,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                     padding: '8px 12px',
                     borderRadius: 10,
                     border: '1.5px solid #CBD5E1',
-                    fontWeight: 900,
+                    fontWeight: 600,
                     fontSize: 14,
                     color: THEME.primary,
                     textAlign: 'center'
@@ -8627,11 +8627,11 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
             {/* E) Qo'ng'iroqlar Jadvali & Oraliq Tanaffus (1-smena va 2-smena) */}
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1.5px solid #F1F5F9' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <label style={{ fontSize: 13, fontWeight: 900, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Bell size={15} color={THEME.primary} /> E) Qo'ng'iroqlar Jadvali & Smenalar Konfiguratsiyasi (1-smena & 2-smena):
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 10, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted }}>ODATIY TANAFFUS (IKKALA SMENAGA):</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted }}>ODATIY TANAFFUS (IKKALA SMENAGA):</span>
                   <input
                     type="number"
                     min={0}
@@ -8646,7 +8646,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                       padding: '4px 8px',
                       borderRadius: 8,
                       border: '1px solid #CBD5E1',
-                      fontWeight: 800,
+                      fontWeight: 600,
                       fontSize: 12.5,
                       backgroundColor: '#FFF',
                       textAlign: 'center'
@@ -8660,19 +8660,19 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 
                 {/* 1-SMENA (ERTALABKI) */}
-                <div style={{ padding: 16, borderRadius: 18, backgroundColor: '#F8FAFC', border: '1.5px solid #E2E8F0' }}>
+                <div style={{ padding: 16, borderRadius: 6, backgroundColor: '#F8FAFC', border: '1.5px solid #E2E8F0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Sun size={15} color="#1D4ED8" /> 1-Smena (Ertalabki darslar)
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: '#1D4ED8', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#1D4ED8', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: 6 }}>
                       Ertalabki sinflar uchun
                     </span>
                   </div>
 
                   {/* 1-smena dars boshlanish vaqti */}
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
                       1-DARS BOSHLANISH VAQTI:
                     </label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -8684,7 +8684,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                           padding: '7px 10px',
                           borderRadius: 10,
                           border: '1px solid #CBD5E1',
-                          fontWeight: 800,
+                          fontWeight: 600,
                           fontSize: 13,
                           backgroundColor: '#FFF'
                         }}
@@ -8701,7 +8701,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                               border: form.first_lesson_start_time === t ? `1.5px solid ${THEME.primary}` : '1px solid #CBD5E1',
                               backgroundColor: form.first_lesson_start_time === t ? THEME.primaryLight : '#FFF',
                               fontSize: 10,
-                              fontWeight: 800,
+                              fontWeight: 600,
                               cursor: 'pointer'
                             }}>
                             {t}
@@ -8713,7 +8713,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
                   {/* 1-smena katta tanaffus */}
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
                       KATTA TANAFFUS (1-SMENA):
                     </label>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -8734,7 +8734,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                             max={90}
                             value={form.big_break_duration_minutes}
                             onChange={e => setForm({ ...form, big_break_duration_minutes: Number(e.target.value) || 20 })}
-                            style={{ width: 50, padding: '6px 8px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 800, fontSize: 11.5, textAlign: 'center' }}
+                            style={{ width: 50, padding: '6px 8px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 600, fontSize: 11.5, textAlign: 'center' }}
                           />
                           <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark }}>daq</span>
                         </div>
@@ -8743,15 +8743,15 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   </div>
 
                   {/* 1-smena jonli jadval prevyusi */}
-                  <div style={{ padding: 10, borderRadius: 12, backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#1E40AF', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ padding: 10, borderRadius: 6, backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#1E40AF', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <FileText size={13} color="#1E40AF" /> 1-Smena dars vaqtlari:
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
                       {generateLessonSlots(form, 6, 1).map(slot => (
                         <div key={slot.order} style={{ padding: '4px 6px', borderRadius: 8, backgroundColor: '#FFF', border: '1px solid #BFDBFE', fontSize: 10.5, display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontWeight: 800, color: '#1E3A8A' }}>{slot.order}-dars:</span>
-                          <span style={{ fontWeight: 900, color: THEME.primary }}>{slot.start}–{slot.end}</span>
+                          <span style={{ fontWeight: 600, color: '#1E3A8A' }}>{slot.order}-dars:</span>
+                          <span style={{ fontWeight: 600, color: THEME.primary }}>{slot.start}–{slot.end}</span>
                         </div>
                       ))}
                     </div>
@@ -8759,19 +8759,19 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 </div>
 
                 {/* 2-SMENA (ABEDDAN KEYINGI) */}
-                <div style={{ padding: 16, borderRadius: 18, backgroundColor: '#FFFBEB', border: '1.5px solid #FDE68A' }}>
+                <div style={{ padding: 16, borderRadius: 6, backgroundColor: '#FFFBEB', border: '1.5px solid #FDE68A' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: '#92400E', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#92400E', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Sunset size={15} color="#B45309" /> 2-Smena (Abeddan keyingi darslar)
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: '#B45309', backgroundColor: '#FEF3C7', padding: '2px 8px', borderRadius: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#B45309', backgroundColor: '#FEF3C7', padding: '2px 8px', borderRadius: 6 }}>
                       2-smena sinflari uchun
                     </span>
                   </div>
 
                   {/* 2-smena dars boshlanish vaqti */}
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
                       2-SMENA BOSHLANISH VAQTI:
                     </label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -8783,7 +8783,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                           padding: '7px 10px',
                           borderRadius: 10,
                           border: '1px solid #CBD5E1',
-                          fontWeight: 800,
+                          fontWeight: 600,
                           fontSize: 13,
                           backgroundColor: '#FFF'
                         }}
@@ -8801,7 +8801,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                               backgroundColor: form.shift2_start_time === t ? '#FFF7ED' : '#FFF',
                               color: form.shift2_start_time === t ? THEME.orange : THEME.textDark,
                               fontSize: 10,
-                              fontWeight: 800,
+                              fontWeight: 600,
                               cursor: 'pointer'
                             }}>
                             {t}
@@ -8813,7 +8813,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
 
                   {/* 2-smena katta tanaffus */}
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, display: 'block', marginBottom: 5 }}>
                       KATTA TANAFFUS (2-SMENA):
                     </label>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -8834,7 +8834,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                             max={90}
                             value={form.shift2_big_break_duration_minutes}
                             onChange={e => setForm({ ...form, shift2_big_break_duration_minutes: Number(e.target.value) || 20 })}
-                            style={{ width: 50, padding: '6px 8px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 800, fontSize: 11.5, textAlign: 'center' }}
+                            style={{ width: 50, padding: '6px 8px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 600, fontSize: 11.5, textAlign: 'center' }}
                           />
                           <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark }}>daq</span>
                         </div>
@@ -8843,15 +8843,15 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   </div>
 
                   {/* 2-smena jonli jadval prevyusi */}
-                  <div style={{ padding: 10, borderRadius: 12, backgroundColor: '#FEF3C7', border: '1px solid #FDE68A' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ padding: 10, borderRadius: 6, backgroundColor: '#FEF3C7', border: '1px solid #FDE68A' }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#92400E', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <FileText size={13} color="#92400E" /> 2-Smena dars vaqtlari:
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
                       {generateLessonSlots(form, 6, 2).map(slot => (
                         <div key={slot.order} style={{ padding: '4px 6px', borderRadius: 8, backgroundColor: '#FFF', border: '1px solid #FDE68A', fontSize: 10.5, display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontWeight: 800, color: '#92400E' }}>{slot.order}-dars:</span>
-                          <span style={{ fontWeight: 900, color: THEME.orange }}>{slot.start}–{slot.end}</span>
+                          <span style={{ fontWeight: 600, color: '#92400E' }}>{slot.order}-dars:</span>
+                          <span style={{ fontWeight: 600, color: THEME.orange }}>{slot.start}–{slot.end}</span>
                         </div>
                       ))}
                     </div>
@@ -8861,7 +8861,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
               </div>
 
               {/* Sinxronlash Chekboksi */}
-              <div style={{ marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: '#F0FDF4', border: '1.5px solid #86EFAC', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{ marginTop: 14, padding: 12, borderRadius: 6, backgroundColor: '#F0FDF4', border: '1.5px solid #86EFAC', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <input
                   type="checkbox"
                   id="sync_schedules_cb"
@@ -8869,7 +8869,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   onChange={e => setForm({ ...form, sync_schedules: e.target.checked })}
                   style={{ width: 18, height: 18, marginTop: 2, cursor: 'pointer', accentColor: THEME.green }}
                 />
-                <label htmlFor="sync_schedules_cb" style={{ fontSize: 12, fontWeight: 800, color: '#065F46', cursor: 'pointer', lineHeight: 1.45 }}>
+                <label htmlFor="sync_schedules_cb" style={{ fontSize: 12, fontWeight: 600, color: '#065F46', cursor: 'pointer', lineHeight: 1.45 }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <RefreshCw size={13} /> Mavjud barcha sinflarning haftalik dars jadvallari va bugungi darslar vaqtini yangi me'yor bo'yicha avtomatik yangilash (Tavsiya etiladi)
                   </span>
@@ -8882,20 +8882,20 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
           </div>
 
           {/* LIVE PREVIEW CARD: Web + Mobile App */}
-          <div style={{ backgroundColor: '#0F172A', borderRadius: 26, padding: 24, color: '#FFFFFF' }}>
+          <div style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 24, color: '#FFFFFF' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#38BDF8', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#38BDF8', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Smartphone size={15} /> JONLI KO'RINISH PREVYU (WEB DASHBORD VA MOBIL ILOVA)
               </div>
-              <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34D399', fontWeight: 800 }}>
+              <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34D399', fontWeight: 600 }}>
                 Real-Time Sync
               </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ padding: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 800, marginBottom: 6 }}>MOBIL: {liveTerms.studentSingular.toUpperCase()} PANELI</div>
-                <div style={{ fontWeight: 800, fontSize: 13, color: '#FFF' }}>{form.school_name || `Maktab #${schoolId}`}</div>
+              <div style={{ padding: 14, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600, marginBottom: 6 }}>MOBIL: {liveTerms.studentSingular.toUpperCase()} PANELI</div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#FFF' }}>{form.school_name || `Maktab #${schoolId}`}</div>
                 <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 6 }}>
                   • <b>{liveTerms.groupSingular}:</b> {liveTerms.formatGroup('11-A')}
                 </div>
@@ -8907,9 +8907,9 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                 </div>
               </div>
 
-              <div style={{ padding: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 800, marginBottom: 6 }}>MOBIL: O'QITUVCHI PANELI</div>
-                <div style={{ fontWeight: 800, fontSize: 13, color: '#FFF' }}>Mening {liveTerms.groupPlural.toLowerCase()}im</div>
+              <div style={{ padding: 14, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600, marginBottom: 6 }}>MOBIL: O'QITUVCHI PANELI</div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#FFF' }}>Mening {liveTerms.groupPlural.toLowerCase()}im</div>
                 <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 6 }}>
                   • <b>Jurnal:</b> {liveTerms.formatGroup('11-A')} ({liveTerms.studentPlural})
                 </div>
@@ -8926,7 +8926,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
             <div style={{
               marginTop: 14,
               padding: '12px 16px',
-              borderRadius: 14,
+              borderRadius: 6,
               backgroundColor: form.latitude ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.22)',
               border: `1.5px solid ${form.latitude ? '#10B981' : '#EF4444'}`,
               display: 'flex',
@@ -8937,7 +8937,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <MapPin size={15} color={form.latitude ? '#34D399' : '#F87171'} />
-                <span style={{ fontSize: 12, fontWeight: 800, color: form.latitude ? '#34D399' : '#FCA5A5' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: form.latitude ? '#34D399' : '#FCA5A5' }}>
                   {form.latitude
                     ? `Geometka: ${Number(form.latitude).toFixed(5)}, ${Number(form.longitude).toFixed(5)}`
                     : "Geometka belgilanmagan!"}
@@ -8945,7 +8945,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
               </div>
               <span style={{
                 fontSize: 10,
-                fontWeight: 900,
+                fontWeight: 600,
                 padding: '3px 8px',
                 borderRadius: 6,
                 backgroundColor: form.latitude ? '#10B981' : '#EF4444',
@@ -9010,19 +9010,19 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
             style={{ 
               width: 44, 
               height: 44, 
-              borderRadius: 14, 
+              borderRadius: 6, 
               objectFit: 'contain', 
-              boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', 
+              boxShadow: 'none', 
               flexShrink: 0 
             }} 
           />
           <div>
-            <div style={{ fontWeight: 900, fontSize: 16, color: THEME.textDark }}>Idrok Edu • Ustoz</div>
+            <div style={{ fontWeight: 600, fontSize: 16, color: THEME.textDark }}>Idrok Edu • Ustoz</div>
             <div style={{ fontSize: 11, color: THEME.textMuted }}>{displaySchoolName}</div>
           </div>
         </div>
 
-        <div style={{ fontSize: 11, fontWeight: 800, color: THEME.textMuted, textTransform: 'uppercase', padding: '0 10px 8px' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase', padding: '0 10px 8px' }}>
           Maktab {terms.groupPlural} Ro'yxati
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
@@ -9042,8 +9042,8 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
         </div>
 
         {/* Info box about mobile scanner */}
-        <div style={{ padding: 16, backgroundColor: THEME.primaryLight, borderRadius: 20, marginBottom: 16, fontSize: 12 }}>
-          <div style={{ fontWeight: 800, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ padding: 16, backgroundColor: THEME.primaryLight, borderRadius: 10, marginBottom: 16, fontSize: 12 }}>
+          <div style={{ fontWeight: 600, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Smartphone size={16} /> Mobil Davomat
           </div>
           <div style={{ color: THEME.textDark, marginTop: 4, lineHeight: 1.4 }}>
@@ -9053,9 +9053,9 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
 
         <div style={{ paddingTop: 16, borderTop: `1px solid ${THEME.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>{currentUser.name}</div>
+            <div style={{ fontWeight: 600, fontSize: 13, color: THEME.textDark }}>{currentUser.name}</div>
             <div style={{ fontSize: 11, color: THEME.textMuted }}>{currentUser.subject}</div>
-            <div style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 8, backgroundColor: THEME.primaryLight, color: THEME.primary, fontSize: 11, fontWeight: 800 }}>
+            <div style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 8, backgroundColor: THEME.primaryLight, color: THEME.primary, fontSize: 11, fontWeight: 600 }}>
               <Key size={11} /> 5 xonali ID: <span style={{ fontFamily: 'monospace' }}>{currentUser.teacherId || currentUser.username}</span>
             </div>
           </div>
@@ -9069,7 +9069,7 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
       <main style={{ flex: 1, padding: 32, overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 900, color: THEME.textDark, margin: 0 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 600, color: THEME.textDark, margin: 0 }}>
               {terms.formatGroup(selectedGroup || terms.groupSingular)} — {terms.studentPlural} va Jurnali
             </h1>
             <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 4 }}>
@@ -9078,7 +9078,7 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
           </div>
         </div>
 
-        <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 26, border: `1px solid ${THEME.border}` }}>
+        <div style={{ backgroundColor: '#FFFFFF', padding: 26, borderRadius: 10, border: `1px solid ${THEME.border}` }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
@@ -9132,11 +9132,11 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
                           </div>
                         </>
                       ) : (
-                        <div style={{ color: THEME.primary, fontSize: 10, fontWeight: 800 }}>Foto</div>
+                        <div style={{ color: THEME.primary, fontSize: 10, fontWeight: 600 }}>Foto</div>
                       )}
                     </div>
                   </td>
-                  <td style={{ padding: '14px', fontWeight: 800 }}>{st.last_name} {st.first_name}</td>
+                  <td style={{ padding: '14px', fontWeight: 600 }}>{st.last_name} {st.first_name}</td>
                   <td style={{ padding: '14px' }}><code>{st.student_id}</code></td>
                   <td style={{ padding: '14px', fontSize: 12, color: THEME.textMuted }}>{st.created_by} ({st.date_joined})</td>
                   <td style={{ padding: '14px' }}>
@@ -9145,7 +9145,7 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
                     </span>
                   </td>
                   <td style={{ padding: '14px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 900, color: THEME.primary }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, color: THEME.primary }}>
                       5 (A'lo) <Star size={13} fill="#F59E0B" color="#F59E0B" />
                     </span>
                   </td>
@@ -9180,7 +9180,7 @@ function NavButton({ active, onClick, icon, label, badge, badgeColor }) {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '11px 14px',
-        borderRadius: 14,
+        borderRadius: 6,
         border: active ? `1px solid rgba(108, 92, 231, 0.18)` : '1px solid transparent',
         background: active ? THEME.primaryLight : 'transparent',
         color: active ? THEME.primary : THEME.textDark,
@@ -9210,7 +9210,7 @@ function NavButton({ active, onClick, icon, label, badge, badgeColor }) {
           backgroundColor: badgeColor || (active ? THEME.primary : '#F1F5F9'), 
           color: badgeColor ? '#FFFFFF' : (active ? '#FFFFFF' : THEME.textMuted), 
           fontSize: 11, 
-          fontWeight: 800,
+          fontWeight: 600,
           boxShadow: badgeColor ? '0 2px 8px rgba(239, 68, 68, 0.35)' : 'none'
         }}>
           {badge}
@@ -9227,7 +9227,7 @@ function KpiCard({ title, value, sub, color = THEME.primary, icon, onClick, acti
       style={{ 
         backgroundColor: '#FFFFFF', 
         padding: '20px 22px', 
-        borderRadius: 20, 
+        borderRadius: 10, 
         border: active ? `2px solid ${color}` : '1px solid rgba(108, 92, 231, 0.08)', 
         boxShadow: active 
           ? `0 12px 28px -4px ${color}25` 
@@ -9281,7 +9281,7 @@ function KpiCard({ title, value, sub, color = THEME.primary, icon, onClick, acti
       </div>
 
       {/* O'rta: Katta Bento ko'rsatkich */}
-      <div style={{ fontSize: 26, fontWeight: 900, color: THEME.textDark, marginTop: 6, letterSpacing: -0.5 }}>
+      <div style={{ fontSize: 26, fontWeight: 600, color: THEME.textDark, marginTop: 6, letterSpacing: -0.5 }}>
         {value}
       </div>
 
@@ -9310,10 +9310,10 @@ function AddStudentModal({ newStudent, setNewStudent, classesList, terms = build
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>Yangi {terms.studentSingular} Qo'shish</div>
+            <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark }}>Yangi {terms.studentSingular} Qo'shish</div>
             <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Ushbu maktab bazasiga yangi {terms.studentSingular.toLowerCase()} biriktirish</div>
           </div>
           <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -9329,7 +9329,7 @@ function AddStudentModal({ newStudent, setNewStudent, classesList, terms = build
               placeholder="Masalan: Karimova"
               value={newStudent.lastName}
               onChange={e => setNewStudent({ ...newStudent, lastName: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9340,7 +9340,7 @@ function AddStudentModal({ newStudent, setNewStudent, classesList, terms = build
               placeholder="Masalan: Madina"
               value={newStudent.firstName}
               onChange={e => setNewStudent({ ...newStudent, firstName: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9349,7 +9349,7 @@ function AddStudentModal({ newStudent, setNewStudent, classesList, terms = build
             <select
               value={newStudent.classId}
               onChange={e => setNewStudent({ ...newStudent, classId: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13, backgroundColor: '#FFF' }}>
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13, backgroundColor: '#FFF' }}>
               <option value="">{terms.groupSingular} biriktirilmagan</option>
               {classesList.map(c => (
                 <option key={c.id} value={c.id}>{terms.formatGroup(c.name)}</option>
@@ -9357,7 +9357,7 @@ function AddStudentModal({ newStudent, setNewStudent, classesList, terms = build
             </select>
           </div>
 
-          <div style={{ backgroundColor: THEME.primaryLight, padding: 12, borderRadius: 14, fontSize: 12, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ backgroundColor: THEME.primaryLight, padding: 12, borderRadius: 6, fontSize: 12, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Key size={14} />
             <span><b>Kirish ID va Tarix:</b> Tizim 5 xonali unikal ID yaratadi va yaratuvchi shaxs hamda maktabni tarixga muhrlaydi.</span>
           </div>
@@ -9368,7 +9368,7 @@ function AddStudentModal({ newStudent, setNewStudent, classesList, terms = build
               placeholder="Bo'sh qolsa, avto yaratiladi"
               value={newStudent.password}
               onChange={e => setNewStudent({ ...newStudent, password: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9392,7 +9392,7 @@ function AddStudentModal({ newStudent, setNewStudent, classesList, terms = build
 
           <button 
             type="submit" 
-            style={{ width: '100%', padding: 14, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 14, cursor: 'pointer', marginTop: 10 }}>
+            style={{ width: '100%', padding: 14, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer', marginTop: 10 }}>
             Saqlash va {terms.studentSingular}ni Yaratish
           </button>
         </form>
@@ -9444,10 +9444,10 @@ function EditStudentModal({ student, classesList, terms = buildSchoolTerms(), on
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 130, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>{terms.studentSingular} Ma'lumotlarini Tahrirlash</div>
+            <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark }}>{terms.studentSingular} Ma'lumotlarini Tahrirlash</div>
             <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>ID: <b>{student.student_id}</b> {terms.studentSingular.toLowerCase()} ma'lumotlarini o'zgartirish</div>
           </div>
           <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -9462,7 +9462,7 @@ function EditStudentModal({ student, classesList, terms = buildSchoolTerms(), on
               required
               value={lastName}
               onChange={e => setLastName(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9472,7 +9472,7 @@ function EditStudentModal({ student, classesList, terms = buildSchoolTerms(), on
               required
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9481,7 +9481,7 @@ function EditStudentModal({ student, classesList, terms = buildSchoolTerms(), on
             <select
               value={classId}
               onChange={e => setClassId(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13, backgroundColor: '#FFF' }}>
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13, backgroundColor: '#FFF' }}>
               <option value="">{terms.groupSingular}siz</option>
               {classesList.map(c => (
                 <option key={c.id} value={c.id}>{terms.formatGroup(c.name)}</option>
@@ -9494,7 +9494,7 @@ function EditStudentModal({ student, classesList, terms = buildSchoolTerms(), on
             <input 
               value={password}
               onChange={e => setPassword(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9525,13 +9525,13 @@ function EditStudentModal({ student, classesList, terms = buildSchoolTerms(), on
             <button 
               type="button" 
               onClick={onClose}
-              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               Bekor qilish
             </button>
             <button 
               type="submit" 
               disabled={submitting}
-              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}>
+              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}>
               {submitting ? "Saqlanmoqda..." : "O'zgarishlarni Saqlash"}
             </button>
           </div>
@@ -9568,10 +9568,10 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 470, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 32, width: '100%', maxWidth: 470, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>Yangi {terms.groupSingular} Yaratish</div>
+            <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark }}>Yangi {terms.groupSingular} Yaratish</div>
             <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Maktab bazasiga yangi {terms.groupSingular.toLowerCase()} qo'shish</div>
           </div>
           <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -9587,7 +9587,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
               placeholder="Masalan: 11-B yoki 8-A"
               value={newGroup.name}
               onChange={e => setNewGroup({ ...newGroup, name: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9598,7 +9598,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
               placeholder="Masalan: 2026-2027"
               value={newGroup.academicYear}
               onChange={e => setNewGroup({ ...newGroup, academicYear: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9614,11 +9614,11 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                 onClick={() => setNewGroup({ ...newGroup, shift: 1 })}
                 style={{
                   padding: '10px 12px',
-                  borderRadius: 12,
+                  borderRadius: 6,
                   border: (newGroup.shift || 1) === 1 ? `2px solid ${THEME.primary}` : '1.5px solid #CBD5E1',
                   backgroundColor: (newGroup.shift || 1) === 1 ? THEME.primaryLight : '#FFF',
                   color: (newGroup.shift || 1) === 1 ? THEME.primary : THEME.textDark,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'center',
@@ -9635,11 +9635,11 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                 onClick={() => setNewGroup({ ...newGroup, shift: 2 })}
                 style={{
                   padding: '10px 12px',
-                  borderRadius: 12,
+                  borderRadius: 6,
                   border: (newGroup.shift || 1) === 2 ? `2px solid ${THEME.orange}` : '1.5px solid #CBD5E1',
                   backgroundColor: (newGroup.shift || 1) === 2 ? '#FFF7ED' : '#FFF',
                   color: (newGroup.shift || 1) === 2 ? THEME.orange : THEME.textDark,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'center',
@@ -9690,7 +9690,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                   style={{
                     width: '100%',
                     padding: '11px 14px',
-                    borderRadius: 14,
+                    borderRadius: 6,
                     border: `1.5px solid ${newGroup.teacher ? THEME.primary : '#CBD5E1'}`,
                     backgroundColor: '#FFFFFF',
                     boxSizing: 'border-box',
@@ -9714,7 +9714,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '10px 14px',
-                    borderRadius: 14,
+                    borderRadius: 6,
                     backgroundColor: THEME.primaryLight,
                     border: `1px solid ${THEME.primary}`,
                   }}>
@@ -9728,14 +9728,14 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontWeight: 800,
+                        fontWeight: 600,
                         fontSize: 13,
                         flexShrink: 0,
                       }}>
                         {matchedTeacher.name[0] || 'U'}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: THEME.textDark }}>
                           {matchedTeacher.name}
                         </div>
                         <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>
@@ -9778,7 +9778,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
             ) : !manualMode && teachersList.length === 0 ? (
               <div style={{
                 padding: '12px 14px',
-                borderRadius: 14,
+                borderRadius: 6,
                 backgroundColor: '#FEF3C7',
                 border: '1px solid #FDE68A',
                 fontSize: 12,
@@ -9802,7 +9802,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                         border: 'none',
                         background: THEME.gradient,
                         color: '#FFF',
-                        fontWeight: 800,
+                        fontWeight: 600,
                         fontSize: 11.5,
                         cursor: 'pointer',
                       }}>
@@ -9832,7 +9832,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
                   placeholder="Masalan: Sardorbek Alimov"
                   value={newGroup.teacher}
                   onChange={e => setNewGroup({ ...newGroup, teacher: e.target.value })}
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, boxSizing: 'border-box', fontSize: 13 }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, boxSizing: 'border-box', fontSize: 13 }}
                 />
               </div>
             )}
@@ -9844,7 +9844,7 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
               placeholder="Masalan: 308-xona"
               value={newGroup.room}
               onChange={e => setNewGroup({ ...newGroup, room: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9852,12 +9852,12 @@ function AddGroupModal({ newGroup, setNewGroup, teachersList = [], terms = build
             <button
               type="button"
               onClick={onClose}
-              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               Bekor qilish
             </button>
             <button
               type="submit"
-              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               {terms.groupSingular}ni Yaratish
             </button>
           </div>
@@ -9923,10 +9923,10 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 125, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 470, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 32, width: '100%', maxWidth: 470, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>{terms.groupSingular}ni Tahrirlash (O'zgartirish)</div>
+            <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark }}>{terms.groupSingular}ni Tahrirlash (O'zgartirish)</div>
             <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>"{group?.name}" {terms.groupGenitiveLower} parametrlarini o'zgartirish</div>
           </div>
           <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -9942,7 +9942,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
               placeholder="Masalan: 11-B yoki 8-A"
               value={name}
               onChange={e => setName(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13, fontWeight: 800 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13, fontWeight: 600 }}
             />
           </div>
 
@@ -9953,7 +9953,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
               placeholder="Masalan: 2026-2027"
               value={academicYear}
               onChange={e => setAcademicYear(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -9969,11 +9969,11 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                 onClick={() => setShift(1)}
                 style={{
                   padding: '10px 12px',
-                  borderRadius: 12,
+                  borderRadius: 6,
                   border: (shift || 1) === 1 ? `2px solid ${THEME.primary}` : '1.5px solid #CBD5E1',
                   backgroundColor: (shift || 1) === 1 ? THEME.primaryLight : '#FFF',
                   color: (shift || 1) === 1 ? THEME.primary : THEME.textDark,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'center',
@@ -9990,11 +9990,11 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                 onClick={() => setShift(2)}
                 style={{
                   padding: '10px 12px',
-                  borderRadius: 12,
+                  borderRadius: 6,
                   border: (shift || 1) === 2 ? `2px solid ${THEME.orange}` : '1.5px solid #CBD5E1',
                   backgroundColor: (shift || 1) === 2 ? '#FFF7ED' : '#FFF',
                   color: (shift || 1) === 2 ? THEME.orange : THEME.textDark,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'center',
@@ -10048,7 +10048,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                   style={{
                     width: '100%',
                     padding: '11px 14px',
-                    borderRadius: 14,
+                    borderRadius: 6,
                     border: `1.5px solid ${teacher ? THEME.primary : '#CBD5E1'}`,
                     backgroundColor: '#FFFFFF',
                     boxSizing: 'border-box',
@@ -10072,7 +10072,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '10px 14px',
-                    borderRadius: 14,
+                    borderRadius: 6,
                     backgroundColor: THEME.primaryLight,
                     border: `1px solid ${THEME.primary}`,
                   }}>
@@ -10086,14 +10086,14 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontWeight: 800,
+                        fontWeight: 600,
                         fontSize: 13,
                         flexShrink: 0,
                       }}>
                         {matchedTeacher.name[0] || 'U'}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: THEME.textDark }}>
                           {matchedTeacher.name}
                         </div>
                         <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>
@@ -10136,7 +10136,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
             ) : !manualMode && teachersList.length === 0 ? (
               <div style={{
                 padding: '12px 14px',
-                borderRadius: 14,
+                borderRadius: 6,
                 backgroundColor: '#FEF3C7',
                 border: '1px solid #FDE68A',
                 fontSize: 12,
@@ -10160,7 +10160,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                         border: 'none',
                         background: THEME.gradient,
                         color: '#FFF',
-                        fontWeight: 800,
+                        fontWeight: 600,
                         fontSize: 11.5,
                         cursor: 'pointer',
                       }}>
@@ -10190,7 +10190,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
                   placeholder="Masalan: Sardorbek Alimov"
                   value={teacher}
                   onChange={e => setTeacher(e.target.value)}
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, boxSizing: 'border-box', fontSize: 13 }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, boxSizing: 'border-box', fontSize: 13 }}
                 />
               </div>
             )}
@@ -10202,7 +10202,7 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
               placeholder="Masalan: 308-xona"
               value={room}
               onChange={e => setRoom(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -10210,13 +10210,13 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
             <button
               type="button"
               onClick={onClose}
-              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               Bekor qilish
             </button>
             <button
               type="submit"
               disabled={submitting}
-              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}>
+              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}>
               {submitting ? "Saqlanmoqda..." : "O'zgarishlarni Saqlash"}
             </button>
           </div>
@@ -10232,10 +10232,10 @@ function EditGroupModal({ group, teachersList = [], terms = buildSchoolTerms(), 
 function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = buildSchoolTerms(), onClose, onSubmit }) {
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>Yangi O'qituvchi Qo'shish</div>
+            <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark }}>Yangi O'qituvchi Qo'shish</div>
             <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Maktab o'qituvchilar tarkibiga yangi ustoz qo'shish</div>
           </div>
           <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -10251,7 +10251,7 @@ function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = 
               placeholder="Masalan: Rustamov Sherzod"
               value={newTeacher.name}
               onChange={e => setNewTeacher({ ...newTeacher, name: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -10262,7 +10262,7 @@ function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = 
               placeholder="Masalan: Kimyo & Biologiya"
               value={newTeacher.subject}
               onChange={e => setNewTeacher({ ...newTeacher, subject: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -10273,7 +10273,7 @@ function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = 
               placeholder={`Masalan: 11-A ${terms.groupLeader.toLowerCase()}`}
               value={newTeacher.group}
               onChange={e => setNewTeacher({ ...newTeacher, group: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
             <datalist id="teacher-group-options">
               {classesList.map(c => (
@@ -10288,7 +10288,7 @@ function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = 
               placeholder="+998 90 123-45-67"
               value={newTeacher.phone}
               onChange={e => setNewTeacher({ ...newTeacher, phone: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -10302,7 +10302,7 @@ function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = 
               placeholder="Bo'sh qoldirilsa: teacher123"
               value={newTeacher.password || ''}
               onChange={e => setNewTeacher({ ...newTeacher, password: e.target.value })}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
             <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
               <Key size={12} color={THEME.primary} />
@@ -10354,12 +10354,12 @@ function AddTeacherModal({ newTeacher, setNewTeacher, classesList = [], terms = 
             <button
               type="button"
               onClick={onClose}
-              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ flex: 1, padding: 13, background: '#F1F5F9', color: THEME.textDark, borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               Bekor qilish
             </button>
             <button
               type="submit"
-              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ flex: 1.5, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               Saqlash va Qo'shish
             </button>
           </div>
@@ -10418,10 +10418,10 @@ function EditTeacherModal({ teacher, classesList = [], terms = buildSchoolTerms(
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 130, padding: 20 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18, color: THEME.textDark }}>O'qituvchi Ma'lumotlarini Tahrirlash</div>
+            <div style={{ fontWeight: 600, fontSize: 18, color: THEME.textDark }}>O'qituvchi Ma'lumotlarini Tahrirlash</div>
             <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>ID: <b>{teacher.teacher_id || teacher.username}</b> • {teacher.name}</div>
           </div>
           <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: 10, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -10437,7 +10437,7 @@ function EditTeacherModal({ teacher, classesList = [], terms = buildSchoolTerms(
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Masalan: Rustamov Sherzod"
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -10448,7 +10448,7 @@ function EditTeacherModal({ teacher, classesList = [], terms = buildSchoolTerms(
               value={subject}
               onChange={e => setSubject(e.target.value)}
               placeholder="Masalan: Kimyo & Biologiya"
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -10459,7 +10459,7 @@ function EditTeacherModal({ teacher, classesList = [], terms = buildSchoolTerms(
               value={group}
               onChange={e => setGroup(e.target.value)}
               placeholder={`Masalan: 11-A ${terms.groupLeader.toLowerCase()}`}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
             <datalist id="edit-teacher-group-options">
               {classesList.map(c => (
@@ -10474,7 +10474,7 @@ function EditTeacherModal({ teacher, classesList = [], terms = buildSchoolTerms(
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="+998 90 123-45-67"
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -10488,7 +10488,7 @@ function EditTeacherModal({ teacher, classesList = [], terms = buildSchoolTerms(
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="Yangi parol (yoki avvalgisi saqlanadi)"
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 14, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 6, border: `1px solid #CBD5E1`, marginTop: 6, boxSizing: 'border-box', fontSize: 13 }}
             />
           </div>
 
@@ -10527,13 +10527,13 @@ function EditTeacherModal({ teacher, classesList = [], terms = buildSchoolTerms(
             <button
               type="button"
               onClick={onClose}
-              style={{ flex: 1, padding: 13, backgroundColor: '#F1F5F9', color: THEME.textDark, borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+              style={{ flex: 1, padding: 13, backgroundColor: '#F1F5F9', color: THEME.textDark, borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
               Bekor qilish
             </button>
             <button
               type="submit"
               disabled={submitting}
-              style={{ flex: 1, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 16, border: 'none', fontWeight: 800, fontSize: 14, cursor: submitting ? 'wait' : 'pointer', boxShadow: '0 8px 18px rgba(108, 92, 231, 0.25)', opacity: submitting ? 0.7 : 1 }}>
+              style={{ flex: 1, padding: 13, background: THEME.gradient, color: 'white', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 14, cursor: submitting ? 'wait' : 'pointer', boxShadow: 'none', opacity: submitting ? 0.7 : 1 }}>
               {submitting ? 'Saqlanmoqda...' : 'Saqlash'}
             </button>
           </div>
