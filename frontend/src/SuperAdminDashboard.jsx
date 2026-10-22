@@ -16,20 +16,20 @@ import {
 const THEME = {
   primary: '#6C5CE7',
   primaryDark: '#5845D8',
-  primaryLight: '#F3F1FF',
+  primaryLight: '#F1F0FF',
   gradient: 'linear-gradient(135deg, #7C69EF 0%, #5845D8 100%)',
-  softGradient: 'linear-gradient(145deg, #F6F7FD 0%, #EEF0FA 55%, #F7F8FE 100%)',
+  softGradient: '#F8F9FE',
   warmGradient: 'linear-gradient(135deg, #FF9F43 0%, #FF6584 100%)',
-  orange: '#F59E0B',
-  pink: '#EC4899',
-  cyan: '#0EA5E9',
-  green: '#10B981',
-  bgSoft: '#F6F7FB',
+  orange: '#FF9F43',
+  pink: '#FF6584',
+  cyan: '#48DBFB',
+  green: '#10AC84',
+  bgSoft: '#F8F9FE',
   cardBg: '#FFFFFF',
-  textDark: '#1E2235',
-  textMuted: '#7E869E',
-  border: 'rgba(108, 92, 231, 0.08)',
-  softShadow: '0 12px 32px -8px rgba(108, 92, 231, 0.06), 0 4px 12px -2px rgba(15, 23, 42, 0.03)',
+  textDark: '#1E2038',
+  textMuted: '#8A90A2',
+  border: '#E2E8F0',
+  softShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
 };
 
 const INITIAL_REGIONS = [
@@ -757,66 +757,82 @@ export default function SuperAdminDashboardView({
 
   const openTicketsCount = tickets.filter(t => t.status === 'OPEN').length;
 
+  const tabNames = {
+    overview: "Global Analitika",
+    schools: "Maktablar Boshqaruvi",
+    billing: "Obuna & Moliya",
+    ai: "Idrok Vision (Face ID)",
+    security: "Xavfsizlik & Audit",
+    config: "Idrok Core Sozlamalari",
+    support: "Texnik Yordam",
+  };
+
+  const tabTitles = {
+    overview: "Global Analitika va Jonli Monitoring",
+    schools: "Maktablar Boshqaruvi",
+    billing: "Obuna va Moliya Tizimi",
+    ai: "Idrok Vision: AI & Face ID Server Nazorati",
+    security: "Tizim Xavfsizligi va Audit Jurnali",
+    config: "Idrok Core: Tizim Sozlamalari va Integratsiyalar",
+    support: "Texnik Yordam va Murojaatlar Markazi",
+  };
+
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', background: THEME.softGradient, overflow: 'hidden', position: 'relative' }}>
+    <div style={{ display: 'flex', width: '100vw', height: '100vh', background: '#F8F9FE', overflow: 'hidden', position: 'relative' }}>
       
       {/* Yumshoq suzib chiquvchi Toast xabarnoma */}
       {toastMsg && (
         <div
-          className="sa-modal-box"
+          className="sa-card"
           style={{
             position: 'fixed',
-            bottom: 28,
-            right: 28,
+            bottom: 24,
+            right: 24,
             zIndex: 9999,
-            backgroundColor: 'rgba(30, 34, 53, 0.94)',
-            backdropFilter: 'blur(12px)',
+            backgroundColor: '#1E2038',
             color: '#FFFFFF',
-            padding: '13px 20px',
-            borderRadius: 18,
-            fontSize: 13,
-            fontWeight: 700,
-            boxShadow: '0 18px 38px rgba(15, 23, 42, 0.25)',
-            border: '1px solid rgba(255,255,255,0.12)',
+            padding: '10px 18px',
+            borderRadius: 8,
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
+            border: '1px solid #334155',
             display: 'flex',
             alignItems: 'center',
             gap: 10,
+            fontSize: 13,
+            fontWeight: 500,
           }}>
           <span>{toastMsg}</span>
         </div>
       )}
 
       {/* ================================================================= */}
-      {/* CHAP SIDEBAR — YUMSHOQ VA NAFIS DIZAYN                            */}
+      {/* CHAP SIDEBAR — ENTERPRISE B2B STANDARTIDAGI IXCHAM DIZAYN         */}
       {/* ================================================================= */}
       <aside
         style={{
-          width: 286,
-          backgroundColor: 'rgba(255, 255, 255, 0.92)',
-          backdropFilter: 'blur(16px)',
+          width: 256,
+          backgroundColor: '#FFFFFF',
           borderRight: `1px solid ${THEME.border}`,
           display: 'flex',
           flexDirection: 'column',
-          padding: '22px 16px',
+          padding: '16px 12px',
           zIndex: 10,
           flexShrink: 0,
-          boxShadow: '4px 0 24px rgba(108, 92, 231, 0.03)',
         }}>
         {/* Brand */}
         <div
           style={{
-            padding: '14px 16px',
-            marginBottom: 22,
-            background: 'linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(88, 69, 216, 0.02) 100%)',
-            borderRadius: 20,
-            border: '1px solid rgba(108, 92, 231, 0.12)',
-            boxShadow: '0 4px 16px -4px rgba(108, 92, 231, 0.08)',
+            padding: '12px 14px',
+            marginBottom: 16,
+            background: '#F8FAFC',
+            borderRadius: 8,
+            border: '1px solid #E2E8F0',
           }}>
           <img
             src="/idrok_superadmin_logo.png"
             alt="Idrok Super Admin"
             style={{
-              height: 48,
+              height: 38,
               width: 'auto',
               maxWidth: '100%',
               objectFit: 'contain',
@@ -828,32 +844,31 @@ export default function SuperAdminDashboardView({
             style={{
               fontSize: 11,
               color: THEME.primary,
-              fontWeight: 700,
+              fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
               paddingTop: 8,
               marginTop: 6,
-              borderTop: '1px dashed rgba(108, 92, 231, 0.16)',
+              borderTop: '1px dashed #E2E8F0',
             }}>
             <span
               style={{
-                width: 7,
-                height: 7,
+                width: 6,
+                height: 6,
                 borderRadius: '50%',
-                backgroundColor: '#10B981',
-                boxShadow: '0 0 8px #10B981',
+                backgroundColor: '#10AC84',
                 display: 'inline-block',
                 flexShrink: 0,
               }}
             />
-            <span>Idrok Core Markaziy Boshqaruvi</span>
+            <span>Idrok Core Boshqaruvi</span>
           </div>
         </div>
 
         {/* Navigation */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
           <SidebarNavBtn
             active={superTab === 'overview'}
             onClick={() => setSuperTab('overview')}
@@ -908,50 +923,50 @@ export default function SuperAdminDashboardView({
         {/* Cluster Health Mini Card */}
         <div
           style={{
-            padding: 13,
-            borderRadius: 18,
-            backgroundColor: '#F8F9FE',
-            border: `1px solid ${THEME.border}`,
-            marginBottom: 14,
+            padding: '10px 12px',
+            borderRadius: 8,
+            backgroundColor: '#F8FAFC',
+            border: `1px solid #E2E8F0`,
+            marginBottom: 12,
             fontSize: 11.5,
           }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, color: THEME.textDark }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, color: '#1E2038' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span className="sa-pulse-dot" style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: THEME.green, display: 'inline-block' }} />
+              <span className="sa-ping-dot" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10AC84', display: 'inline-block' }} />
               Server Klasteri
             </span>
-            <span style={{ color: THEME.green, fontWeight: 800 }}>342 RPS • 0.04%</span>
+            <span style={{ color: '#10AC84', fontWeight: 600 }}>342 RPS • 0.04%</span>
           </div>
-          <div style={{ marginTop: 8, height: 5, borderRadius: 99, backgroundColor: '#E9ECF5', overflow: 'hidden' }}>
-            <div style={{ width: '92%', height: '100%', background: THEME.gradient, borderRadius: 99, transition: 'width 0.5s ease' }} />
+          <div style={{ marginTop: 8, height: 4, borderRadius: 4, backgroundColor: '#E2E8F0', overflow: 'hidden' }}>
+            <div style={{ width: '92%', height: '100%', background: THEME.gradient, borderRadius: 4 }} />
           </div>
         </div>
 
         {/* Profile Footer */}
-        <div style={{ paddingTop: 14, borderTop: `1px solid ${THEME.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ paddingTop: 12, borderTop: `1px solid #E2E8F0`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <div
               style={{
-                width: 38,
-                height: 38,
-                borderRadius: 13,
+                width: 34,
+                height: 34,
+                borderRadius: 8,
                 background: THEME.gradient,
                 color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: 12.5,
+                fontWeight: 600,
+                fontSize: 12,
                 flexShrink: 0,
               }}>
               SA
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontWeight: 600, fontSize: 12.5, color: '#1E2038', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {currentUser?.name || 'Bosh Boshqarma'}
               </div>
-              <div style={{ fontSize: 11, color: THEME.green, display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: THEME.green }} /> Root 2FA Faol
+              <div style={{ fontSize: 11, color: '#10AC84', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 500 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#10AC84' }} /> Root 2FA Faol
               </div>
             </div>
           </div>
@@ -959,23 +974,22 @@ export default function SuperAdminDashboardView({
             className="sa-btn"
             onClick={handleLogout}
             title="Chiqish"
-            style={{ background: '#FFF1F2', border: 'none', color: '#E11D48', padding: 9, borderRadius: 12, cursor: 'pointer', flexShrink: 0 }}>
-            <LogOut size={16} />
+            style={{ background: '#FEE2E2', border: '1px solid #FECDD3', color: '#EF4444', padding: '6px 8px', borderRadius: 6, cursor: 'pointer', flexShrink: 0 }}>
+            <LogOut size={15} />
           </button>
         </div>
       </aside>
 
       {/* ================================================================= */}
-      {/* O'NG ASOSIY KONTENT VA SHISHA (GLASS) HEADER                      */}
+      {/* O'NG ASOSIY KONTENT VA HIGH-DENSITY ENTERPRISE HEADER              */}
       {/* ================================================================= */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         
-        {/* Top Dynamic Glass Header */}
+        {/* Top Dynamic Header */}
         <header
           style={{
-            padding: '16px 30px',
-            backgroundColor: 'rgba(255, 255, 255, 0.84)',
-            backdropFilter: 'blur(16px)',
+            padding: '14px 28px',
+            backgroundColor: '#FFFFFF',
             borderBottom: `1px solid ${THEME.border}`,
             display: 'flex',
             justifyContent: 'space-between',
@@ -991,27 +1005,32 @@ export default function SuperAdminDashboardView({
               src="/idrok_superadmin_icon.png"
               alt="Idrok Super Admin"
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
+                width: 38,
+                height: 38,
+                borderRadius: 8,
                 objectFit: 'contain',
-                boxShadow: '0 6px 16px rgba(108, 92, 231, 0.25)',
+                border: '1px solid #E2E8F0',
                 flexShrink: 0,
               }}
             />
-            <div>
-              <h1 style={{ fontSize: 19, fontWeight: 800, color: THEME.textDark, margin: 0, letterSpacing: '-0.3px' }}>
-                {superTab === 'overview' && "Global Analitika va Jonli Monitoring"}
-                {superTab === 'schools' && "Maktablar Boshqaruvi"}
-                {superTab === 'billing' && "Obuna va Moliya Tizimi"}
-                {superTab === 'ai' && "Idrok Vision: AI & Face ID Server Nazorati"}
-                {superTab === 'security' && "Tizim Xavfsizligi va Audit Jurnali"}
-                {superTab === 'config' && "Idrok Core: Tizim Sozlamalari va Integratsiyalar"}
-                {superTab === 'support' && "Texnik Yordam va Murojaatlar Markazi"}
-              </h1>
-              <p style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
-                Respublika Yagona Idrok Edu Ekotizimi • {schoolsList.length} ta maktab ({activeCount} faol, {trialCount} sinovda, {blockedCount} cheklangan)
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Hierarchical Breadcrumb */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#8A90A2' }}>
+                <span>Boshqaruv Paneli</span>
+                <ChevronRight size={12} color="#CBD5E1" />
+                <span style={{ color: '#6C5CE7', fontWeight: 500 }}>Super Admin</span>
+                <ChevronRight size={12} color="#CBD5E1" />
+                <span style={{ color: '#1E2038', fontWeight: 600 }}>{tabNames[superTab] || "Boshqaruv"}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 1 }}>
+                <h1 style={{ fontSize: 18, fontWeight: 600, color: '#1E2038', margin: 0, letterSpacing: '-0.02em' }}>
+                  {tabTitles[superTab] || "Global Analitika va Jonli Monitoring"}
+                </h1>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', borderRadius: 6, backgroundColor: '#E8F8F5', border: '1px solid rgba(16, 172, 132, 0.25)', fontSize: 11, fontWeight: 600, color: '#10AC84' }}>
+                  <span className="sa-ping-dot" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10AC84', display: 'inline-block' }} />
+                  <span>Jonli Ekotizim • {schoolsList.length} ta maktab ({activeCount} faol)</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1161,46 +1180,46 @@ export default function SuperAdminDashboardView({
           {/* ============================================================= */}
           {superTab === 'overview' && (
             <>
-              {/* Asosiy KPI Ko'rsatkichlari */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 18 }}>
+              {/* Asosiy KPI Ko'rsatkichlari (Enterprise MicroSparkline bilan) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 14 }}>
                 <MetricCard
-                  icon={<Building2 size={18} color={THEME.primary} />}
+                  icon={<Building2 size={16} color={THEME.primary} />}
                   title="Jami Maktablar Soni"
                   value={`${schoolsList.length} ta`}
                   sub={`Faol: ${activeCount} • Sinov: ${trialCount} • Cheklangan: ${blockedCount}`}
                   color={THEME.primary}
-                  badge="Multi-Tenant"
+                  sparklineData={[schoolsList.length * 0.4, schoolsList.length * 0.5, schoolsList.length * 0.65, schoolsList.length * 0.75, schoolsList.length * 0.85, schoolsList.length * 0.95, schoolsList.length]}
                 />
                 <MetricCard
-                  icon={<Users size={18} color={THEME.green} />}
+                  icon={<Users size={16} color={THEME.green} />}
                   title="Tizimdagi Foydalanuvchilar"
                   value={`${(totalStudents + totalTeachers + schoolsList.length).toLocaleString()} nafar`}
-                  sub={`${totalStudents.toLocaleString()} o‘quvchi • ${totalTeachers} ustoz • ${schoolsList.length} direktor`}
+                  sub={`${totalStudents.toLocaleString()} o‘quvchi • ${totalTeachers} ustoz`}
                   color={THEME.green}
-                  badge="Faol baza"
+                  sparklineData={[totalStudents * 0.7, totalStudents * 0.76, totalStudents * 0.81, totalStudents * 0.88, totalStudents * 0.92, totalStudents * 0.96, totalStudents]}
                 />
                 <MetricCard
-                  icon={<Activity size={18} color={THEME.orange} />}
+                  icon={<Activity size={16} color={THEME.orange} />}
                   title="Bugungi Global Davomat"
                   value={`${avgAttendance}%`}
                   sub="Turniket Face ID + 25s Dinamik QR"
                   color={THEME.orange}
-                  badge="+1.4% o‘sish"
+                  sparklineData={[94.2, 94.8, 95.1, 95.5, 95.9, 96.2, avgAttendance || 96.5]}
                 />
                 <MetricCard
-                  icon={<Server size={18} color={THEME.cyan} />}
+                  icon={<Server size={16} color={THEME.cyan} />}
                   title="Server So‘rovlari va Barqarorlik"
                   value="342 req/s"
                   sub="Xatolik: 0.04% • O‘rtacha ping: 14ms"
                   color={THEME.cyan}
-                  badge="99.98% Uptime"
+                  sparklineData={[280, 295, 310, 305, 325, 335, 342]}
                 />
               </div>
 
               {/* Idrok Edu Ekotizim Modullari Paneli */}
               <div style={{
                 backgroundColor: '#FFFFFF',
-                borderRadius: 24,
+                borderRadius: 10,
                 padding: '20px 24px',
                 border: `1px solid ${THEME.border}`,
                 boxShadow: '0 8px 24px rgba(108, 92, 231, 0.04)',
@@ -1222,14 +1241,14 @@ export default function SuperAdminDashboardView({
                       </p>
                     </div>
                   </div>
-                  <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, backgroundColor: '#DCFCE7', color: '#166534', fontWeight: 800, border: '1px solid #86EFAC' }}>
+                  <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, backgroundColor: '#DCFCE7', color: '#166534', fontWeight: 800, border: '1px solid #86EFAC' }}>
                     ● Barcha 5 modul sinxron va faol
                   </span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
                   {/* Modul 1: Idrok Edu */}
-                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <img src="/idrok_icon.png" alt="Idrok" style={{ width: 17, height: 17, borderRadius: 5, objectFit: 'contain' }} />
@@ -1242,7 +1261,7 @@ export default function SuperAdminDashboardView({
                   </div>
 
                   {/* Modul 2: IdrokBoard */}
-                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: '#D97706', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Monitor size={16} />
@@ -1255,7 +1274,7 @@ export default function SuperAdminDashboardView({
                   </div>
 
                   {/* Modul 3: Idrok Core */}
-                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: '#2563EB', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Cpu size={16} />
@@ -1268,7 +1287,7 @@ export default function SuperAdminDashboardView({
                   </div>
 
                   {/* Modul 4: Idrok Vision */}
-                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: '#059669', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <ScanFace size={16} />
@@ -1281,7 +1300,7 @@ export default function SuperAdminDashboardView({
                   </div>
 
                   {/* Modul 5: Idrok Mobile */}
-                  <div style={{ padding: 14, borderRadius: 16, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: '#7C3AED', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <img src="/idrok_mobile_icon.png" alt="Idrok Mobile" style={{ width: 17, height: 17, borderRadius: 5, objectFit: 'contain' }} />
@@ -1489,7 +1508,7 @@ export default function SuperAdminDashboardView({
                               onClick={() => setChartMode(isSelectedLine ? 'CUMULATIVE' : item.id)}
                               style={{
                                 padding: '11px 13px',
-                                borderRadius: 16,
+                                borderRadius: 8,
                                 backgroundColor: isSelectedLine ? item.bg : '#F9FAFE',
                                 border: `1.5px solid ${isSelectedLine ? item.color : 'rgba(108, 92, 231, 0.07)'}`,
                                 cursor: 'pointer',
@@ -1510,7 +1529,7 @@ export default function SuperAdminDashboardView({
                       <div
                         style={{
                           background: 'linear-gradient(180deg, #FAFBFD 0%, #F4F6FC 100%)',
-                          borderRadius: 22,
+                          borderRadius: 8,
                           padding: '18px 14px 10px 14px',
                           border: `1px solid ${THEME.border}`,
                           flex: 1,
@@ -1529,7 +1548,7 @@ export default function SuperAdminDashboardView({
                               backdropFilter: 'blur(12px)',
                               color: '#FFFFFF',
                               padding: '11px 14px',
-                              borderRadius: 16,
+                              borderRadius: 8,
                               fontSize: 11.5,
                               fontWeight: 600,
                               pointerEvents: 'none',
@@ -1725,7 +1744,7 @@ export default function SuperAdminDashboardView({
                     <div
                       style={{
                         padding: '15px 18px',
-                        borderRadius: 18,
+                        borderRadius: 8,
                         background: THEME.gradient,
                         color: '#FFFFFF',
                         marginBottom: 14,
@@ -1766,7 +1785,7 @@ export default function SuperAdminDashboardView({
                             onClick={() => setSelectedRegion(reg)}
                             style={{
                               padding: '11px 12px',
-                              borderRadius: 15,
+                              borderRadius: 6,
                               border: `1.5px solid ${isSel ? THEME.primary : 'rgba(108, 92, 231, 0.07)'}`,
                               backgroundColor: isSel ? THEME.primaryLight : '#F9FAFE',
                               cursor: 'pointer',
@@ -1817,7 +1836,7 @@ export default function SuperAdminDashboardView({
                       placeholder="Maktab, INN, direktor qidirish..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: 13, border: `1px solid ${THEME.border}`, backgroundColor: '#F9FAFE', fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: 6, border: `1px solid ${THEME.border}`, backgroundColor: '#F9FAFE', fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
 
@@ -1867,7 +1886,7 @@ export default function SuperAdminDashboardView({
                         style={{
                           width: '100%',
                           padding: '12px 14px',
-                          borderRadius: 16,
+                          borderRadius: 8,
                           border: `1px solid ${isSel ? THEME.primary : THEME.border}`,
                           background: isSel ? THEME.gradient : '#F9FAFE',
                           color: isSel ? '#FFFFFF' : THEME.textDark,
@@ -1901,7 +1920,7 @@ export default function SuperAdminDashboardView({
                   return (
                     <div className="sa-card" style={{ flex: 1, ...cardBoxStyle, display: 'flex', flexDirection: 'column', gap: 20 }}>
                       {currentSelectedSchool.warningBanner && (
-                        <div style={{ padding: '12px 16px', borderRadius: 16, backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', fontSize: 12.5, fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ padding: '12px 16px', borderRadius: 8, backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', fontSize: 12.5, fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                             <AlertTriangle size={15} color="#D97706" /> Faol ogohlantirish banneri: "{currentSelectedSchool.warningBanner}"
                           </span>
@@ -1952,7 +1971,7 @@ export default function SuperAdminDashboardView({
                       </div>
 
                       {/* Izolyatsiya qoidasi eslatmasi */}
-                      <div style={{ padding: '14px 18px', borderRadius: 18, backgroundColor: THEME.primaryLight, border: `1px solid ${THEME.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                      <div style={{ padding: '14px 18px', borderRadius: 8, backgroundColor: THEME.primaryLight, border: `1px solid ${THEME.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                         <div style={{ fontSize: 12.5, color: THEME.textDark, lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                           <Lock size={16} color={THEME.primary} style={{ flexShrink: 0, marginTop: 2 }} />
                           <div>
@@ -2003,7 +2022,7 @@ export default function SuperAdminDashboardView({
                       </div>
 
                       {/* Maktabning Asosiy Baza Parametrlari (Ro'yxatsiz, faqat agregat ko'rsatkichlar) */}
-                      <div style={{ padding: 18, borderRadius: 20, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      <div style={{ padding: 18, borderRadius: 8, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 14 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                           <div>
                             <div style={{ fontWeight: 800, fontSize: 14, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -2022,7 +2041,7 @@ export default function SuperAdminDashboardView({
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                          <div style={{ padding: '12px 14px', borderRadius: 14, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
+                          <div style={{ padding: '12px 14px', borderRadius: 6, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
                             <div style={{ fontSize: 11, color: THEME.textMuted }}>Direktor Login va Paroli</div>
                             <div style={{ fontSize: 14, fontWeight: 800, color: THEME.textDark, marginTop: 3 }}>
                               <code>{currentSelectedSchool.username}</code> / <code>{currentSelectedSchool.password}</code>
@@ -2030,7 +2049,7 @@ export default function SuperAdminDashboardView({
                             <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Direktor: {currentSelectedSchool.director}</div>
                           </div>
 
-                          <div style={{ padding: '12px 14px', borderRadius: 14, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
+                          <div style={{ padding: '12px 14px', borderRadius: 6, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
                             <div style={{ fontSize: 11, color: THEME.textMuted }}>Xaritadagi Joylashuv & Radius</div>
                             <div style={{ fontSize: 13, fontWeight: 800, color: THEME.textDark, marginTop: 3 }}>
                               {currentSelectedSchool.is_location_set !== false ? (
@@ -2046,7 +2065,7 @@ export default function SuperAdminDashboardView({
                             <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>{currentSelectedSchool.district}</div>
                           </div>
 
-                          <div style={{ padding: '12px 14px', borderRadius: 14, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
+                          <div style={{ padding: '12px 14px', borderRadius: 6, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
                             <div style={{ fontSize: 11, color: THEME.textMuted }}>Obuna Tarifi & Status</div>
                             <div style={{ fontSize: 13, fontWeight: 800, color: THEME.primary, marginTop: 3 }}>
                               {currentSelectedSchool.plan || 'Standart'}
@@ -2054,7 +2073,7 @@ export default function SuperAdminDashboardView({
                             <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Holati: {currentSelectedSchool.status === 'ACTIVE' ? 'Faol' : currentSelectedSchool.status}</div>
                           </div>
 
-                          <div style={{ padding: '12px 14px', borderRadius: 14, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
+                          <div style={{ padding: '12px 14px', borderRadius: 6, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
                             <div style={{ fontSize: 11, color: THEME.textMuted }}>Faol Tizim Modullari</div>
                             <div style={{ fontSize: 12, fontWeight: 700, color: THEME.green, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><ScanFace size={13} /> Face ID</span>
@@ -2071,7 +2090,7 @@ export default function SuperAdminDashboardView({
                       </div>
 
                       {/* Cheklovlar va Bloklash */}
-                      <div style={{ padding: 18, borderRadius: 20, backgroundColor: '#FFF8F9', border: '1px solid #FECDD3', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                      <div style={{ padding: 18, borderRadius: 8, backgroundColor: '#FFF8F9', border: '1px solid #FECDD3', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                         <div>
                           <div style={{ fontWeight: 800, fontSize: 13.5, color: '#9F1239' }}>
                             Cheklovlar, Muzlatish va Ogohlantirish Banneri
@@ -2141,12 +2160,12 @@ export default function SuperAdminDashboardView({
           {/* ============================================================= */}
           {superTab === 'billing' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 18 }}>
-                <MetricCard icon={<TrendingUp size={18} color={THEME.green} />} title="Oylik Daromad (MRR)" value="15 800 000 so‘m" sub="O‘tgan oyga nisbatan +18.5%" color={THEME.green} badge="MRR" />
-                <MetricCard icon={<Award size={18} color={THEME.primary} />} title="Yillik Proyeksiya (ARR)" value="189 600 000 so‘m" sub="Shartnomalar bo‘yicha yillik" color={THEME.primary} badge="ARR" />
-                <MetricCard icon={<AlertTriangle size={18} color="#F43F5E" />} title="Umumiy Qarzdorlik" value="3 700 000 so‘m" sub="2 ta maktab to‘lovi kutilmoqda" color="#F43F5E" badge="Nazoratda" />
-                <MetricCard icon={<CheckCircle2 size={18} color={THEME.cyan} />} title="To‘lov Shlyuzlari" value="4 ta Faol" sub="Payme • Click • Uzum • Bank" color={THEME.cyan} badge="Online" />
-              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 14 }}>
+                  <MetricCard icon={<TrendingUp size={16} color={THEME.green} />} title="Oylik Daromad (MRR)" value="15 800 000 so‘m" sub="O‘tgan oyga nisbatan +18.5%" color={THEME.green} sparklineData={[12.4, 13.1, 13.8, 14.2, 14.9, 15.3, 15.8]} />
+                  <MetricCard icon={<Award size={16} color={THEME.primary} />} title="Yillik Proyeksiya (ARR)" value="189 600 000 so‘m" sub="Shartnomalar bo‘yicha yillik" color={THEME.primary} sparklineData={[150, 158, 165, 172, 179, 184, 189.6]} />
+                  <MetricCard icon={<AlertTriangle size={16} color="#EF4444" />} title="Umumiy Qarzdorlik" value="3 700 000 so‘m" sub="2 ta maktab to‘lovi kutilmoqda" color="#EF4444" sparklineData={[5.2, 4.8, 4.5, 4.2, 3.9, 3.8, 3.7]} />
+                  <MetricCard icon={<CheckCircle2 size={16} color={THEME.cyan} />} title="To‘lov Shlyuzlari" value="4 ta Faol" sub="Payme • Click • Uzum • Bank" color={THEME.cyan} badge="4 ta Shlyuz" />
+                </div>
 
               <div className="sa-card" style={cardBoxStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
@@ -2180,7 +2199,7 @@ export default function SuperAdminDashboardView({
                         className="sa-metric-card"
                         style={{
                           padding: 22,
-                          borderRadius: 24,
+                          borderRadius: 10,
                           border: `1.5px solid ${tier.popular ? tier.color || THEME.primary : THEME.border}`,
                           backgroundColor: tier.popular ? '#FCFBFF' : '#FFFFFF',
                           display: 'flex',
@@ -2210,7 +2229,7 @@ export default function SuperAdminDashboardView({
                         </div>
 
                         {/* Limitlar */}
-                        <div style={{ padding: 13, borderRadius: 16, backgroundColor: '#F8F9FE', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ padding: 13, borderRadius: 8, backgroundColor: '#F8F9FE', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <Users size={14} color={THEME.primary} /> Maksimal o‘quvchilar: <b>{tier.maxStudents} nafar</b>
                           </div>
@@ -2224,7 +2243,7 @@ export default function SuperAdminDashboardView({
 
                         {/* Modullar piktogrammalari */}
                         {tier.modules && (
-                          <div style={{ padding: '10px 12px', borderRadius: 14, backgroundColor: '#F1F5F9', display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                          <div style={{ padding: '10px 12px', borderRadius: 6, backgroundColor: '#F1F5F9', display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textMuted, width: '100%', marginBottom: 2 }}>
                               Yoqilgan tizim modullari ({activeModulesCount} ta):
                             </span>
@@ -2328,12 +2347,12 @@ export default function SuperAdminDashboardView({
           {/* ============================================================= */}
           {superTab === 'ai' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 18 }}>
-                <MetricCard icon={<Sparkles size={18} color={THEME.primary} />} title="Faol AI Model" value="InsightFace v2.4" sub={activeAiModel} color={THEME.primary} badge="ArcFace 512D" />
-                <MetricCard icon={<Activity size={18} color={THEME.green} />} title="Embedding Tezligi" value="18.4 ms" sub="Muvaffaqiyat darajasi: 99.4%" color={THEME.green} badge="Real-Time" />
-                <MetricCard icon={<Server size={18} color={THEME.cyan} />} title="GPU Yuklamasi (A100)" value="42% Load" sub="VRAM: 14.2 GB / 40 GB" color={THEME.cyan} badge="Optimal" />
-                <MetricCard icon={<Shield size={18} color={THEME.orange} />} title="Anti-Spoofing Himoya" value="99.8% Aniqlik" sub="Ekran va qog‘oz rasm filtri" color={THEME.orange} badge="3D Depth AI" />
-              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 14 }}>
+                  <MetricCard icon={<Sparkles size={16} color={THEME.primary} />} title="Faol AI Model" value="InsightFace v2.4" sub={activeAiModel} color={THEME.primary} badge="ArcFace 512D" />
+                  <MetricCard icon={<Activity size={16} color={THEME.green} />} title="Embedding Tezligi" value="18.4 ms" sub="Muvaffaqiyat darajasi: 99.4%" color={THEME.green} sparklineData={[22.1, 21.4, 20.2, 19.8, 19.1, 18.7, 18.4]} />
+                  <MetricCard icon={<Server size={16} color={THEME.cyan} />} title="GPU Yuklamasi (A100)" value="42% Load" sub="VRAM: 14.2 GB / 40 GB" color={THEME.cyan} sparklineData={[35, 38, 44, 40, 46, 41, 42]} />
+                  <MetricCard icon={<Shield size={16} color={THEME.orange} />} title="Anti-Spoofing Himoya" value="99.8% Aniqlik" sub="Ekran va qog‘oz rasm filtri" color={THEME.orange} sparklineData={[99.2, 99.4, 99.5, 99.6, 99.7, 99.75, 99.8]} />
+                </div>
 
               <div className="sa-card" style={{ ...cardBoxStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
@@ -2362,7 +2381,7 @@ export default function SuperAdminDashboardView({
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {spoofLogs.map(log => (
-                    <div key={log.id} style={{ padding: 15, borderRadius: 18, backgroundColor: log.severity === 'CRITICAL' ? '#FFF5F6' : '#FFFBEB', border: `1px solid ${log.severity === 'CRITICAL' ? '#FECDD3' : '#FDE68A'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                    <div key={log.id} style={{ padding: 15, borderRadius: 8, backgroundColor: log.severity === 'CRITICAL' ? '#FFF5F6' : '#FFFBEB', border: `1px solid ${log.severity === 'CRITICAL' ? '#FECDD3' : '#FDE68A'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: log.severity === 'CRITICAL' ? '#F43F5E' : '#F59E0B', color: '#FFFFFF', fontWeight: 700, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -2393,7 +2412,7 @@ export default function SuperAdminDashboardView({
                   <p style={sectionSubStyle}>Generatsiya tezligi: <b>3.1 ms</b> • Validatsiya tezligi: <b>4.8 ms</b></p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
                     {qrAlerts.map(al => (
-                      <div key={al.id} style={{ padding: 13, borderRadius: 16, backgroundColor: '#F9FAFE', borderLeft: '4px solid #F43F5E' }}>
+                      <div key={al.id} style={{ padding: 13, borderRadius: 8, backgroundColor: '#F9FAFE', borderLeft: '4px solid #F43F5E' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontWeight: 700 }}>
                           <span style={{ color: THEME.primary }}>{al.school} — {al.student}</span>
                           <span style={{ color: '#F43F5E' }}>{al.status}</span>
@@ -2439,7 +2458,7 @@ export default function SuperAdminDashboardView({
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {rbacAdmins.map(adm => (
-                      <div key={adm.id} style={{ padding: 11, borderRadius: 14, backgroundColor: '#F9FAFE', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div key={adm.id} style={{ padding: 11, borderRadius: 6, backgroundColor: '#F9FAFE', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: 12.5, color: THEME.textDark }}>{adm.name} <span style={{ color: THEME.primary }}>({adm.role})</span></div>
                           <div style={{ fontSize: 11, color: THEME.textMuted }}>{adm.email} • {adm.permissions}</div>
@@ -2656,7 +2675,7 @@ export default function SuperAdminDashboardView({
                       </button>
                     </div>
 
-                    <div style={{ ...miniStatBoxStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: systemConfig.maintenanceMode ? '#FFF5F6' : '#F9FAFE', border: systemConfig.maintenanceMode ? '1px solid #FECDD3' : '1px solid #E2E8F0', padding: '14px 18px', borderRadius: 18 }}>
+                    <div style={{ ...miniStatBoxStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: systemConfig.maintenanceMode ? '#FFF5F6' : '#F9FAFE', border: systemConfig.maintenanceMode ? '1px solid #FECDD3' : '1px solid #E2E8F0', padding: '14px 18px', borderRadius: 8 }}>
                       <div style={{ flex: 1, marginRight: 14 }}>
                         <div style={{ fontWeight: 800, fontSize: 13, color: systemConfig.maintenanceMode ? '#E11D48' : THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <Wrench size={16} color={systemConfig.maintenanceMode ? '#E11D48' : THEME.primary} /> Texnik Ishlar Rejimi (Maintenance)
@@ -2790,7 +2809,7 @@ export default function SuperAdminDashboardView({
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
                     {tickets.map(t => (
-                      <div key={t.id} style={{ padding: 16, borderRadius: 18, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div key={t.id} style={{ padding: 16, borderRadius: 8, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: 800, fontSize: 13, color: THEME.primary }}>{t.id} • {t.school}</span>
                           <span style={{
@@ -2847,7 +2866,7 @@ export default function SuperAdminDashboardView({
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
                     {faqs.map(f => (
-                      <div key={f.id} style={{ padding: 15, borderRadius: 16, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}` }}>
+                      <div key={f.id} style={{ padding: 15, borderRadius: 8, backgroundColor: '#F9FAFE', border: `1px solid ${THEME.border}` }}>
                         <div style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <HelpCircle size={14} color={THEME.primary} /> {f.q}
                         </div>
@@ -2896,7 +2915,7 @@ export default function SuperAdminDashboardView({
 
       {warningModalSchool && (
         <div style={modalBackdropStyle}>
-          <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)' }}>
+          <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)' }}>
             <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Bell size={18} color="#D97706" /> "{warningModalSchool.name}" ga Ogohlantirish
             </h3>
@@ -2926,7 +2945,7 @@ export default function SuperAdminDashboardView({
       {/* Global Texnik Profilaktika (Maintenance) Modali */}
       {maintenanceModalOpen && (
         <div style={modalBackdropStyle}>
-          <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 30, width: '100%', maxWidth: 520, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.22)' }}>
+          <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 30, width: '100%', maxWidth: 520, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.22)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, color: '#0F172A' }}>
                 <Wrench size={20} color="#EA580C" /> Texnik Ishlar Rejimi (Maintenance)
@@ -2943,7 +2962,7 @@ export default function SuperAdminDashboardView({
             </p>
 
             <form onSubmit={handleSaveMaintenanceConfig} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ padding: '12px 16px', borderRadius: 16, backgroundColor: maintenanceForm.is_maintenance_mode ? '#FFF1F2' : '#F0FDF4', border: maintenanceForm.is_maintenance_mode ? '1px solid #FECDD3' : '1px solid #BBF7D0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ padding: '12px 16px', borderRadius: 8, backgroundColor: maintenanceForm.is_maintenance_mode ? '#FFF1F2' : '#F0FDF4', border: maintenanceForm.is_maintenance_mode ? '1px solid #FECDD3' : '1px solid #BBF7D0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: 13, color: maintenanceForm.is_maintenance_mode ? '#E11D48' : '#15803D' }}>
                     {maintenanceForm.is_maintenance_mode ? "Profilaktika Rejimi Yoqilgan" : "Normal Rejim (Tizim Ochiq)"}
@@ -3027,7 +3046,7 @@ export default function SuperAdminDashboardView({
       {/* Maktabni Vaqtincha To'xtatish (Pauza / Qarzdorlik) Modali */}
       {schoolSuspendModalSchool && (
         <div style={modalBackdropStyle}>
-          <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 30, width: '100%', maxWidth: 480, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.22)' }}>
+          <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 30, width: '100%', maxWidth: 480, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.22)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, color: '#0F172A' }}>
                 <Pause size={18} color="#D97706" /> "{schoolSuspendModalSchool.name}" ni To‘xtatish
@@ -3218,7 +3237,7 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
 
   return (
     <div style={modalBackdropStyle}>
-      <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 30, width: '100%', maxWidth: 520, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+      <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 30, width: '100%', maxWidth: 520, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: 18, color: THEME.textDark }}>Yangi Maktab Qo‘shish</div>
@@ -3322,7 +3341,7 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
                 <div
                   key={mod.key}
                   onClick={() => setForm({ ...form, [mod.key]: !form[mod.key] })}
-                  style={{ padding: 14, borderRadius: 16, border: `1px solid ${form[mod.key] ? THEME.primary : THEME.border}`, backgroundColor: form[mod.key] ? THEME.primaryLight : '#F8FAFC', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  style={{ padding: 14, borderRadius: 8, border: `1px solid ${form[mod.key] ? THEME.primary : THEME.border}`, backgroundColor: form[mod.key] ? THEME.primaryLight : '#F8FAFC', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <div style={{ marginTop: 2 }}>{mod.icon}</div>
                     <div>
@@ -3369,7 +3388,7 @@ function EditTenantModal({ school, onClose, onSave }) {
   const [form, setForm] = useState({ ...school });
   return (
     <div style={modalBackdropStyle}>
-      <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 30, width: '100%', maxWidth: 480, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)' }}>
+      <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 30, width: '100%', maxWidth: 480, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)' }}>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Maktab Rekvizitlarini Tahrirlash</h3>
         <form
           onSubmit={e => {
@@ -3429,7 +3448,7 @@ function NewInvoiceModal({ schoolsList, onClose, onCreate }) {
 
   return (
     <div style={modalBackdropStyle}>
-      <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28, width: '100%', maxWidth: 440, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)' }}>
+      <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 28, width: '100%', maxWidth: 440, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)' }}>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
           <CreditCard size={18} color={THEME.primary} /> Yangi Hisob-Faktura Yaratish
         </h3>
@@ -3632,7 +3651,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
         className="sa-modal-box"
         style={{
           backgroundColor: '#FFFFFF',
-          borderRadius: 28,
+          borderRadius: 12,
           width: '100%',
           maxWidth: 740,
           maxHeight: '90vh',
@@ -3881,7 +3900,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
                     onClick={() => handleToggleModule(mod.key)}
                     style={{
                       padding: '12px 14px',
-                      borderRadius: 16,
+                      borderRadius: 8,
                       border: `1.5px solid ${isEnabled ? form.color || THEME.primary : THEME.border}`,
                       backgroundColor: isEnabled ? `${form.color || THEME.primary}0D` : '#FAFAFA',
                       cursor: 'pointer',
@@ -4019,38 +4038,84 @@ function TariffPlanModal({ tier, onClose, onSave }) {
   );
 }
 
+// Yengil va toza Micro-Sparkline komponenti (KPI kartalari uchun)
+function MicroSparkline({ data = [92, 93, 91.5, 94.2, 95.1, 94.8, 95.8], color = '#6C5CE7' }) {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data) || 1;
+  const range = max - min || 1;
+  const w = 68;
+  const h = 24;
+  const pts = data.map((v, i) => {
+    const x = (i / Math.max(1, data.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 6) - 3;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  return (
+    <svg width={w} height={h} style={{ overflow: 'visible', display: 'block' }}>
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={pts}
+      />
+    </svg>
+  );
+}
+
 function SidebarNavBtn({ active, onClick, icon, label, badge }) {
   return (
     <button
-      className="sa-nav-btn"
+      className={`school-nav-btn ${active ? 'active' : ''}`}
       onClick={onClick}
       style={{
         width: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '11px 14px',
-        borderRadius: 15,
-        border: 'none',
-        background: active ? THEME.gradient : 'transparent',
-        color: active ? '#FFFFFF' : THEME.textDark,
-        fontWeight: active ? 700 : 600,
+        padding: '9px 12px',
+        borderRadius: 8,
+        border: active ? '1px solid rgba(108, 92, 231, 0.22)' : '1px solid transparent',
+        background: active ? '#F1F0FF' : 'transparent',
+        color: active ? '#6C5CE7' : '#334155',
+        fontWeight: active ? 600 : 500,
         fontSize: 13,
         cursor: 'pointer',
         textAlign: 'left',
-        boxShadow: active ? '0 8px 20px -4px rgba(108, 92, 231, 0.32)' : 'none',
+        transition: 'all 0.15s ease',
+        position: 'relative',
+        boxSizing: 'border-box',
+        minHeight: 40,
+        outline: 'none',
       }}>
+      {active && (
+        <span
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: '22%',
+            bottom: '22%',
+            width: 3,
+            borderRadius: '0 3px 3px 0',
+            backgroundColor: '#6C5CE7',
+          }}
+        />
+      )}
       <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {icon} {label}
+        {icon && React.cloneElement(icon, { size: 17, className: 'school-nav-btn-icon' })}
+        <span>{label}</span>
       </span>
       {badge && (
         <span style={{
-          padding: '2px 8px',
-          borderRadius: 9,
-          backgroundColor: active ? 'rgba(255, 255, 255, 0.22)' : '#F1F4FA',
-          color: active ? '#FFFFFF' : THEME.textMuted,
-          fontSize: 10.5,
-          fontWeight: 700,
+          padding: '2px 7px',
+          borderRadius: 4,
+          backgroundColor: active ? '#6C5CE7' : '#F1F5F9',
+          color: active ? '#FFFFFF' : '#64748B',
+          fontSize: 11,
+          fontWeight: 600,
         }}>
           {badge}
         </span>
@@ -4059,52 +4124,78 @@ function SidebarNavBtn({ active, onClick, icon, label, badge }) {
   );
 }
 
-function MetricCard({ icon, title, value, sub, color, badge }) {
+function MetricCard({ icon, title, value, sub, color = THEME.primary, badge, sparklineData }) {
+  const spark = sparklineData || (badge ? null : [24, 28, 27, 31, 33, 35, 38]);
   return (
     <div
-      className="sa-metric-card"
+      className="sa-card"
       style={{
         backgroundColor: '#FFFFFF',
-        padding: 20,
-        borderRadius: 24,
-        border: `1px solid ${THEME.border}`,
-        boxShadow: THEME.softShadow,
+        padding: '16px 20px',
+        borderRadius: 10,
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
+        justifyContent: 'space-between',
+        gap: 6,
+        transition: 'border-color 0.15s ease',
       }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {icon && (
-            <div style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: `${color}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {icon}
-            </div>
-          )}
-          <span style={{ fontSize: 12, color: THEME.textMuted, fontWeight: 700 }}>{title}</span>
-        </div>
-        {badge && (
-          <span style={{ padding: '3px 9px', borderRadius: 8, backgroundColor: THEME.primaryLight, color: THEME.primary, fontSize: 10, fontWeight: 700 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: '#8A90A2' }}>{title}</div>
+        {spark ? (
+          <MicroSparkline data={spark} color={color} />
+        ) : badge ? (
+          <span style={{
+            fontSize: 11,
+            fontWeight: 600,
+            padding: '2px 7px',
+            borderRadius: 4,
+            backgroundColor: `${color}14`,
+            color: color,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4
+          }}>
+            {icon && React.cloneElement(icon, { size: 12, color })}
             {badge}
+          </span>
+        ) : null}
+      </div>
+
+      <div style={{ fontSize: 28, fontWeight: 600, color: '#1E2038', letterSpacing: '-0.02em', marginTop: 2 }}>
+        {value}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+        {sub && (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 11.5,
+            fontWeight: 500,
+            color: '#8A90A2',
+          }}>
+            {sub}
           </span>
         )}
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.3px' }}>{value}</div>
-      <div style={{ fontSize: 11.5, color: THEME.textMuted }}>{sub}</div>
     </div>
   );
 }
 
 function StatusBadge({ status }) {
   const map = {
-    ACTIVE: { label: 'Faol', bg: '#ECFDF5', color: '#10B981' },
+    ACTIVE: { label: 'Faol', bg: '#E8F8F5', color: '#10AC84' },
     TRIAL: { label: 'Sinov muddati', bg: '#EFF6FF', color: '#2563EB' },
-    SUSPENDED: { label: 'To‘xtatilgan', bg: '#FFFBEB', color: '#D97706' },
+    SUSPENDED: { label: 'To‘xtatilgan', bg: '#FFF4E5', color: '#FF9F43' },
     ARCHIVED: { label: 'Arxivlangan', bg: '#F1F5F9', color: '#64748B' },
-    BLOCKED: { label: 'Bloklangan', bg: '#FFF1F2', color: '#E11D48' },
+    BLOCKED: { label: 'Bloklangan', bg: '#FEE2E2', color: '#EF4444' },
   };
   const st = map[status] || map.ACTIVE;
   return (
-    <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: st.bg, color: st.color, fontWeight: 700, fontSize: 11 }}>
+    <span style={{ padding: '3px 8px', borderRadius: 6, backgroundColor: st.bg, color: st.color, fontWeight: 600, fontSize: 11 }}>
       {st.label}
     </span>
   );
@@ -4112,50 +4203,51 @@ function StatusBadge({ status }) {
 
 const cardBoxStyle = {
   backgroundColor: '#FFFFFF',
-  padding: 24,
-  borderRadius: 26,
-  border: `1px solid ${THEME.border}`,
-  boxShadow: THEME.softShadow,
+  padding: 20,
+  borderRadius: 10,
+  border: '1px solid #E2E8F0',
+  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+  transition: 'border-color 0.15s ease',
 };
 
 const miniStatBoxStyle = {
-  padding: 14,
-  borderRadius: 18,
-  backgroundColor: '#F9FAFE',
-  border: `1px solid ${THEME.border}`,
+  padding: 12,
+  borderRadius: 8,
+  backgroundColor: '#F8FAFC',
+  border: '1px solid #E2E8F0',
 };
 
 const sectionTitleStyle = {
-  fontSize: 16,
-  fontWeight: 800,
-  color: THEME.textDark,
+  fontSize: 15,
+  fontWeight: 600,
+  color: '#1E2038',
   margin: 0,
-  letterSpacing: '-0.2px',
+  letterSpacing: '-0.01em',
 };
 
 const sectionSubStyle = {
   fontSize: 12,
-  color: THEME.textMuted,
+  color: '#8A90A2',
   marginTop: 4,
   marginBottom: 0,
 };
 
 const pillBadgeStyle = {
-  padding: '4px 10px',
-  borderRadius: 10,
-  backgroundColor: THEME.primaryLight,
-  color: THEME.primary,
-  fontWeight: 700,
+  padding: '3px 8px',
+  borderRadius: 6,
+  backgroundColor: '#F1F0FF',
+  color: '#6C5CE7',
+  fontWeight: 600,
   fontSize: 11,
 };
 
 const tierBadgeStyle = {
-  padding: '3px 8px',
-  borderRadius: 8,
+  padding: '3px 7px',
+  borderRadius: 6,
   backgroundColor: '#FFFFFF',
-  color: THEME.textDark,
-  border: `1px solid ${THEME.border}`,
-  fontWeight: 700,
+  color: '#1E2038',
+  border: '1px solid #E2E8F0',
+  fontWeight: 600,
   fontSize: 10.5,
   display: 'inline-flex',
   alignItems: 'center',
@@ -4165,66 +4257,69 @@ const tierBadgeStyle = {
 const primaryBtnStyle = {
   display: 'inline-flex',
   alignItems: 'center',
-  gap: 8,
-  padding: '10px 18px',
-  background: THEME.gradient,
+  gap: 6,
+  padding: '7px 14px',
+  background: 'linear-gradient(135deg, #7C69EF 0%, #5845D8 100%)',
   color: '#FFFFFF',
-  borderRadius: 15,
+  borderRadius: 6,
   border: 'none',
-  fontWeight: 700,
+  fontWeight: 600,
   fontSize: 12.5,
   cursor: 'pointer',
-  boxShadow: '0 8px 18px -4px rgba(108, 92, 231, 0.32)',
+  transition: 'opacity 0.15s ease',
+  boxShadow: 'none',
 };
 
 const secondaryBtnStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 6,
-  padding: '10px 15px',
+  padding: '7px 12px',
   backgroundColor: '#FFFFFF',
-  color: THEME.textDark,
-  borderRadius: 15,
-  border: `1px solid ${THEME.border}`,
-  fontWeight: 700,
+  color: '#1E2038',
+  borderRadius: 6,
+  border: '1px solid #E2E8F0',
+  fontWeight: 500,
   fontSize: 12.5,
   cursor: 'pointer',
-  boxShadow: '0 2px 8px rgba(15, 23, 42, 0.02)',
+  transition: 'border-color 0.15s ease',
+  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
 };
 
 const selectFilterStyle = {
-  padding: '9px 12px',
-  borderRadius: 13,
-  border: `1px solid ${THEME.border}`,
+  padding: '7px 12px',
+  borderRadius: 6,
+  border: '1px solid #E2E8F0',
   backgroundColor: '#FFFFFF',
   fontSize: 12.5,
-  fontWeight: 600,
-  color: THEME.textDark,
+  fontWeight: 500,
+  color: '#1E2038',
   outline: 'none',
 };
 
 const inputFieldStyle = {
   width: '100%',
-  padding: '10px 14px',
-  borderRadius: 14,
+  padding: '8px 12px',
+  borderRadius: 6,
   border: '1px solid #E2E8F0',
   fontSize: 13,
   boxSizing: 'border-box',
   outline: 'none',
   marginTop: 4,
+  color: '#1E2038',
 };
 
 const labelStyle = {
   fontSize: 12,
-  fontWeight: 700,
-  color: THEME.textDark,
+  fontWeight: 600,
+  color: '#1E2038',
 };
 
 const modalBackdropStyle = {
   position: 'fixed',
   inset: 0,
-  backgroundColor: 'rgba(15, 23, 42, 0.45)',
-  backdropFilter: 'blur(6px)',
+  backgroundColor: 'rgba(15, 23, 42, 0.5)',
+  backdropFilter: 'blur(4px)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
