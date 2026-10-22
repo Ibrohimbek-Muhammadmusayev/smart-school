@@ -1396,10 +1396,10 @@ export default function SuperAdminDashboardView({
                     },
                   ];
 
-                  const svgW = 680;
-                  const svgH = 268;
-                  const padX = 38;
-                  const padY = 26;
+                  const svgW = 700;
+                  const svgH = 260;
+                  const padX = 44;
+                  const padY = 24;
 
                   const getX = idx => padX + (idx * (svgW - padX * 2)) / (timeSeriesData.length - 1);
                   const getY = val => svgH - padY - (val / 105) * (svgH - padY * 2);
@@ -1465,59 +1465,149 @@ export default function SuperAdminDashboardView({
                   const activePoint = chartHover || timeSeriesData[selectedStageIdx] || timeSeriesData[3];
 
                   const legendSeries = [
-                    { id: 'IMAGES', label: 'Rasmlar Yuklanishi', val: `${activePoint.imagesReal.toLocaleString()} ta`, color: THEME.orange, bg: '#FFFBEB' },
-                    { id: 'FILES', label: 'Fayllar Yuklanishi', val: `${activePoint.filesReal.toLocaleString()} ta`, color: THEME.cyan, bg: '#F0F9FF' },
-                    { id: 'SCHOOLS', label: 'Yangi Maktablar', val: `${activePoint.schoolsCount} ta maktab`, color: THEME.green, bg: '#ECFDF5' },
-                    { id: 'CHANGES', label: 'Tizim O‘zgarishlari', val: `${activePoint.changesReal} ta`, color: THEME.primary, bg: THEME.primaryLight },
+                    {
+                      id: 'CHANGES',
+                      label: 'Tizim O‘zgarishlari',
+                      val: `${activePoint.changesReal.toLocaleString()} ta`,
+                      color: THEME.primary,
+                      bg: '#EEF2FF',
+                      badge: '+18.4% faollik'
+                    },
+                    {
+                      id: 'IMAGES',
+                      label: 'Rasmlar (Face ID)',
+                      val: `${activePoint.imagesReal.toLocaleString()} ta`,
+                      color: THEME.orange,
+                      bg: '#FFFBEB',
+                      badge: '99.2% aniqlik'
+                    },
+                    {
+                      id: 'FILES',
+                      label: 'Fayllar & Eksport',
+                      val: `${activePoint.filesReal.toLocaleString()} ta`,
+                      color: '#0284C7',
+                      bg: '#F0F9FF',
+                      badge: 'Shifrlangan'
+                    },
+                    {
+                      id: 'SCHOOLS',
+                      label: 'Yangi Maktablar',
+                      val: `${activePoint.schoolsCount} ta`,
+                      color: THEME.green,
+                      bg: '#ECFDF5',
+                      badge: 'Faol tarmoq'
+                    },
+                  ];
+
+                  const modeOptions = [
+                    { id: 'CUMULATIVE', label: 'Barchasi' },
+                    { id: 'CHANGES', label: 'O‘zgarishlar' },
+                    { id: 'IMAGES', label: 'Rasmlar' },
+                    { id: 'FILES', label: 'Fayllar' },
+                    { id: 'SCHOOLS', label: 'Maktablar' }
                   ];
 
                   return (
-                    <div className="sa-card" style={{ ...cardBoxStyle, padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      {/* Sarlavha */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                    <div className="sa-card" style={{ ...cardBoxStyle, padding: '22px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      {/* Sarlavha va Filtrlash boshqaruvi */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span className="sa-pulse-dot" style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: THEME.green, display: 'inline-block' }} />
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: 4,
+                              backgroundColor: '#EEF2FF',
+                              color: THEME.primary,
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              letterSpacing: '0.4px',
+                              textTransform: 'uppercase'
+                            }}>
+                              Dinamik Analitika
+                            </span>
                             <h3 style={{ fontSize: 16, fontWeight: 800, color: THEME.textDark, margin: 0, letterSpacing: '-0.2px' }}>
-                              Global Yuklanishlar, Yaratilishlar va Tizim O‘zgarishlari Dinamikasi
+                              Global Yuklanishlar va Tizim O‘zgarishlari Dinamikasi
                             </h3>
                           </div>
-                          <p style={{ fontSize: 12, color: THEME.textMuted, margin: '4px 0 0 0' }}>
-                            Sichqonchani grafik ustiga olib boring — tanlangan oraliq: <b style={{ color: THEME.primary }}>{activePoint.short}</b>
-                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                            <span className="sa-pulse-dot" style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: THEME.green, display: 'inline-block' }} />
+                            <p style={{ fontSize: 12, color: THEME.textMuted, margin: 0 }}>
+                              Real vaqtli tahlil • Oraliq ko‘rsatkichi: <b style={{ color: THEME.textDark }}>{activePoint.short}</b>
+                            </p>
+                          </div>
                         </div>
 
-                        {chartMode !== 'CUMULATIVE' && (
-                          <button
-                            className="sa-btn"
-                            onClick={() => setChartMode('CUMULATIVE')}
-                            style={{ padding: '6px 12px', borderRadius: 12, border: `1px solid ${THEME.border}`, backgroundColor: THEME.primaryLight, fontSize: 11.5, fontWeight: 700, color: THEME.primary, cursor: 'pointer' }}>
-                            Barcha chiziqlarni ko‘rsatish
-                          </button>
-                        )}
+                        {/* Segmented Mode Controller */}
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          backgroundColor: '#F1F5F9',
+                          borderRadius: 6,
+                          padding: 3,
+                          gap: 2,
+                          border: '1px solid #E2E8F0'
+                        }}>
+                          {modeOptions.map(opt => {
+                            const isCurrent = chartMode === opt.id;
+                            return (
+                              <button
+                                key={opt.id}
+                                onClick={() => setChartMode(opt.id)}
+                                style={{
+                                  padding: '5px 11px',
+                                  borderRadius: 5,
+                                  fontSize: 11.5,
+                                  fontWeight: isCurrent ? 700 : 500,
+                                  color: isCurrent ? THEME.textDark : '#64748B',
+                                  backgroundColor: isCurrent ? '#FFFFFF' : 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  boxShadow: isCurrent ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                                  transition: 'all 0.15s ease'
+                                }}>
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
-                      {/* 4 ta Yumshoq Interaktiv Ko'rsatkich Kartochkalari */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+                      {/* 4 ta Professional Enterprise Ko'rsatkich Kartochkalari */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 18 }}>
                         {legendSeries.map(item => {
                           const isSelectedLine = chartMode === item.id;
                           return (
                             <div
                               key={item.id}
-                              className="sa-btn"
                               onClick={() => setChartMode(isSelectedLine ? 'CUMULATIVE' : item.id)}
                               style={{
-                                padding: '11px 13px',
+                                padding: '12px 14px',
                                 borderRadius: 8,
-                                backgroundColor: isSelectedLine ? item.bg : '#F9FAFE',
-                                border: `1.5px solid ${isSelectedLine ? item.color : 'rgba(108, 92, 231, 0.07)'}`,
+                                backgroundColor: isSelectedLine ? item.bg : '#FFFFFF',
+                                border: `1px solid ${isSelectedLine ? item.color : '#E2E8F0'}`,
                                 cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                boxShadow: isSelectedLine ? `0 2px 8px -2px ${item.color}33` : '0 1px 2px rgba(0,0,0,0.02)'
                               }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: THEME.textMuted }}>
-                                <span style={{ width: 9, height: 9, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0, boxShadow: `0 0 8px ${item.color}66` }} />
-                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: '0.2px', textTransform: 'uppercase' }}>
+                                    {item.label}
+                                  </span>
+                                </div>
+                                <span style={{
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  color: item.color,
+                                  backgroundColor: item.bg,
+                                  padding: '1px 5px',
+                                  borderRadius: 4
+                                }}>
+                                  {item.badge}
+                                </span>
                               </div>
-                              <div style={{ fontSize: 15, fontWeight: 800, color: THEME.textDark, marginTop: 4 }}>
+                              <div style={{ fontSize: 18, fontWeight: 800, color: THEME.textDark, letterSpacing: '-0.3px' }}>
                                 {item.val}
                               </div>
                             </div>
@@ -1528,63 +1618,86 @@ export default function SuperAdminDashboardView({
                       {/* KATTA SILLIQ KO'P-CHIZIQLI (MULTI-LINE) GRAFIK (UZLUKSIZ HOVER BILAN) */}
                       <div
                         style={{
-                          background: 'linear-gradient(180deg, #FAFBFD 0%, #F4F6FC 100%)',
+                          background: '#FAFBFD',
                           borderRadius: 8,
-                          padding: '18px 14px 10px 14px',
-                          border: `1px solid ${THEME.border}`,
+                          padding: '16px 14px 12px 14px',
+                          border: '1px solid #E2E8F0',
                           flex: 1,
                           display: 'flex',
-                          alignItems: 'center',
+                          flexDirection: 'column',
                           position: 'relative',
                         }}>
-                        {/* Floating Glass Hover Tooltip */}
+                        {/* Modern Dark Floating Tooltip */}
                         {chartHover && (
                           <div
                             style={{
                               position: 'absolute',
                               top: 14,
-                              left: chartHover.pctX > 62 ? `calc(${chartHover.pctX}% - 196px)` : `calc(${chartHover.pctX}% + 14px)`,
-                              backgroundColor: 'rgba(24, 28, 46, 0.92)',
-                              backdropFilter: 'blur(12px)',
+                              left: chartHover.pctX > 62 ? `calc(${chartHover.pctX}% - 210px)` : `calc(${chartHover.pctX}% + 16px)`,
+                              backgroundColor: '#0F172A',
                               color: '#FFFFFF',
-                              padding: '11px 14px',
+                              padding: '10px 14px',
                               borderRadius: 8,
                               fontSize: 11.5,
-                              fontWeight: 600,
+                              fontWeight: 500,
                               pointerEvents: 'none',
-                              zIndex: 15,
-                              minWidth: 180,
-                              boxShadow: '0 14px 30px rgba(15, 23, 42, 0.22)',
-                              border: '1px solid rgba(255,255,255,0.14)',
-                              transition: 'left 0.06s ease-out',
+                              zIndex: 20,
+                              minWidth: 195,
+                              boxShadow: '0 12px 28px -4px rgba(0,0,0,0.45)',
+                              border: '1px solid #334155',
+                              transition: 'left 0.05s ease-out',
                             }}>
-                            <div style={{ fontWeight: 800, fontSize: 12, color: '#F8FAFC', marginBottom: 6, paddingBottom: 5, borderBottom: '1px solid rgba(255,255,255,0.12)', display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Clock size={13} color="#38BDF8" /> Vaqt oralig‘i:</span>
-                              <span style={{ color: '#38BDF8' }}>{chartHover.short}</span>
+                            <div style={{
+                              fontWeight: 700,
+                              fontSize: 12,
+                              color: '#F8FAFC',
+                              marginBottom: 6,
+                              paddingBottom: 6,
+                              borderBottom: '1px solid #334155',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#94A3B8' }}>
+                                <Clock size={12} color="#38BDF8" /> Vaqt oralig‘i:
+                              </span>
+                              <span style={{ color: '#38BDF8', fontWeight: 700 }}>{chartHover.short}</span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4.5 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                              {showLine('CHANGES') && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                                  <span style={{ color: '#C4B5FD', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: THEME.primary }} />
+                                    O‘zgarishlar:
+                                  </span>
+                                  <b style={{ color: '#FFFFFF', fontWeight: 700 }}>{chartHover.changesReal.toLocaleString()} ta</b>
+                                </div>
+                              )}
                               {showLine('IMAGES') && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                                  <span style={{ color: '#FCD34D' }}>● Rasmlar:</span>
-                                  <b>{chartHover.imagesReal.toLocaleString()} ta</b>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                                  <span style={{ color: '#FCD34D', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: THEME.orange }} />
+                                    Rasmlar:
+                                  </span>
+                                  <b style={{ color: '#FFFFFF', fontWeight: 700 }}>{chartHover.imagesReal.toLocaleString()} ta</b>
                                 </div>
                               )}
                               {showLine('FILES') && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                                  <span style={{ color: '#7DD3FC' }}>● Fayllar:</span>
-                                  <b>{chartHover.filesReal.toLocaleString()} ta</b>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                                  <span style={{ color: '#7DD3FC', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#0284C7' }} />
+                                    Fayllar:
+                                  </span>
+                                  <b style={{ color: '#FFFFFF', fontWeight: 700 }}>{chartHover.filesReal.toLocaleString()} ta</b>
                                 </div>
                               )}
                               {showLine('SCHOOLS') && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                                  <span style={{ color: '#6EE7B7' }}>● Maktablar:</span>
-                                  <b>{chartHover.schoolsCount} ta</b>
-                                </div>
-                              )}
-                              {showLine('CHANGES') && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                                  <span style={{ color: '#C4B5FD' }}>● O‘zgarishlar:</span>
-                                  <b>{chartHover.changesReal} ta</b>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                                  <span style={{ color: '#6EE7B7', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: THEME.green }} />
+                                    Maktablar:
+                                  </span>
+                                  <b style={{ color: '#FFFFFF', fontWeight: 700 }}>{chartHover.schoolsCount} ta</b>
                                 </div>
                               )}
                             </div>
@@ -1595,131 +1708,167 @@ export default function SuperAdminDashboardView({
                           viewBox={`0 0 ${svgW} ${svgH}`}
                           onMouseMove={handleChartMouseMove}
                           onMouseLeave={() => setChartHover(null)}
-                          style={{ width: '100%', height: 280, overflow: 'visible', cursor: 'crosshair' }}>
+                          style={{ width: '100%', height: 260, overflow: 'visible', cursor: 'crosshair' }}>
                           <defs>
                             <linearGradient id="purpleAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={THEME.primary} stopOpacity="0.18" />
+                              <stop offset="0%" stopColor={THEME.primary} stopOpacity="0.12" />
                               <stop offset="100%" stopColor={THEME.primary} stopOpacity="0.0" />
                             </linearGradient>
                             <linearGradient id="orangeAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={THEME.orange} stopOpacity="0.12" />
+                              <stop offset="0%" stopColor={THEME.orange} stopOpacity="0.09" />
                               <stop offset="100%" stopColor={THEME.orange} stopOpacity="0.0" />
                             </linearGradient>
-                            <filter id="softLineGlow" x="-10%" y="-10%" width="120%" height="120%">
-                              <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#6C5CE7" floodOpacity="0.16" />
-                            </filter>
+                            <linearGradient id="cyanAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#0284C7" stopOpacity="0.09" />
+                              <stop offset="100%" stopColor="#0284C7" stopOpacity="0.0" />
+                            </linearGradient>
+                            <linearGradient id="greenAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={THEME.green} stopOpacity="0.09" />
+                              <stop offset="100%" stopColor={THEME.green} stopOpacity="0.0" />
+                            </linearGradient>
                           </defs>
 
-                          {/* Yumshoq Gorizontal Setka Chiziqlari */}
+                          {/* Gorizontal Setka Chiziqlari (Toza, 1px dashed) */}
                           {[25, 50, 75, 100].map(gVal => {
                             const y = getY(gVal);
                             return (
                               <g key={gVal}>
-                                <line x1={padX} y1={y} x2={svgW - padX} y2={y} stroke="#E5E9F5" strokeDasharray="5 5" strokeWidth="1" />
-                                <text x={4} y={y + 4} fontSize="10" fill={THEME.textMuted} fontWeight="600">
+                                <line x1={padX} y1={y} x2={svgW - padX} y2={y} stroke="#E2E8F0" strokeDasharray="4 4" strokeWidth="1" />
+                                <text x={8} y={y + 3.5} fontSize="10" fill="#94A3B8" fontWeight="600">
                                   {gVal}%
                                 </text>
                               </g>
                             );
                           })}
 
-                          {/* Yumshoq Soya Qatlamlari */}
+                          {/* Pastki Asosiy Chiziq (Baseline) */}
+                          <line x1={padX} y1={svgH - padY} x2={svgW - padX} y2={svgH - padY} stroke="#E2E8F0" strokeWidth="1" />
+
+                          {/* Silliq Hudud Ranglari (Area Fills) */}
                           {showLine('CHANGES') && <path d={buildAreaPath(changesPath)} fill="url(#purpleAreaGrad)" />}
                           {showLine('IMAGES') && <path d={buildAreaPath(imagesPath)} fill="url(#orangeAreaGrad)" />}
+                          {chartMode === 'FILES' && <path d={buildAreaPath(filesPath)} fill="url(#cyanAreaGrad)" />}
+                          {chartMode === 'SCHOOLS' && <path d={buildAreaPath(schoolsPath)} fill="url(#greenAreaGrad)" />}
 
                           {/* 1-Chiziq (Yashil): Yangi Maktablar */}
                           {showLine('SCHOOLS') && (
-                            <path className="sa-chart-line" d={schoolsPath} fill="none" stroke={THEME.green} strokeWidth="3.2" strokeLinecap="round" />
+                            <path className="sa-chart-line" d={schoolsPath} fill="none" stroke={THEME.green} strokeWidth="2.0" strokeLinecap="round" strokeLinejoin="round" />
                           )}
 
                           {/* 2-Chiziq (Moviy): Fayllar Yuklanishi */}
                           {showLine('FILES') && (
-                            <path d={filesPath} fill="none" stroke={THEME.cyan} strokeWidth="3" strokeDasharray="7 5" strokeLinecap="round" />
+                            <path d={filesPath} fill="none" stroke="#0284C7" strokeWidth="1.8" strokeDasharray="6 4" strokeLinecap="round" strokeLinejoin="round" />
                           )}
 
                           {/* 3-Chiziq (To'q sariq): Rasmlar Yuklanishi */}
                           {showLine('IMAGES') && (
-                            <path className="sa-chart-line" d={imagesPath} fill="none" stroke={THEME.orange} strokeWidth="3.4" strokeLinecap="round" />
+                            <path className="sa-chart-line" d={imagesPath} fill="none" stroke={THEME.orange} strokeWidth="2.0" strokeLinecap="round" strokeLinejoin="round" />
                           )}
 
                           {/* 4-Chiziq (Binafsha): Tizim O'zgarishlari */}
                           {showLine('CHANGES') && (
-                            <path className="sa-chart-line" d={changesPath} fill="none" stroke={THEME.primary} strokeWidth="3.8" strokeLinecap="round" filter="url(#softLineGlow)" />
+                            <path className="sa-chart-line" d={changesPath} fill="none" stroke={THEME.primary} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                           )}
 
-                          {/* Sichqoncha olib borilganda jonli Crosshair va porlovchi nuqtalar */}
+                          {/* Sichqoncha olib borilganda jonli Crosshair va aniq nuqtalar */}
                           {chartHover && (
                             <g style={{ pointerEvents: 'none' }}>
                               <line
                                 x1={chartHover.svgX}
-                                y1={padY - 12}
+                                y1={padY - 8}
                                 x2={chartHover.svgX}
                                 y2={svgH - padY}
-                                stroke={THEME.primary}
-                                strokeDasharray="4 4"
-                                strokeWidth="1.5"
-                                opacity="0.65"
+                                stroke="#94A3B8"
+                                strokeDasharray="3 3"
+                                strokeWidth="1.2"
                               />
                               {showLine('SCHOOLS') && (
-                                <circle cx={chartHover.svgX} cy={getY(chartHover.schoolsLine)} r={6.5} fill={THEME.green} stroke="#FFFFFF" strokeWidth="2.5" />
+                                <g>
+                                  <circle cx={chartHover.svgX} cy={getY(chartHover.schoolsLine)} r={7} fill={THEME.green} opacity="0.2" />
+                                  <circle cx={chartHover.svgX} cy={getY(chartHover.schoolsLine)} r={4.5} fill={THEME.green} stroke="#FFFFFF" strokeWidth="2" />
+                                </g>
                               )}
                               {showLine('FILES') && (
-                                <circle cx={chartHover.svgX} cy={getY(chartHover.filesLine)} r={6.5} fill={THEME.cyan} stroke="#FFFFFF" strokeWidth="2.5" />
+                                <g>
+                                  <circle cx={chartHover.svgX} cy={getY(chartHover.filesLine)} r={7} fill="#0284C7" opacity="0.2" />
+                                  <circle cx={chartHover.svgX} cy={getY(chartHover.filesLine)} r={4.5} fill="#0284C7" stroke="#FFFFFF" strokeWidth="2" />
+                                </g>
                               )}
                               {showLine('IMAGES') && (
-                                <circle cx={chartHover.svgX} cy={getY(chartHover.imagesLine)} r={7} fill={THEME.orange} stroke="#FFFFFF" strokeWidth="2.5" />
+                                <g>
+                                  <circle cx={chartHover.svgX} cy={getY(chartHover.imagesLine)} r={7.5} fill={THEME.orange} opacity="0.2" />
+                                  <circle cx={chartHover.svgX} cy={getY(chartHover.imagesLine)} r={4.5} fill={THEME.orange} stroke="#FFFFFF" strokeWidth="2" />
+                                </g>
                               )}
                               {showLine('CHANGES') && (
-                                <circle cx={chartHover.svgX} cy={getY(chartHover.changesLine)} r={7.5} fill={THEME.primary} stroke="#FFFFFF" strokeWidth="2.5" />
+                                <g>
+                                  <circle cx={chartHover.svgX} cy={getY(chartHover.changesLine)} r={8} fill={THEME.primary} opacity="0.2" />
+                                  <circle cx={chartHover.svgX} cy={getY(chartHover.changesLine)} r={4.5} fill={THEME.primary} stroke="#FFFFFF" strokeWidth="2" />
+                                </g>
                               )}
                             </g>
                           )}
 
-                          {/* Asosiy Vaqt Nuqtalari */}
+                          {/* Asosiy Vaqt Bo'limlari (X-O'qi) */}
                           {timeSeriesData.map((d, i) => {
                             const cx = getX(i);
                             const isSel = !chartHover && selectedStageIdx === i;
                             return (
                               <g key={d.short} onClick={() => setSelectedStageIdx(i)} style={{ cursor: 'pointer' }}>
-                                {isSel && (
-                                  <line
-                                    x1={cx}
-                                    y1={padY - 10}
-                                    x2={cx}
-                                    y2={svgH - padY}
-                                    stroke={THEME.primary}
-                                    strokeDasharray="3 3"
-                                    strokeWidth="1.4"
-                                    opacity="0.5"
-                                  />
-                                )}
+                                {/* Vaqt belgisi tushuvchi kichik shtrix */}
+                                <line x1={cx} y1={svgH - padY} x2={cx} y2={svgH - padY + 4} stroke="#CBD5E1" strokeWidth="1" />
 
-                                {showLine('SCHOOLS') && (
-                                  <circle cx={cx} cy={getY(d.schoolsLine)} r={isSel ? 6 : 4} fill={isSel ? THEME.green : '#FFF'} stroke={THEME.green} strokeWidth="2.4" />
-                                )}
-                                {showLine('FILES') && (
-                                  <circle cx={cx} cy={getY(d.filesLine)} r={isSel ? 6 : 4} fill={isSel ? THEME.cyan : '#FFF'} stroke={THEME.cyan} strokeWidth="2.4" />
-                                )}
-                                {showLine('IMAGES') && (
-                                  <circle cx={cx} cy={getY(d.imagesLine)} r={isSel ? 6.5 : 4.2} fill={isSel ? THEME.orange : '#FFF'} stroke={THEME.orange} strokeWidth="2.5" />
-                                )}
-                                {showLine('CHANGES') && (
-                                  <circle cx={cx} cy={getY(d.changesLine)} r={isSel ? 7 : 4.5} fill={isSel ? THEME.primary : '#FFF'} stroke={THEME.primary} strokeWidth="2.6" />
+                                {isSel && (
+                                  <g>
+                                    <line
+                                      x1={cx}
+                                      y1={padY - 6}
+                                      x2={cx}
+                                      y2={svgH - padY}
+                                      stroke={THEME.primary}
+                                      strokeDasharray="3 3"
+                                      strokeWidth="1.2"
+                                      opacity="0.6"
+                                    />
+                                    {showLine('CHANGES') && (
+                                      <circle cx={cx} cy={getY(d.changesLine)} r={4} fill={THEME.primary} stroke="#FFF" strokeWidth="2" />
+                                    )}
+                                  </g>
                                 )}
 
                                 <text
                                   x={cx}
-                                  y={svgH - 4}
+                                  y={svgH - 6}
                                   textAnchor="middle"
                                   fontSize="11"
-                                  fontWeight={isSel ? '800' : '600'}
-                                  fill={isSel ? THEME.primary : THEME.textMuted}>
+                                  fontWeight={isSel ? '700' : '500'}
+                                  fill={isSel ? THEME.primary : '#64748B'}>
                                   {d.short}
                                 </text>
                               </g>
                             );
                           })}
                         </svg>
+
+                        {/* Chart Tagidagi Pastki Xulosa / Status Bar */}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginTop: 10,
+                          paddingTop: 10,
+                          borderTop: '1px solid #F1F5F9',
+                          flexWrap: 'wrap',
+                          gap: 10
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#64748B' }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: THEME.green, display: 'inline-block' }} />
+                            <span>Eng yuqori yuklanish davri: <strong style={{ color: THEME.textDark }}>14:00 (Pik)</strong> • Avtomatik sinxronizatsiya faol</span>
+                          </div>
+                          <div style={{ fontSize: 11.5, color: '#64748B' }}>
+                            Jami tizim o‘zgarishlari: <strong style={{ color: THEME.primary }}>{totalSystemChanges.toLocaleString()}</strong> ta • Face ID rasmlar: <strong style={{ color: THEME.orange }}>{totalImagesUploaded.toLocaleString()}</strong> ta
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
