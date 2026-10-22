@@ -271,7 +271,250 @@ function generateLessonSlots(cfg, totalSlots = 7, shift = 1) {
   return slots;
 }
 
+// =========================================================================
+// RASMIY ENTERPRISE YUKLANISH VA AUTENTIFIKATSIYA MODULLARI (OFFICIAL LOADERS)
+// =========================================================================
+function AppInitialLoader() {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: '#F8F9FE',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
+      }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          padding: 32,
+          maxWidth: 420,
+        }}>
+        {/* Logo with pulsing ring */}
+        <div
+          style={{
+            position: 'relative',
+            width: 76,
+            height: 76,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 20,
+          }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: -6,
+              borderRadius: 18,
+              border: '2px solid rgba(108, 92, 231, 0.25)',
+              animation: 'pulseSubtle 1.8s ease-in-out infinite',
+            }}
+          />
+          <img
+            src="/idrok_icon.png"
+            alt="Idrok Edu"
+            style={{
+              width: 68,
+              height: 68,
+              borderRadius: 14,
+              objectFit: 'contain',
+              boxShadow: '0 8px 24px rgba(108, 92, 231, 0.2)',
+            }}
+          />
+        </div>
+
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            color: '#1E2038',
+            margin: '0 0 6px 0',
+            letterSpacing: '-0.02em',
+          }}>
+          Idrok Edu
+        </h2>
+        <p
+          style={{
+            fontSize: 12.5,
+            color: '#8A90A2',
+            margin: '0 0 18px 0',
+            fontWeight: 500,
+            lineHeight: 1.4,
+          }}>
+          Yagona Ta'lim va Davomat Boshqaruv Ekotizimi
+        </p>
+
+        {/* Progress bar */}
+        <div
+          style={{
+            width: 220,
+            height: 4,
+            borderRadius: 4,
+            backgroundColor: '#E2E8F0',
+            overflow: 'hidden',
+            marginBottom: 12,
+          }}>
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(90deg, #6C5CE7, #48DBFB)',
+              animation: 'topProgressSlide 1.2s ease-in-out infinite',
+              backgroundSize: '200% 100%',
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 11.5,
+            color: '#64748B',
+            fontWeight: 600,
+          }}>
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              backgroundColor: '#10AC84',
+            }}
+          />
+          Rasmiy tizim ishga tushirilmoqda...
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthTransitionScreen({ user }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: '#F8F9FE',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
+      }}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 420,
+          backgroundColor: '#FFFFFF',
+          borderRadius: 12,
+          padding: '36px 32px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 10px 30px rgba(108, 92, 231, 0.08)',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 16,
+          animation: 'fadeIn 0.2s ease-out',
+        }}>
+        {/* Success Icon */}
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 12,
+            backgroundColor: '#ECFDF5',
+            color: '#10AC84',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid #A7F3D0',
+          }}>
+          <CheckCircle2 size={30} />
+        </div>
+
+        <div>
+          <h3
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#1E2038',
+              margin: '0 0 4px 0',
+            }}>
+            Muvaffaqiyatli Autentifikatsiya
+          </h3>
+          <p
+            style={{
+              fontSize: 12.5,
+              color: '#64748B',
+              margin: 0,
+              lineHeight: 1.4,
+            }}>
+            Xush kelibsiz, <b style={{ color: '#1E2038' }}>{user.name}</b>
+          </p>
+        </div>
+
+        {/* Progress */}
+        <div
+          style={{
+            width: '100%',
+            height: 4,
+            borderRadius: 4,
+            backgroundColor: '#F1F5F9',
+            overflow: 'hidden',
+          }}>
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(90deg, #10AC84, #6C5CE7)',
+              animation: 'topProgressSlide 0.75s ease-in-out infinite',
+              backgroundSize: '200% 100%',
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            fontSize: 11.5,
+            color: '#8A90A2',
+            fontWeight: 500,
+          }}>
+          Maktab boshqaruv paneli yuklanmoqda...
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [appInitializing, setAppInitializing] = useState(true);
+  const [authTransitionUser, setAuthTransitionUser] = useState(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setAppInitializing(false);
+    }, 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleTriggerLogin = (user) => {
+    setAuthTransitionUser(user);
+    setTimeout(() => {
+      saveSession(user);
+      setAuthTransitionUser(null);
+    }, 750);
+  };
+
   const [schoolsList, setSchoolsList] = useState(() => {
     try {
       const saved = localStorage.getItem('smart_school_institutions');
@@ -469,10 +712,18 @@ export default function App() {
     );
   }
 
+  if (appInitializing) {
+    return <AppInitialLoader />;
+  }
+
+  if (authTransitionUser) {
+    return <AuthTransitionScreen user={authTransitionUser} />;
+  }
+
   if (!currentUser) {
     return (
       <LoginPage 
-        onLoginSuccess={saveSession} 
+        onLoginSuccess={handleTriggerLogin} 
         schoolsList={schoolsList} 
         systemMaintenance={systemMaintenance}
       />
@@ -875,13 +1126,19 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
     `${schoolConfig?.director_name || currentUser?.name || 'Maktab Direktori'} (${currentUser?.username || 'maktab1'})`;
   const actorRole = currentUser?.actorRole || (currentUser?.isSuperAdminImpersonating ? 'SUPER_ADMIN' : 'SCHOOL_ADMIN');
 
+  const [isTabLoading, setIsTabLoading] = useState(false);
   const [activeTab, setActiveTabState] = useState(() => {
     return sessionStorage.getItem(`school_active_tab_${schoolId}`) || 'matrix';
   });
 
   const setActiveTab = (tab) => {
+    if (tab === activeTab) return;
+    setIsTabLoading(true);
     sessionStorage.setItem(`school_active_tab_${schoolId}`, tab);
     setActiveTabState(tab);
+    setTimeout(() => {
+      setIsTabLoading(false);
+    }, 220);
   };
 
   const [realStudents, setRealStudents] = useState([]);
@@ -1957,6 +2214,22 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
 
       {/* MAIN CONTENT AREA */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+        {/* Top Edge Loading Bar for Tab Navigation */}
+        {isTabLoading && (
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 3,
+              zIndex: 60,
+              background: 'linear-gradient(90deg, #6C5CE7 0%, #48DBFB 50%, #10AC84 100%)',
+              backgroundSize: '200% 100%',
+              animation: 'topProgressSlide 0.25s linear infinite',
+            }}
+          />
+        )}
         
         {/* Top Bar (BENTO COMMAND HEADER) */}
         <header style={{
@@ -2178,6 +2451,33 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
 
         {/* Tab Contents */}
         <div style={{ padding: 32, flex: 1 }}>
+          {isTabLoading ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 380,
+                gap: 12,
+                animation: 'fadeIn 0.15s ease-out',
+              }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  border: '3px solid #F1F0FF',
+                  borderTopColor: '#6C5CE7',
+                  animation: 'spin 0.6s linear infinite',
+                }}
+              />
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8A90A2' }}>
+                Sahifa yuklanmoqda...
+              </span>
+            </div>
+          ) : (
+            <div className="animate-fade-in">
           
           {/* TAB 1: BOSH SAHIFA (DAVOMAT & ANALITIKA MARKAZI) */}
           {activeTab === 'matrix' && (
@@ -2302,6 +2602,8 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               actorLabel={actorLabel}
               onSaveConfig={handleSaveSchoolConfig}
             />
+          )}
+            </div>
           )}
 
         </div>
@@ -8990,7 +9292,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
           </div>
         </div>
 
-        {/* RIGHT COLUMN: 4) Tizim Atamalari (Sinf vs Guruh, Dars vs Para, O'quvchi vs Talaba) + Live Preview */}
+        {/* RIGHT COLUMN: 4) Tizim Atamalari (Sinf vs Guruh, Dars vs Para, O'quvchi vs Talaba) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 28, border: `1px solid ${THEME.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
