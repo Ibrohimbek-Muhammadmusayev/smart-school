@@ -154,7 +154,15 @@ def query_gemini_ai(user_question, context_data=None):
         "5. Agar savol maktablar yoki davomat haqida bo'lsa, maktab nomlari, direktorlari, telefonlari va davomat foizlarini keltiring."
     )
 
-    models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+    # 2026-yilgi rasmiy Google Gemini API modellari:
+    # Yangi API kalitlar uchun gemini-3.5-flash va gemini-3.5-flash-lite eng tezkor va barqaror
+    models_to_try = [
+        'gemini-3.5-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.6-flash',
+        'gemini-flash-latest',
+        'gemini-3.8-flash',
+    ]
     last_err = None
 
     for model_name in models_to_try:
