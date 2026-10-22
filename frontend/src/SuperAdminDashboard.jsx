@@ -9,7 +9,7 @@ import {
   Calendar, CheckCircle, QrCode, GraduationCap, Clock,
   FolderOpen, Sparkles, Smartphone, Check, Edit, Trash2,
   FileSpreadsheet, FileText, FileCode, Monitor, Cpu, ScanFace,
-  Bot, Zap, CreditCard, Wrench, Star, Pause, Archive,
+  Bot, Zap, CreditCard, Wrench, Star, Pause, Archive, Settings,
   HelpCircle, MessageSquare, ShieldCheck, AlertCircle, CheckSquare, Square, DoorOpen
 } from 'lucide-react';
 
