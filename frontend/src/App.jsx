@@ -3401,6 +3401,7 @@ function GroupsManagementSection({
   onPreviewImage,
 }) {
   const [groupSearch, setGroupSearch] = useState('');
+  const [classSearch, setClassSearch] = useState('');
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
 
   const currentClassObj =
@@ -3408,7 +3409,9 @@ function GroupsManagementSection({
       ? null
       : classesList.find(c => c.name === selectedFilter) || { name: selectedFilter, academic_year: '2026-2027' };
 
-  const unassignedCount = realStudents.filter(st => !st.class_name || st.class_name === 'Guruhsiz' || st.class_name === 'Sinfsiz').length;
+  const unassignedCount = realStudents.filter(
+    st => !st.class_name || st.class_name === 'Guruhsiz' || st.class_name === 'Sinfsiz'
+  ).length;
 
   const filteredStudents = realStudents
     .filter(st => {
@@ -3419,370 +3422,479 @@ function GroupsManagementSection({
     .filter(st => {
       if (!groupSearch.trim()) return true;
       const q = groupSearch.toLowerCase();
-      return `${st.last_name} ${st.first_name} ${st.student_id} ${st.class_name || ''} ${st.created_by || ''}`.toLowerCase().includes(q);
+      return `${st.last_name || ''} ${st.first_name || ''} ${st.student_id || ''} ${st.class_name || ''} ${st.created_by || ''}`
+        .toLowerCase()
+        .includes(q);
     });
 
   const activeAdvisor = {
-    teacher: currentClassObj?.advisor_teacher || `Maktab ${terms.advisorLabel}`,
+    teacher: currentClassObj?.advisor_teacher || "",
     room: currentClassObj?.room_number || "",
     createdBy: currentClassObj?.created_by || "Maktab Ma'muriyati",
     createdAt: currentClassObj?.created_at || "",
   };
 
-  const matchedAdvisorTeacher = (teachersList || []).find(t => 
-    t.name && (t.name.toLowerCase() === (activeAdvisor.teacher || '').toLowerCase() || 
-    (activeAdvisor.teacher || '').toLowerCase().includes(t.name.toLowerCase()))
+  const matchedAdvisorTeacher = (teachersList || []).find(
+    t =>
+      t.name &&
+      (t.name.toLowerCase() === (activeAdvisor.teacher || '').toLowerCase() ||
+        (activeAdvisor.teacher || '').toLowerCase().includes(t.name.toLowerCase()))
   );
 
+  const filteredClassesList = classesList.filter(c => {
+    if (!classSearch.trim()) return true;
+    const q = classSearch.toLowerCase();
+    return (
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.advisor_teacher || '').toLowerCase().includes(q) ||
+      (c.room_number || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
-    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', minHeight: 'calc(100vh - 175px)' }}>
-      
+    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', minHeight: 'calc(100vh - 175px)' }}>
       {/* ================================================================= */}
-      {/* CHAP TOMON: SINFLAR / GURUHLAR RO'YXATI (SIDEBAR PANEL)            */}
+      {/* CHAP TOMON: SINFLAR / GURUHLAR RO'YXATI (MASTER SIDEBAR)          */}
       {/* ================================================================= */}
       <aside
         style={{
-          width: 320,
+          width: 300,
           flexShrink: 0,
           backgroundColor: '#FFFFFF',
           borderRadius: 10,
           border: '1px solid #E2E8F0',
-          padding: 20,
+          padding: 16,
           display: 'flex',
           flexDirection: 'column',
-          gap: 14,
+          gap: 12,
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           position: 'sticky',
           top: 20,
         }}>
-        {/* Chap panel sarlavhasi */}
-        <div style={{ paddingBottom: 12, borderBottom: `1px solid ${THEME.border}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 6,
-                  background: THEME.primaryLight,
-                  color: THEME.primary,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                <FolderOpen size={18} />
-              </div>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 15, color: THEME.textDark }}>Maktab {terms.groupPlural}i</div>
-                <div style={{ fontSize: 11, color: THEME.textMuted }}>Faqat shu maktab {terms.groupPlural.toLowerCase()}i</div>
-              </div>
-            </div>
-            <span
+        {/* Sidebar Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, borderBottom: '1px solid #E2E8F0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div
               style={{
-                padding: '4px 10px',
-                borderRadius: 10,
+                width: 32,
+                height: 32,
+                borderRadius: 6,
                 backgroundColor: THEME.primaryLight,
                 color: THEME.primary,
-                fontWeight: 600,
-                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}>
-              {classesList.length} ta {terms.groupSingularLower}
-            </span>
+              <FolderOpen size={16} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: THEME.textDark }}>
+                Maktab {terms.groupPlural}i
+              </div>
+              <div style={{ fontSize: 11, color: THEME.textMuted }}>
+                Jami {classesList.length} ta {terms.groupSingularLower}
+              </div>
+            </div>
           </div>
+
+          {onOpenCreateGroup && (
+            <button
+              onClick={onOpenCreateGroup}
+              title={`Yangi ${terms.groupSingular} yaratish`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '6px 10px',
+                borderRadius: 6,
+                background: THEME.gradient,
+                color: '#FFFFFF',
+                border: 'none',
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'opacity 0.15s ease',
+              }}>
+              <Plus size={13} /> Yangi
+            </button>
+          )}
         </div>
 
-        {/* Sinflar / Guruhlar vertikal ro'yxati */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {classesList.length === 0 ? (
-            <div style={{ padding: '20px 14px', borderRadius: 6, backgroundColor: '#F8FAFC', border: `1px dashed ${THEME.border}`, textAlign: 'center', fontSize: 12, color: THEME.textMuted }}>
-              Bu maktabda hali {terms.groupSingularLower} yaratilmagan. Quyidagi tugma orqali yangi {terms.groupSingularLower} yarating.
-            </div>
-          ) : (
-            classesList.map(c => {
-              const isSel = selectedFilter === c.name;
-              const count = realStudents.filter(s => s.class_name === c.name).length;
-
-              return (
-                <div
-                  key={c.id}
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    borderRadius: 6,
-                    border: `1px solid ${isSel ? THEME.primary : THEME.border}`,
-                    background: isSel ? THEME.gradient : '#F8F9FE',
-                    color: isSel ? '#FFFFFF' : THEME.textDark,
-                    boxShadow: isSel ? '0 10px 22px rgba(108, 92, 231, 0.28)' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                    transition: 'all 0.2s ease',
-                    boxSizing: 'border-box',
-                  }}>
-                  <div
-                    onClick={() => onFilterChange(c.name)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1, cursor: 'pointer' }}>
-                    <div
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 6,
-                        backgroundColor: isSel ? 'rgba(255,255,255,0.22)' : '#FFFFFF',
-                        color: isSel ? '#FFFFFF' : THEME.primary,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 600,
-                        fontSize: 13,
-                        flexShrink: 0,
-                        border: isSel ? 'none' : `1px solid ${THEME.border}`,
-                      }}>
-                      {c.name}
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div
-                        style={{
-                          fontWeight: 600,
-                          fontSize: 14,
-                          color: isSel ? '#FFFFFF' : THEME.textDark,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}>
-                        {c.name} {terms.groupGenitiveLower}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: isSel ? 'rgba(255,255,255,0.85)' : THEME.textMuted,
-                          marginTop: 2,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}>
-                        {c.advisor_teacher || `O'quv yili: ${c.academic_year || '2026-2027'}`}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                        <span style={{
-                          padding: '1.5px 6px',
-                          borderRadius: 6,
-                          fontSize: 9.5,
-                          fontWeight: 600,
-                          backgroundColor: isSel ? 'rgba(255,255,255,0.25)' : (c.shift === 2 ? '#FEF3C7' : '#EFF6FF'),
-                          color: isSel ? '#FFFFFF' : (c.shift === 2 ? '#B45309' : '#1D4ED8'),
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 3
-                        }}>
-                          {c.shift === 2 ? (
-                            <><Sunset size={10} /> 2-smena (Abeddan keyin)</>
-                          ) : (
-                            <><Sun size={10} /> 1-smena (Ertalabki)</>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    <span
-                      onClick={() => onFilterChange(c.name)}
-                      style={{
-                        padding: '4px 9px',
-                        borderRadius: 10,
-                        backgroundColor: isSel ? 'rgba(255,255,255,0.25)' : THEME.primaryLight,
-                        color: isSel ? '#FFFFFF' : THEME.primary,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}>
-                      {count} nafar
-                    </span>
-                    {onEditGroup && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditGroup(c);
-                        }}
-                        title={`${terms.groupSingular}ni tahrirlash / o'zgartirish`}
-                        style={{
-                          padding: 5,
-                          borderRadius: 8,
-                          border: 'none',
-                          backgroundColor: isSel ? 'rgba(255,255,255,0.2)' : '#EEF2FF',
-                          color: isSel ? '#FFFFFF' : THEME.primary,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                        }}>
-                        <Edit size={13} />
-                      </button>
-                    )}
-                    {onDeleteGroup && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteGroup(c.id, c.name);
-                        }}
-                        title={`${terms.groupSingular}ni o'chirish`}
-                        style={{
-                          padding: 5,
-                          borderRadius: 8,
-                          border: 'none',
-                          backgroundColor: isSel ? 'rgba(255,255,255,0.2)' : '#FEE2E2',
-                          color: isSel ? '#FFFFFF' : '#EF4444',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                        }}>
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
+        {/* Global Quick Filters: Barcha Sinflar & Guruhsiz */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button
+            onClick={() => onFilterChange('ALL')}
+            style={{
+              width: '100%',
+              padding: '9px 12px',
+              borderRadius: 6,
+              border: `1px solid ${selectedFilter === 'ALL' ? THEME.primary : '#E2E8F0'}`,
+              background: selectedFilter === 'ALL' ? '#F4F3FF' : '#FFFFFF',
+              color: selectedFilter === 'ALL' ? THEME.primary : THEME.textDark,
+              fontWeight: selectedFilter === 'ALL' ? 600 : 500,
+              fontSize: 12.5,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              transition: 'all 0.15s ease',
+            }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Users size={15} color={selectedFilter === 'ALL' ? THEME.primary : '#64748B'} />
+              Barcha {terms.groupPlural}
+            </span>
+            <span
+              style={{
+                padding: '2px 8px',
+                borderRadius: 6,
+                backgroundColor: selectedFilter === 'ALL' ? THEME.primary : '#F1F5F9',
+                color: selectedFilter === 'ALL' ? '#FFFFFF' : '#475569',
+                fontSize: 11,
+                fontWeight: 600,
+              }}>
+              {realStudents.length}
+            </span>
+          </button>
 
           {unassignedCount > 0 && (
             <button
               onClick={() => onFilterChange('Guruhsiz')}
               style={{
                 width: '100%',
-                padding: '12px 16px',
+                padding: '9px 12px',
                 borderRadius: 6,
-                border: `1px solid ${selectedFilter === 'Guruhsiz' ? THEME.orange : THEME.border}`,
-                background: selectedFilter === 'Guruhsiz' ? THEME.warmGradient : '#FFF9F2',
-                color: selectedFilter === 'Guruhsiz' ? '#FFFFFF' : THEME.textDark,
+                border: `1px solid ${selectedFilter === 'Guruhsiz' ? '#F97316' : '#FED7AA'}`,
+                background: selectedFilter === 'Guruhsiz' ? '#FFF7ED' : '#FFFAF0',
+                color: '#C2410C',
+                fontWeight: selectedFilter === 'Guruhsiz' ? 600 : 500,
+                fontSize: 12.5,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                textAlign: 'left',
+                transition: 'all 0.15s ease',
               }}>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{terms.noGroupLabel} {terms.studentPluralLower}</div>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <UserX size={15} color="#EA580C" />
+                {terms.noGroupLabel} {terms.studentPluralLower}
+              </span>
               <span
                 style={{
-                  padding: '3px 8px',
-                  borderRadius: 8,
-                  backgroundColor: selectedFilter === 'Guruhsiz' ? 'rgba(255,255,255,0.25)' : '#FFE8CC',
-                  color: selectedFilter === 'Guruhsiz' ? '#FFF' : THEME.orange,
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  backgroundColor: '#FFEDD5',
+                  color: '#C2410C',
                   fontSize: 11,
                   fontWeight: 600,
                 }}>
-                {unassignedCount} nafar
+                {unassignedCount}
               </span>
             </button>
           )}
         </div>
 
-        {/* Umumiy Barcha Guruhlar va Yangi Guruh yaratish tugmasi */}
-        <div style={{ paddingTop: 10, borderTop: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button
-            onClick={() => onFilterChange('ALL')}
+        {/* Sinflar bo'yicha qidiruv */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '7px 10px',
+            borderRadius: 6,
+            border: '1px solid #E2E8F0',
+            backgroundColor: '#F8F9FE',
+          }}>
+          <Search size={14} color="#94A3B8" />
+          <input
+            placeholder={`${terms.groupSingular} qidirish...`}
+            value={classSearch}
+            onChange={e => setClassSearch(e.target.value)}
             style={{
+              border: 'none',
+              background: 'transparent',
+              outline: 'none',
               width: '100%',
-              padding: '12px 16px',
-              borderRadius: 6,
-              border: `1px solid ${selectedFilter === 'ALL' ? THEME.primary : THEME.border}`,
-              background: selectedFilter === 'ALL' ? THEME.primaryLight : '#FFFFFF',
-              color: selectedFilter === 'ALL' ? THEME.primary : THEME.textMuted,
-              fontWeight: 600,
-              fontSize: 12.5,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Users size={15} /> Barcha {terms.groupPlural} (Shu Maktab)
-            </span>
-            <span
-              style={{
-                padding: '2px 8px',
-                borderRadius: 8,
-                backgroundColor: selectedFilter === 'ALL' ? THEME.primary : '#F1F5F9',
-                color: selectedFilter === 'ALL' ? '#FFFFFF' : THEME.textDark,
-                fontSize: 11,
-                fontWeight: 600,
-              }}>
-              {realStudents.length} ta
-            </span>
-          </button>
-
-          {onOpenCreateGroup && (
+              fontSize: 12,
+              color: THEME.textDark,
+            }}
+          />
+          {classSearch && (
             <button
-              onClick={onOpenCreateGroup}
+              onClick={() => setClassSearch('')}
               style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: 6,
-                border: `1px dashed ${THEME.primary}`,
-                background: '#F8F9FE',
-                color: THEME.primary,
-                fontWeight: 600,
-                fontSize: 12.5,
+                border: 'none',
+                background: 'transparent',
                 cursor: 'pointer',
+                padding: 0,
+                color: '#94A3B8',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
               }}>
-              <Plus size={15} /> Yangi {terms.groupSingular} Yaratish
+              <X size={12} />
             </button>
+          )}
+        </div>
+
+        {/* Sinflar ro'yxati (Scrollable) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            maxHeight: 'calc(100vh - 360px)',
+            overflowY: 'auto',
+            paddingRight: 2,
+          }}>
+          {filteredClassesList.length === 0 ? (
+            <div
+              style={{
+                padding: '24px 12px',
+                borderRadius: 6,
+                backgroundColor: '#F8FAFC',
+                border: '1px dashed #E2E8F0',
+                textAlign: 'center',
+                fontSize: 12,
+                color: THEME.textMuted,
+              }}>
+              {classSearch
+                ? `"${classSearch}" bo'yicha ${terms.groupSingularLower} topilmadi.`
+                : `Hali ${terms.groupSingularLower} yaratilmagan.`}
+            </div>
+          ) : (
+            filteredClassesList.map(c => {
+              const isSel = selectedFilter === c.name;
+              const count = realStudents.filter(s => s.class_name === c.name).length;
+
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => onFilterChange(c.name)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: `1px solid ${isSel ? '#C7D2FE' : '#E2E8F0'}`,
+                    borderLeft: isSel ? `4px solid ${THEME.primary}` : '1px solid #E2E8F0',
+                    background: isSel ? '#F8F9FE' : '#FFFFFF',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                    transition: 'all 0.15s ease',
+                    boxSizing: 'border-box',
+                  }}>
+                  {/* Qator 1: Sinf nomi va soni */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 13.5,
+                          color: isSel ? THEME.primary : THEME.textDark,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}>
+                        {c.name} {terms.groupGenitiveLower}
+                      </span>
+                    </div>
+
+                    <span
+                      style={{
+                        padding: '2px 7px',
+                        borderRadius: 6,
+                        backgroundColor: isSel ? THEME.primaryLight : '#F1F5F9',
+                        color: isSel ? THEME.primary : '#475569',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}>
+                      {count} nafar
+                    </span>
+                  </div>
+
+                  {/* Qator 2: Sinf rahbari */}
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: isSel ? '#4B5563' : THEME.textMuted,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
+                    {c.advisor_teacher ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <GraduationCap size={12} color="#64748B" />
+                        {c.advisor_teacher}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>
+                        {terms.advisorLabel} biriktirilmagan
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Qator 3: Smena va Amallar */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 2 }}>
+                    <span
+                      style={{
+                        padding: '1.5px 6px',
+                        borderRadius: 4,
+                        fontSize: 9.5,
+                        fontWeight: 600,
+                        backgroundColor: c.shift === 2 ? '#FEF3C7' : '#EFF6FF',
+                        color: c.shift === 2 ? '#B45309' : '#1D4ED8',
+                        border: c.shift === 2 ? '1px solid #FDE68A' : '1px solid #BFDBFE',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}>
+                      {c.shift === 2 ? (
+                        <>
+                          <Sunset size={10} /> 2-smena
+                        </>
+                      ) : (
+                        <>
+                          <Sun size={10} /> 1-smena
+                        </>
+                      )}
+                      {c.room_number ? ` • Xona: ${c.room_number}` : ''}
+                    </span>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {onEditGroup && (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            onEditGroup(c);
+                          }}
+                          title={`${terms.groupSingular}ni tahrirlash`}
+                          style={{
+                            padding: '3px 6px',
+                            borderRadius: 4,
+                            border: '1px solid #E2E8F0',
+                            backgroundColor: '#FFFFFF',
+                            color: '#475569',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}>
+                          <Edit size={11} />
+                        </button>
+                      )}
+                      {onDeleteGroup && (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            onDeleteGroup(c.id, c.name);
+                          }}
+                          title={`${terms.groupSingular}ni o'chirish`}
+                          style={{
+                            padding: '3px 6px',
+                            borderRadius: 4,
+                            border: '1px solid #FECACA',
+                            backgroundColor: '#FEF2F2',
+                            color: '#EF4444',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}>
+                          <Trash2 size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </aside>
 
       {/* ================================================================= */}
-      {/* O'NG TOMON: TANLANGAN SINF / GURUH O'QUVCHILARI VA BOSHQARUVI      */}
+      {/* O'NG TOMON: TANLANGAN SINF TARKIBI VA BOSHQARUV PANELI              */}
       {/* ================================================================= */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        
-        {/* Tanlangan Sinf / Guruh Yuqori Boshqaruv Kartasi (BENTO CARD) */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Tier 1: Asosiy Header va Action Bar */}
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            padding: '22px 26px',
+            padding: '18px 22px',
             borderRadius: 10,
             border: '1px solid #E2E8F0',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 16,
             boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
           }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
-            <div
-              style={{
-                width: 54,
-                height: 54,
-                borderRadius: 6,
-                background: THEME.gradient,
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 600,
-                fontSize: 17,
-                boxShadow: 'none',
-                flexShrink: 0,
-              }}>
-              {selectedFilter === 'ALL' ? 'ALL' : selectedFilter}
+          {/* Breadcrumb & Holat */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: THEME.textMuted }}>
+              <span>Dashboard</span>
+              <ChevronRight size={12} />
+              <span>{terms.groupPlural} Boshqaruvi</span>
+              <ChevronRight size={12} />
+              <span style={{ color: THEME.primary, fontWeight: 600 }}>
+                {selectedFilter === 'ALL'
+                  ? `Barcha ${terms.groupPlural}`
+                  : selectedFilter === 'Guruhsiz'
+                  ? `${terms.noGroupLabel} ${terms.studentPlural}`
+                  : `${selectedFilter} ${terms.groupGenitiveLower}`}
+              </span>
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: 20, fontWeight: 600, color: THEME.textDark, margin: 0 }}>
-                  {selectedFilter === 'ALL'
-                    ? `${schoolName} — Barcha ${terms.groupPlural} ${terms.studentPlural}i`
-                    : `${selectedFilter} ${terms.groupGenitive} ${terms.studentPlural}i Tarkibi`}
-                </h2>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '3px 9px',
+                  borderRadius: 6,
+                  backgroundColor: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  fontSize: 11,
+                  color: '#475569',
+                  fontWeight: 500,
+                }}>
                 <span
                   style={{
-                    padding: '4px 12px',
-                    borderRadius: 10,
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    backgroundColor: '#10AC84',
+                    display: 'inline-block',
+                  }}
+                />
+                Jonli Rejim
+              </span>
+            </div>
+          </div>
+
+          {/* Sarlavha, Badjlar va Harakatlar (Action Bar) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 14,
+              paddingTop: 4,
+            }}>
+            {/* Chap tomondagi sarlavha va statuslar */}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: 20, fontWeight: 600, color: THEME.textDark, margin: 0 }}>
+                  {selectedFilter === 'ALL'
+                    ? `${schoolName} — Barcha O'quvchilar Tarkibi`
+                    : selectedFilter === 'Guruhsiz'
+                    ? `${terms.noGroupLabel} O'quvchilar Ro'yxati`
+                    : `${selectedFilter} ${terms.groupGenitive} O'quvchilari Tarkibi`}
+                </h1>
+
+                <span
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: 6,
                     backgroundColor: THEME.primaryLight,
                     color: THEME.primary,
                     fontWeight: 600,
@@ -3790,258 +3902,413 @@ function GroupsManagementSection({
                   }}>
                   {filteredStudents.length} nafar {terms.studentSingularLower}
                 </span>
+
                 {currentClassObj && (
                   <span
                     style={{
-                      padding: '4px 12px',
-                      borderRadius: 10,
+                      padding: '3px 10px',
+                      borderRadius: 6,
                       backgroundColor: currentClassObj.shift === 2 ? '#FEF3C7' : '#EFF6FF',
                       color: currentClassObj.shift === 2 ? '#B45309' : '#1D4ED8',
                       border: currentClassObj.shift === 2 ? '1px solid #FDE68A' : '1px solid #BFDBFE',
                       fontWeight: 600,
-                      fontSize: 12,
+                      fontSize: 11.5,
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 4
+                      gap: 4,
                     }}>
                     {currentClassObj.shift === 2 ? (
-                      <><Sunset size={12} /> 2-smena (Abeddan keyingi)</>
+                      <>
+                        <Sunset size={12} /> 2-smena (Abeddan keyin)
+                      </>
                     ) : (
-                      <><Sun size={12} /> 1-smena (Ertalabki)</>
+                      <>
+                        <Sun size={12} /> 1-smena (Ertalabki)
+                      </>
                     )}
                   </span>
                 )}
-              </div>
-              <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 5, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <GraduationCap size={13} /> {terms.advisorLabel}: <b style={{ color: THEME.textDark }}>{activeAdvisor.teacher}</b>
+
+                {currentClassObj?.room_number && (
+                  <span
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: 6,
+                      backgroundColor: '#F1F5F9',
+                      color: '#475569',
+                      border: '1px solid #E2E8F0',
+                      fontWeight: 600,
+                      fontSize: 11.5,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}>
+                    <DoorOpen size={12} /> Xona: {currentClassObj.room_number}
                   </span>
-                  {matchedAdvisorTeacher && (
-                    <span style={{ padding: '2px 8px', borderRadius: 8, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 700, fontSize: 11 }}>
-                      {matchedAdvisorTeacher.subject}
-                    </span>
-                  )}
-                  {currentClassObj && currentClassObj.id && onEditGroup && (
-                    <button
-                      onClick={() => onEditGroup(currentClassObj)}
-                      style={{
-                        padding: '2px 8px',
-                        borderRadius: 8,
-                        border: '1px solid #CBD5E1',
-                        backgroundColor: '#FFFFFF',
-                        color: THEME.primary,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 3,
-                      }}
-                      title={`${terms.groupLeader}ni o'zgartirish yoki biriktirish`}>
-                      <Edit size={11} /> O'zgartirish
-                    </button>
-                  )}
-                  {currentClassObj && currentClassObj.id && onOpenScheduleForGroup && (
-                    <button
-                      onClick={() => onOpenScheduleForGroup(currentClassObj.id)}
-                      style={{
-                        padding: '2px 8px',
-                        borderRadius: 8,
-                        border: `1px solid ${THEME.primary}`,
-                        backgroundColor: THEME.primaryLight,
-                        color: THEME.primary,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 3,
-                      }}
-                      title={`${currentClassObj.name} dars jadvalini ko'rish va kiritish`}>
-                      <Calendar size={11} /> {terms.lessonSingular} Jadvali
-                    </button>
-                  )}
-                </span>
-                {activeAdvisor.room && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><DoorOpen size={12} /> Xona: <b style={{ color: THEME.textDark }}>{activeAdvisor.room}</b></span>}
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Calendar size={12} /> O'quv yili: <b style={{ color: THEME.textDark }}>{currentClassObj?.academic_year || '2026-2027'}</b></span>
-                {currentClassObj?.created_by && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ShieldCheck size={12} /> {terms.groupSingular} yaratuvchisi: <b style={{ color: THEME.primary }}>{currentClassObj.created_by}</b></span>
                 )}
               </div>
             </div>
+
+            {/* O'ng tomondagi tugmalar guruhi */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {currentClassObj && currentClassObj.id && onOpenScheduleForGroup && (
+                <button
+                  onClick={() => onOpenScheduleForGroup(currentClassObj.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 13px',
+                    borderRadius: 6,
+                    border: '1px solid #CBD5E1',
+                    backgroundColor: '#FFFFFF',
+                    color: '#334155',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}>
+                  <Calendar size={13} color={THEME.primary} />
+                  {terms.lessonSingular} Jadvali
+                </button>
+              )}
+
+              {currentClassObj && currentClassObj.id && onEditGroup && (
+                <button
+                  onClick={() => onEditGroup(currentClassObj)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    border: '1px solid #CBD5E1',
+                    backgroundColor: '#FFFFFF',
+                    color: '#334155',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}>
+                  <Edit size={13} />
+                  Sinfni Tahrirlash
+                </button>
+              )}
+
+              {currentClassObj && currentClassObj.id && onDeleteGroup && (
+                <button
+                  onClick={() => onDeleteGroup(currentClassObj.id, currentClassObj.name)}
+                  title={`${terms.groupSingular}ni o'chirish`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '8px 11px',
+                    borderRadius: 6,
+                    border: '1px solid #FECACA',
+                    backgroundColor: '#FEF2F2',
+                    color: '#EF4444',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}>
+                  <Trash2 size={13} />
+                  O'chirish
+                </button>
+              )}
+
+              {onAddStudentToClass && (
+                <button
+                  onClick={() => onAddStudentToClass(currentClassObj)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 15px',
+                    borderRadius: 6,
+                    background: THEME.gradient,
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 3px rgba(108, 92, 231, 0.25)',
+                    transition: 'opacity 0.15s ease',
+                  }}>
+                  <UserPlus size={14} />
+                  {selectedFilter === 'ALL'
+                    ? `${terms.studentSingular} Qo'shish`
+                    : `${selectedFilter} ga Qo'shish`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Tier 2: Mas'ul Xodim (Sinf Rahbari) ma'lumoti + Qidiruv va Ko'rinish */}
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            padding: '12px 18px',
+            borderRadius: 10,
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}>
+          {/* Chap: Sinf Rahbari Info */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            {selectedFilter === 'ALL' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: THEME.textMuted }}>
+                <FolderOpen size={15} color={THEME.primary} />
+                <span>
+                  Maktab bo'yicha jami: <b style={{ color: THEME.textDark }}>{classesList.length} ta {terms.groupSingularLower}</b>,{' '}
+                  <b style={{ color: THEME.textDark }}>{realStudents.length} nafar {terms.studentSingularLower}</b>
+                </span>
+              </div>
+            ) : selectedFilter === 'Guruhsiz' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#C2410C' }}>
+                <AlertTriangle size={15} color="#EA580C" />
+                <span>
+                  Ushbu o'quvchilar hali birorta {terms.groupSingularLower}ga biriktirilmagan. Ularni tahrirlab tegishli {terms.groupSingularLower}ga qo'shing.
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 6,
+                    backgroundColor: '#F1F5F9',
+                    color: '#475569',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <GraduationCap size={16} />
+                </div>
+                <div style={{ fontSize: 12 }}>
+                  <div style={{ color: THEME.textMuted, fontSize: 11 }}>{terms.advisorLabel}:</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
+                    <b style={{ color: THEME.textDark, fontSize: 13 }}>
+                      {activeAdvisor.teacher || `${terms.advisorLabel} biriktirilmagan`}
+                    </b>
+                    {matchedAdvisorTeacher?.subject && (
+                      <span
+                        style={{
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          backgroundColor: THEME.primaryLight,
+                          color: THEME.primary,
+                          fontWeight: 600,
+                          fontSize: 10.5,
+                        }}>
+                        {matchedAdvisorTeacher.subject}
+                      </span>
+                    )}
+                    {currentClassObj && currentClassObj.id && onEditGroup && (
+                      <button
+                        onClick={() => onEditGroup(currentClassObj)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          color: THEME.primary,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: '0 4px',
+                          textDecoration: 'underline',
+                        }}>
+                        {activeAdvisor.teacher ? "O'zgartirish" : 'Biriktirish'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Qidiruv + Ko'rinish + Shu sinfga/guruhga o'quvchi qo'shish */}
+          {/* O'ng: Qidiruv va Ko'rinish Switcher */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                padding: '9px 14px',
+                padding: '7px 12px',
                 borderRadius: 6,
-                border: `1px solid ${THEME.border}`,
-                backgroundColor: THEME.bgSoft,
-                width: 230,
+                border: '1px solid #E2E8F0',
+                backgroundColor: '#F8F9FE',
+                width: 240,
               }}>
-              <Search size={15} color={THEME.textMuted} />
+              <Search size={14} color="#94A3B8" />
               <input
-                placeholder={`${terms.groupSingular} ichidan qidirish...`}
+                placeholder="Ism yoki ID bo'yicha..."
                 value={groupSearch}
                 onChange={e => setGroupSearch(e.target.value)}
-                style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: 12.5 }}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  width: '100%',
+                  fontSize: 12,
+                  color: THEME.textDark,
+                }}
               />
+              {groupSearch && (
+                <button
+                  onClick={() => setGroupSearch('')}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    padding: 0,
+                    color: '#94A3B8',
+                    display: 'flex',
+                  }}>
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
-            <div style={{ display: 'flex', backgroundColor: THEME.bgSoft, padding: 4, borderRadius: 6, border: `1px solid ${THEME.border}` }}>
+            <div
+              style={{
+                display: 'flex',
+                backgroundColor: '#F1F5F9',
+                padding: 3,
+                borderRadius: 6,
+                border: '1px solid #E2E8F0',
+              }}>
               <button
                 onClick={() => setViewMode('cards')}
                 style={{
-                  padding: '6px 12px',
-                  borderRadius: 9,
+                  padding: '5px 11px',
+                  borderRadius: 4,
                   border: 'none',
                   backgroundColor: viewMode === 'cards' ? '#FFFFFF' : 'transparent',
-                  color: viewMode === 'cards' ? THEME.primary : THEME.textMuted,
+                  color: viewMode === 'cards' ? THEME.primary : '#64748B',
                   fontWeight: 600,
-                  fontSize: 12,
+                  fontSize: 11.5,
                   cursor: 'pointer',
-                  boxShadow: viewMode === 'cards' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
+                  boxShadow: viewMode === 'cards' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  transition: 'all 0.15s ease',
                 }}>
                 Kartalar
               </button>
               <button
                 onClick={() => setViewMode('table')}
                 style={{
-                  padding: '6px 12px',
-                  borderRadius: 9,
+                  padding: '5px 11px',
+                  borderRadius: 4,
                   border: 'none',
                   backgroundColor: viewMode === 'table' ? '#FFFFFF' : 'transparent',
-                  color: viewMode === 'table' ? THEME.primary : THEME.textMuted,
+                  color: viewMode === 'table' ? THEME.primary : '#64748B',
                   fontWeight: 600,
-                  fontSize: 12,
+                  fontSize: 11.5,
                   cursor: 'pointer',
-                  boxShadow: viewMode === 'table' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
+                  boxShadow: viewMode === 'table' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  transition: 'all 0.15s ease',
                 }}>
                 Jadval
               </button>
             </div>
-
-            {currentClassObj && currentClassObj.id && onEditGroup && (
-              <button
-                onClick={() => onEditGroup(currentClassObj)}
-                title={`${terms.groupSingular} parametrlarini o'zgartirish`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '10px 15px',
-                  backgroundColor: '#EEF2FF',
-                  color: THEME.primary,
-                  borderRadius: 6,
-                  border: '1px solid #C7D2FE',
-                  fontWeight: 600,
-                  fontSize: 12.5,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}>
-                <Edit size={14} />
-                {terms.groupSingular}ni Tahrirlash
-              </button>
-            )}
-
-            {currentClassObj && currentClassObj.id && onDeleteGroup && (
-              <button
-                onClick={() => onDeleteGroup(currentClassObj.id, currentClassObj.name)}
-                title={`${terms.groupSingular}ni o'chirish`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '10px 14px',
-                  backgroundColor: '#FEF2F2',
-                  color: '#EF4444',
-                  borderRadius: 6,
-                  border: '1px solid #FECACA',
-                  fontWeight: 600,
-                  fontSize: 12.5,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}>
-                <Trash2 size={14} />
-                O'chirish
-              </button>
-            )}
-
-            {onAddStudentToClass && (
-              <button
-                onClick={() => onAddStudentToClass(currentClassObj)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '10px 16px',
-                  background: THEME.gradient,
-                  color: '#FFFFFF',
-                  borderRadius: 6,
-                  border: 'none',
-                  fontWeight: 600,
-                  fontSize: 12.5,
-                  cursor: 'pointer',
-                  boxShadow: 'none',
-                }}>
-                <Plus size={15} />
-                {selectedFilter === 'ALL' ? `${terms.studentSingular} Qo'shish` : `${selectedFilter} ga Qo'shish`}
-              </button>
-            )}
           </div>
         </div>
 
-        {/* O'quvchilar Ro'yxati (Kartalar yoki Jadval) */}
+        {/* Tier 3: O'quvchilar Ro'yxati (Kartalar yoki Jadval) */}
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            padding: 26,
+            padding: 20,
             borderRadius: 10,
-            border: `1px solid ${THEME.border}`,
-            boxShadow: '0 8px 24px rgba(108, 92, 231, 0.03)',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           }}>
           {filteredStudents.length === 0 ? (
-            <div style={{ padding: 50, textAlign: 'center', color: THEME.textMuted }}>
-              <Users size={40} color={THEME.primary} style={{ opacity: 0.35, marginBottom: 10 }} />
+            <div style={{ padding: '60px 20px', textAlign: 'center', color: THEME.textMuted }}>
+              <div
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 8,
+                  backgroundColor: '#F8FAFC',
+                  border: '1px dashed #CBD5E1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 14px',
+                  color: THEME.primary,
+                }}>
+                <Users size={24} />
+              </div>
               <div style={{ fontWeight: 600, fontSize: 15, color: THEME.textDark }}>
-                {groupSearch ? `Qidiruv bo'yicha ${terms.studentSingularLower} topilmadi` : `Ushbu ${terms.groupSingularLower}da hozircha ${terms.studentPluralLower} biriktirilmagan`}
+                {groupSearch
+                  ? `"${groupSearch}" bo'yicha hech qanday ${terms.studentSingularLower} topilmadi`
+                  : `Ushbu ro'yxatda hozircha ${terms.studentPluralLower} yo'q`}
               </div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>
-                Yuqoridagi tugma orqali ushbu maktabning tanlangan {terms.groupGenitiveLower}ga yangi {terms.studentSingularLower} qo'shishingiz mumkin.
+              <div style={{ fontSize: 12, marginTop: 4, color: THEME.textMuted, maxWidth: 440, margin: '6px auto 16px' }}>
+                {groupSearch
+                  ? "Qidiruv so'zini o'zgartiring yoki filtrlarni tozalang."
+                  : `Yangi ${terms.studentSingularLower} qo'shish tugmasi orqali tarkibni to'ldiring.`}
               </div>
+              {onAddStudentToClass && !groupSearch && (
+                <button
+                  onClick={() => onAddStudentToClass(currentClassObj)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    background: THEME.gradient,
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                  }}>
+                  <UserPlus size={14} /> {terms.studentSingular} Qo'shish
+                </button>
+              )}
             </div>
           ) : viewMode === 'cards' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(305px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(315px, 1fr))', gap: 14 }}>
               {filteredStudents.map(st => (
                 <div
                   key={st.id}
                   style={{
-                    padding: 16,
+                    padding: 14,
                     borderRadius: 10,
-                    border: `1px solid ${THEME.border}`,
+                    border: '1px solid #E2E8F0',
                     backgroundColor: '#FFFFFF',
-                    transition: 'all 0.2s',
+                    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 14,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                    gap: 12,
+                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
+                    boxSizing: 'border-box',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = THEME.primary)}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = THEME.border)}>
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = THEME.primary;
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(108, 92, 231, 0.08)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = '#E2E8F0';
+                    e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
+                  }}>
                   {/* 3x4 Photo */}
                   <div
-                    onClick={(e) => {
+                    onClick={e => {
                       if (st.photo_3x4 && onPreviewImage) {
                         e.stopPropagation();
                         onPreviewImage({
                           url: normalizeMediaUrl(st.photo_3x4),
-                          title: `${st.last_name} ${st.first_name}`,
+                          title: `${st.last_name || ''} ${st.first_name || ''}`,
                           subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
                           badge: terms.studentSingular,
                           idNumber: st.student_id,
@@ -4053,24 +4320,35 @@ function GroupsManagementSection({
                     }}
                     title={st.photo_3x4 ? "Rasmni kattalashtirib ko'rish (bosing)" : "Ma'lumotlarni ko'rish"}
                     style={{
-                      width: 52,
-                      height: 68,
+                      width: 50,
+                      height: 66,
                       borderRadius: 6,
                       overflow: 'hidden',
-                      backgroundColor: '#F1F5F9',
-                      border: `1px solid ${THEME.border}`,
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
                       flexShrink: 0,
                       cursor: st.photo_3x4 ? 'zoom-in' : 'pointer',
                       position: 'relative',
-                      transition: 'transform 0.18s ease',
-                    }}
-                    onMouseEnter={(e) => { if (st.photo_3x4) e.currentTarget.style.transform = 'scale(1.06)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                    }}>
                     {st.photo_3x4 ? (
                       <>
-                        <img src={normalizeMediaUrl(st.photo_3x4)} alt={st.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 4, padding: 2, display: 'flex' }}>
-                          <ZoomIn size={10} />
+                        <img
+                          src={normalizeMediaUrl(st.photo_3x4)}
+                          alt={st.full_name || `${st.last_name} ${st.first_name}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: 2,
+                            right: 2,
+                            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                            color: '#FFF',
+                            borderRadius: 3,
+                            padding: 2,
+                            display: 'flex',
+                          }}>
+                          <ZoomIn size={9} />
                         </div>
                       </>
                     ) : (
@@ -4083,7 +4361,7 @@ function GroupsManagementSection({
                           justifyContent: 'center',
                           color: THEME.primary,
                           backgroundColor: THEME.primaryLight,
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: 600,
                         }}>
                         {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
@@ -4092,12 +4370,14 @@ function GroupsManagementSection({
                   </div>
 
                   {/* Details */}
-                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', cursor: 'pointer' }} onClick={() => onSelectStudent(st)}>
+                  <div
+                    style={{ flex: 1, minWidth: 0, overflow: 'hidden', cursor: 'pointer' }}
+                    onClick={() => onSelectStudent(st)}>
                     <div
-                      title={`${st.last_name} ${st.first_name}`}
+                      title={`${st.last_name || ''} ${st.first_name || ''}`}
                       style={{
                         fontWeight: 600,
-                        fontSize: 14,
+                        fontSize: 13.5,
                         color: THEME.textDark,
                         whiteSpace: 'nowrap',
                         textOverflow: 'ellipsis',
@@ -4105,241 +4385,280 @@ function GroupsManagementSection({
                       }}>
                       {st.last_name} {st.first_name}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
                       <span
                         style={{
-                          padding: '2px 7px',
+                          padding: '1.5px 6px',
                           backgroundColor: THEME.primaryLight,
                           color: THEME.primary,
-                          borderRadius: 6,
+                          borderRadius: 4,
                           fontWeight: 600,
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontFamily: 'monospace',
                         }}>
                         ID: {st.student_id}
                       </span>
-                      <span style={{ fontSize: 11, color: THEME.green, fontWeight: 700 }}>{terms.formatGroupBadge(st.class_name)}</span>
+                      <span
+                        style={{
+                          padding: '1.5px 6px',
+                          borderRadius: 4,
+                          backgroundColor: '#E8F8F5',
+                          color: '#10AC84',
+                          fontWeight: 600,
+                          fontSize: 10.5,
+                        }}>
+                        {terms.formatGroupBadge(st.class_name)}
+                      </span>
                     </div>
+
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 10.5,
                         color: THEME.textMuted,
                         marginTop: 4,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}>
-                      Yaratdi: <b style={{ color: THEME.textDark }}>{st.created_by || "Maktab Direktori"}</b>
+                      Parol: <code style={{ color: '#334155', fontWeight: 600 }}>{st.initial_password}</code>
                     </div>
-                    <div style={{ fontSize: 10.5, color: THEME.textMuted, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Clock size={11} /> {st.date_joined || '2026-10-18'} • Parol: <code>{st.initial_password}</code>
+
+                    <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Clock size={10} /> {st.date_joined || '2026-10-18'} • {st.created_by || "Ma'muriyat"}
                     </div>
                   </div>
 
-                  {/* CRUD buttons */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
+                  {/* Actions */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
                     <button
-                      onClick={() => onEditStudent && onEditStudent(st)}
-                      title="Tahrirlash"
+                      onClick={() => onSelectStudent(st)}
+                      title="Profilni ko'rish"
                       style={{
-                        padding: 7,
-                        background: '#F1F0FF',
-                        border: 'none',
-                        borderRadius: 9,
-                        color: THEME.primary,
+                        padding: '5px 8px',
+                        background: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 6,
+                        color: '#475569',
                         cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        fontSize: 11,
+                        fontWeight: 600,
                       }}>
-                      <Edit size={14} />
+                      Profil
                     </button>
-                    <button
-                      onClick={() => onDeleteStudent && onDeleteStudent(st.id, `${st.first_name} ${st.last_name}`)}
-                      title="O'chirish"
-                      style={{
-                        padding: 7,
-                        background: '#FEE2E2',
-                        border: 'none',
-                        borderRadius: 9,
-                        color: '#EF4444',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                      <Trash2 size={14} />
-                    </button>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        onClick={() => onEditStudent && onEditStudent(st)}
+                        title="Tahrirlash"
+                        style={{
+                          padding: 5,
+                          background: '#EEF2FF',
+                          border: '1px solid #C7D2FE',
+                          borderRadius: 6,
+                          color: THEME.primary,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Edit size={12} />
+                      </button>
+                      <button
+                        onClick={() => onDeleteStudent && onDeleteStudent(st.id, `${st.first_name} ${st.last_name}`)}
+                        title="O'chirish"
+                        style={{
+                          padding: 5,
+                          background: '#FEF2F2',
+                          border: '1px solid #FECACA',
+                          borderRadius: 6,
+                          color: '#EF4444',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted, textTransform: 'uppercase', fontSize: 11 }}>
-                  <th style={{ padding: '12px 10px' }}>№</th>
-                  <th style={{ padding: '12px 14px' }}>3x4 Foto</th>
-                  <th style={{ padding: '12px 14px' }}>Familiya & Ism</th>
-                  <th style={{ padding: '12px 14px' }}>{terms.groupSingular}</th>
-                  <th style={{ padding: '12px 14px' }}>Kirish ID</th>
-                  <th style={{ padding: '12px 14px' }}>Parol</th>
-                  <th style={{ padding: '12px 14px' }}>Yaratilganlik Tarixi</th>
-                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>Amallar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStudents.map((st, idx) => (
-                  <tr key={st.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
-                    <td style={{ padding: '12px 10px', fontWeight: 700, color: THEME.textMuted }}>{idx + 1}</td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <div
-                        onClick={(e) => {
-                          if (st.photo_3x4 && onPreviewImage) {
-                            e.stopPropagation();
-                            onPreviewImage({
-                              url: normalizeMediaUrl(st.photo_3x4),
-                              title: `${st.last_name} ${st.first_name}`,
-                              subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
-                              badge: terms.studentSingular,
-                              idNumber: st.student_id,
-                              schoolName: st.school_name || schoolName,
-                            });
-                          } else {
-                            onSelectStudent(st);
-                          }
-                        }}
-                        title={st.photo_3x4 ? "Rasmni kattalashtirib ko'rish (bosing)" : ""}
-                        style={{
-                          width: 38,
-                          height: 48,
-                          borderRadius: 8,
-                          overflow: 'hidden',
-                          border: `1px solid ${THEME.border}`,
-                          backgroundColor: THEME.primaryLight,
-                          cursor: st.photo_3x4 ? 'zoom-in' : 'pointer',
-                          position: 'relative',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'transform 0.18s ease',
-                        }}
-                        onMouseEnter={(e) => { if (st.photo_3x4) e.currentTarget.style.transform = 'scale(1.08)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
-                        {st.photo_3x4 ? (
-                          <>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12.5 }}>
+                <thead>
+                  <tr
+                    style={{
+                      borderBottom: '1px solid #E2E8F0',
+                      backgroundColor: '#F8FAFC',
+                      color: '#475569',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.03em',
+                    }}>
+                    <th style={{ padding: '10px 12px' }}>№</th>
+                    <th style={{ padding: '10px 12px' }}>Foto</th>
+                    <th style={{ padding: '10px 12px' }}>Familiya & Ism</th>
+                    <th style={{ padding: '10px 12px' }}>{terms.groupSingular}</th>
+                    <th style={{ padding: '10px 12px' }}>Kirish ID</th>
+                    <th style={{ padding: '10px 12px' }}>Parol</th>
+                    <th style={{ padding: '10px 12px' }}>Kiritilgan Sana / Mas'ul</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Amallar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStudents.map((st, idx) => (
+                    <tr
+                      key={st.id}
+                      style={{
+                        borderBottom: '1px solid #F1F5F9',
+                        transition: 'background-color 0.12s ease',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#94A3B8' }}>{idx + 1}</td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <div
+                          onClick={e => {
+                            if (st.photo_3x4 && onPreviewImage) {
+                              e.stopPropagation();
+                              onPreviewImage({
+                                url: normalizeMediaUrl(st.photo_3x4),
+                                title: `${st.last_name || ''} ${st.first_name || ''}`,
+                                subtitle: `${terms.studentSingular} • ${terms.formatGroupBadge(st.class_name)}`,
+                                badge: terms.studentSingular,
+                                idNumber: st.student_id,
+                                schoolName: st.school_name || schoolName,
+                              });
+                            } else {
+                              onSelectStudent(st);
+                            }
+                          }}
+                          title={st.photo_3x4 ? "Rasmni kattalashtirib ko'rish" : ""}
+                          style={{
+                            width: 34,
+                            height: 44,
+                            borderRadius: 6,
+                            overflow: 'hidden',
+                            border: '1px solid #E2E8F0',
+                            backgroundColor: '#F8FAFC',
+                            cursor: st.photo_3x4 ? 'zoom-in' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                          {st.photo_3x4 ? (
                             <img
                               src={normalizeMediaUrl(st.photo_3x4)}
-                              alt={st.full_name}
+                              alt={st.full_name || ''}
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
-                            <div style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#FFF', borderRadius: 3, padding: 1, display: 'flex' }}>
-                              <ZoomIn size={9} />
+                          ) : (
+                            <div style={{ color: THEME.primary, fontSize: 10.5, fontWeight: 600 }}>
+                              {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
                             </div>
-                          </>
-                        ) : (
-                          <div
-                            style={{
-                              color: THEME.primary,
-                              fontSize: 11,
-                              fontWeight: 600,
-                            }}>
-                            {(st.last_name?.[0] || '') + (st.first_name?.[0] || '')}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td
-                      onClick={() => onSelectStudent(st)}
-                      style={{
-                        padding: '14px',
-                        fontWeight: 600,
-                        color: THEME.textDark,
-                        cursor: 'pointer',
-                        maxWidth: 200,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}>
-                      {st.last_name} {st.first_name}
-                    </td>
-                    <td style={{ padding: '14px' }}>
-                      <span
+                          )}
+                        </div>
+                      </td>
+                      <td
+                        onClick={() => onSelectStudent(st)}
                         style={{
-                          padding: '4px 10px',
-                          backgroundColor: THEME.primaryLight,
-                          color: THEME.primary,
-                          borderRadius: 8,
+                          padding: '10px 12px',
                           fontWeight: 600,
-                          fontSize: 11.5,
+                          color: THEME.textDark,
+                          cursor: 'pointer',
                         }}>
-                        {terms.formatGroupBadge(st.class_name)}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px', fontFamily: 'monospace', fontWeight: 600, color: THEME.primary }}>
-                      <code>{st.student_id}</code>
-                    </td>
-                    <td style={{ padding: '14px' }}>
-                      <code style={{ padding: '3px 8px', backgroundColor: '#F1F5F9', borderRadius: 6, fontSize: 12 }}>
-                        {st.initial_password}
-                      </code>
-                    </td>
-                    <td style={{ padding: '14px' }}>
-                      <div style={{ fontWeight: 700, fontSize: 12, color: THEME.textDark }}>{st.created_by || "Maktab Direktori"}</div>
-                      <div style={{ fontSize: 11, color: THEME.textMuted }}>{st.date_joined || '2026-10-18'}</div>
-                    </td>
-                    <td style={{ padding: '14px', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <button
-                          onClick={() => onSelectStudent(st)}
+                        {st.last_name} {st.first_name}
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <span
                           style={{
-                            padding: '6px 10px',
-                            background: THEME.primaryLight,
-                            border: 'none',
-                            color: THEME.primary,
-                            borderRadius: 8,
+                            padding: '3px 8px',
+                            backgroundColor: '#E8F8F5',
+                            color: '#10AC84',
+                            borderRadius: 6,
                             fontWeight: 600,
-                            cursor: 'pointer',
+                            fontSize: 11,
+                          }}>
+                          {terms.formatGroupBadge(st.class_name)}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 600, color: THEME.primary }}>
+                        <code>{st.student_id}</code>
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <code
+                          style={{
+                            padding: '2px 6px',
+                            backgroundColor: '#F1F5F9',
+                            borderRadius: 4,
                             fontSize: 11.5,
+                            color: '#334155',
                           }}>
-                          Ko'rish
-                        </button>
-                        <button
-                          onClick={() => onEditStudent && onEditStudent(st)}
-                          title="Tahrirlash"
-                          style={{
-                            padding: 6,
-                            background: '#F1F0FF',
-                            border: 'none',
-                            color: THEME.primary,
-                            borderRadius: 8,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}>
-                          <Edit size={14} />
-                        </button>
-                        <button
-                          onClick={() => onDeleteStudent && onDeleteStudent(st.id, `${st.first_name} ${st.last_name}`)}
-                          title="O'chirish"
-                          style={{
-                            padding: 6,
-                            background: '#FEE2E2',
-                            border: 'none',
-                            color: '#EF4444',
-                            borderRadius: 8,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          {st.initial_password}
+                        </code>
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <div style={{ fontWeight: 600, fontSize: 11.5, color: THEME.textDark }}>
+                          {st.created_by || "Ma'muriyat"}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: THEME.textMuted }}>{st.date_joined || '2026-10-18'}</div>
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <button
+                            onClick={() => onSelectStudent(st)}
+                            style={{
+                              padding: '5px 9px',
+                              background: '#F8FAFC',
+                              border: '1px solid #E2E8F0',
+                              color: '#334155',
+                              borderRadius: 6,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              fontSize: 11,
+                            }}>
+                            Ko'rish
+                          </button>
+                          <button
+                            onClick={() => onEditStudent && onEditStudent(st)}
+                            title="Tahrirlash"
+                            style={{
+                              padding: 5,
+                              background: '#EEF2FF',
+                              border: '1px solid #C7D2FE',
+                              color: THEME.primary,
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                            }}>
+                            <Edit size={12} />
+                          </button>
+                          <button
+                            onClick={() => onDeleteStudent && onDeleteStudent(st.id, `${st.first_name} ${st.last_name}`)}
+                            title="O'chirish"
+                            style={{
+                              padding: 5,
+                              background: '#FEF2F2',
+                              border: '1px solid #FECACA',
+                              color: '#EF4444',
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                            }}>
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
