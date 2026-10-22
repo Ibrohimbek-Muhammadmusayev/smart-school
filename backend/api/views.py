@@ -4,7 +4,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 import datetime
-from .models import User, SchoolConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule, DeviceEventLog
+from .models import User, SchoolConfig, SystemConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule, DeviceEventLog
 from .serializers import (UserSerializer, SchoolClassSerializer, SubjectSerializer, 
                           LessonSerializer, AttendanceSerializer, GradeSerializer, HomeworkSubmissionSerializer, ClassScheduleSerializer)
 from .telegram_service import notify_parent_attendance, notify_parent_grade
@@ -49,6 +49,31 @@ class PassportLoginView(views.APIView):
 
         photo_url = user.photo_3x4.url if user.photo_3x4 else None
         school_cfg = SchoolConfig.get_or_create_for_school(user.school_id, user.school_name)
+
+        # 1. Tizim miqyosidagi profilaktika tekshiruvi (Super Admin bundan mustasno)
+        sys_cfg = SystemConfig.get_solo()
+        is_super = (user.role == 'ADMIN' and str(user.school_id) in ('superadmin', '0', '')) or user.is_superuser
+        if sys_cfg.is_maintenance_mode and not is_super:
+            return Response({
+                'maintenance': True,
+                'scope': 'GLOBAL',
+                'title': sys_cfg.maintenance_title,
+                'message': sys_cfg.maintenance_message,
+                'estimated_end': sys_cfg.estimated_end_time or "Tez orada",
+                'support_phone': sys_cfg.support_phone or "+998 71 200-00-00",
+                'detail': sys_cfg.maintenance_message,
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        # 2. Maktab to'xtatilgan yoki bloklangan bo'lsa
+        if school_cfg.status in ('SUSPENDED', 'BLOCKED', 'ARCHIVED') and not is_super:
+            if user.role != 'ADMIN':
+                access_info = school_cfg.get_access_info(client_type='MOBILE')
+                return Response({
+                    'school_blocked': True,
+                    'status': school_cfg.status,
+                    'access_info': access_info,
+                    'detail': access_info['message']
+                }, status=status.HTTP_403_FORBIDDEN)
 
         # Face ID tekshiruvi talab qilinadi
         return Response({
@@ -2018,6 +2043,25 @@ class SchoolConfigView(views.APIView):
             except (ValueError, TypeError):
                 pass
 
+        if 'status' in request.data:
+            st = str(request.data.get('status') or '').strip().upper()
+            if st in ('ACTIVE', 'SUSPENDED', 'BLOCKED', 'TRIAL', 'ARCHIVED'):
+                cfg.status = st
+
+        if 'status_reason' in request.data:
+            cfg.status_reason = str(request.data.get('status_reason') or '').strip()
+
+        if 'warning_banner' in request.data:
+            cfg.warning_banner = str(request.data.get('warning_banner') or '').strip()
+
+        if 'payment_status' in request.data:
+            ps = str(request.data.get('payment_status') or '').strip().upper()
+            if ps in ('PAID', 'PENDING', 'OVERDUE'):
+                cfg.payment_status = ps
+
+        if 'debt_amount' in request.data:
+            cfg.debt_amount = str(request.data.get('debt_amount') or '').strip()
+
         if 'updated_by' in request.data:
             ub = str(request.data.get('updated_by') or '').strip()
             if ub:
@@ -2492,6 +2536,47 @@ class DeviceEventIngestionView(views.APIView):
         temperature = float(temperature) if temperature is not None else None
         school_id = str(payload.get('school_id') or '1')
 
+        # Global texnik ishlar tekshiruvi (Maintenance)
+        sys_cfg = SystemConfig.get_solo()
+        if sys_cfg.is_maintenance_mode:
+            DeviceEventLog.objects.create(
+                school_id=school_id,
+                device_name=device_name,
+                device_ip=device_ip,
+                direction=direction,
+                event_type=event_type,
+                raw_payload=payload,
+                status='FAILED',
+                details="Qurilma rad etildi: Tizim profilaktikada (Maintenance mode)"
+            )
+            return Response({
+                'status': 'MAINTENANCE',
+                'access': 'DENIED',
+                'display_message': 'Profilaktika ishlari olib borilmoqda',
+                'detail': sys_cfg.maintenance_message
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        # Maktab bloklangan yoki to'xtatilganligini tekshirish
+        school_cfg = SchoolConfig.objects.filter(school_id=school_id).first()
+        if school_cfg and school_cfg.status in ('SUSPENDED', 'BLOCKED', 'ARCHIVED'):
+            access_info = school_cfg.get_access_info('DEVICE')
+            DeviceEventLog.objects.create(
+                school_id=school_id,
+                device_name=device_name,
+                device_ip=device_ip,
+                direction=direction,
+                event_type=event_type,
+                raw_payload=payload,
+                status='FAILED',
+                details=f"Qurilma rad etildi: Maktab holati - {school_cfg.status}"
+            )
+            return Response({
+                'status': school_cfg.status,
+                'access': 'DENIED',
+                'display_message': access_info.get('message') or "Vaqtincha to'xtatilgan",
+                'detail': f"Maktab ({school_cfg.school_name}) xizmatlari vaqtincha to'xtatilgan."
+            }, status=status.HTTP_403_FORBIDDEN)
+
         # 2. Bazadan o'quvchini qidirish
         student = None
         if raw_code:
@@ -2878,6 +2963,162 @@ class HikvisionSyncStudentsView(views.APIView):
             'results': results,
             'message': f"Hikvision terminaliga {synced_count} ta o'quvchi yuklandi, {fail_count} ta xatolik."
         })
+
+
+class SystemConfigView(views.APIView):
+    """
+    Tizim miqyosidagi global konfiguratsiya va Texnik Ishlar Rejimi (Maintenance Mode) API:
+    - GET: Hozirgi holatni olish (har qanday mijoz / dashbort / mobil ilova tekshira oladi)
+    - POST / PUT / PATCH: Super Admin tomonidan texnik ishlarni yoqish/o'chirish va xabar matnini tahrirlash
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        cfg = SystemConfig.get_solo()
+        return Response(cfg.to_dict(), status=status.HTTP_200_OK)
+
+    def _update_config(self, request):
+        cfg = SystemConfig.get_solo()
+        data = request.data or {}
+
+        if 'is_maintenance_mode' in data:
+            val = data.get('is_maintenance_mode')
+            cfg.is_maintenance_mode = bool(val is True or str(val).lower() in ('true', '1', 'yes'))
+
+        if 'maintenance_title' in data:
+            title = str(data.get('maintenance_title') or '').strip()
+            if title:
+                cfg.maintenance_title = title
+
+        if 'maintenance_message' in data:
+            msg = str(data.get('maintenance_message') or '').strip()
+            if msg:
+                cfg.maintenance_message = msg
+
+        if 'estimated_end_time' in data:
+            cfg.estimated_end_time = str(data.get('estimated_end_time') or '').strip() or "Tez orada"
+
+        if 'support_phone' in data:
+            sp = str(data.get('support_phone') or '').strip()
+            if sp:
+                cfg.support_phone = sp
+
+        if 'support_email' in data:
+            se = str(data.get('support_email') or '').strip()
+            if se:
+                cfg.support_email = se
+
+        if 'updated_by' in data:
+            ub = str(data.get('updated_by') or '').strip()
+            if ub:
+                cfg.updated_by = ub
+
+        cfg.save()
+        resp = cfg.to_dict()
+        resp['message'] = "Tizim konfiguratsiyasi (Texnik ishlar rejimi) muvaffaqiyatli saqlandi!"
+        return Response(resp, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        return self._update_config(request)
+
+    def put(self, request):
+        return self._update_config(request)
+
+    def patch(self, request):
+        return self._update_config(request)
+
+
+class SchoolStatusActionView(views.APIView):
+    """
+    Super Admin tomonidan muayyan maktabning statusini o'zgartirish:
+    - Status: ACTIVE (Faol), SUSPENDED (Vaqtincha to'xtatilgan / Pauza), BLOCKED (Qarzdorlik / Bloklangan)
+    - Status reason: Sababi (qarzdorlik, to'lov muddati, qoidabuzarlik)
+    - Warning banner: Maktab dashbortida ko'rinadigan ogohlantirish
+    - Payment status: PAID, PENDING, OVERDUE
+    - Debt amount: Masalan "4 800 000 so'm"
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, school_id):
+        sid = str(school_id).strip() or '1'
+        cfg = SchoolConfig.get_or_create_for_school(sid)
+        data = request.data or {}
+
+        if 'status' in data:
+            st = str(data.get('status') or '').strip().upper()
+            if st in ('ACTIVE', 'SUSPENDED', 'BLOCKED', 'TRIAL', 'ARCHIVED'):
+                cfg.status = st
+
+        if 'status_reason' in data:
+            cfg.status_reason = str(data.get('status_reason') or '').strip()
+
+        if 'warning_banner' in data:
+            cfg.warning_banner = str(data.get('warning_banner') or '').strip()
+
+        if 'payment_status' in data:
+            ps = str(data.get('payment_status') or '').strip().upper()
+            if ps in ('PAID', 'PENDING', 'OVERDUE'):
+                cfg.payment_status = ps
+
+        if 'debt_amount' in data:
+            cfg.debt_amount = str(data.get('debt_amount') or '').strip()
+
+        if 'updated_by' in data:
+            cfg.updated_by = str(data.get('updated_by') or '').strip() or "Super Administrator"
+
+        cfg.save()
+
+        return Response({
+            'success': True,
+            'message': f"'{cfg.school_name}' holati muvaffaqiyatli yangilandi!",
+            'school_id': cfg.school_id,
+            'school_name': cfg.school_name,
+            'status': cfg.status,
+            'status_reason': cfg.status_reason,
+            'warning_banner': cfg.warning_banner,
+            'payment_status': cfg.payment_status,
+            'debt_amount': cfg.debt_amount,
+            'access_info_dashboard': cfg.get_access_info('DASHBOARD'),
+            'access_info_mobile': cfg.get_access_info('MOBILE'),
+            'config': cfg.to_dict()
+        }, status=status.HTTP_200_OK)
+
+
+class SchoolAccessCheckView(views.APIView):
+    """
+    Mijozlar (Maktab Admin Dashborti, Mobil Ilova, Qurilmalar) uchun
+    maktabning holatini va ruxsatini tezkor tekshirish endpointi:
+    GET /api/schools/<school_id>/access-status/?client_type=DASHBOARD|MOBILE|DEVICE
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, school_id):
+        sid = str(school_id).strip() or '1'
+        cfg = SchoolConfig.get_or_create_for_school(sid)
+        client_type = (request.query_params.get('client_type') or request.headers.get('X-Client-Type') or 'DASHBOARD').upper()
+        
+        # 1. Global texnik ishlar rejimi tekshiruvi
+        sys_cfg = SystemConfig.get_solo()
+        if sys_cfg.is_maintenance_mode:
+            return Response({
+                'is_allowed': False,
+                'is_maintenance': True,
+                'scope': 'GLOBAL',
+                'title': sys_cfg.maintenance_title,
+                'message': sys_cfg.maintenance_message,
+                'estimated_end': sys_cfg.estimated_end_time or "Tez orada",
+                'support_phone': sys_cfg.support_phone or "+998 71 200-00-00",
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        access_info = cfg.get_access_info(client_type=client_type)
+        return Response({
+            'school_id': cfg.school_id,
+            'school_name': cfg.school_name,
+            'client_type': client_type,
+            'status': cfg.status,
+            **access_info
+        }, status=status.HTTP_200_OK if access_info['is_allowed'] else status.HTTP_403_FORBIDDEN)
+
 
 
 

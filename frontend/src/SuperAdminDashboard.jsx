@@ -215,10 +215,12 @@ export default function SuperAdminDashboardView({
   useEffect(() => {
     const loadRealProjectStats = async () => {
       try {
-        const [stuRes, tchRes, clsRes] = await Promise.all([
-          fetch('/api/students/?all_schools=1'),
-          fetch('/api/teachers/?all_schools=1'),
-          fetch('/api/classes/?all_schools=1'),
+        const [stuRes, tchRes, clsRes, sysRes, schRes] = await Promise.all([
+          fetch('/api/students/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+          fetch('/api/teachers/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+          fetch('/api/classes/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+          fetch('/api/system-config/', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
+          fetch('/api/school-config/?all_schools=1', { headers: { 'X-Super-Admin': '1', 'X-User-Role': 'SUPER_ADMIN' } }),
         ]);
         if (stuRes.ok) {
           const sData = await stuRes.json();
@@ -231,6 +233,38 @@ export default function SuperAdminDashboardView({
         if (clsRes.ok) {
           const cData = await clsRes.json();
           if (Array.isArray(cData)) setDbClasses(cData);
+        }
+        if (sysRes.ok) {
+          const sysData = await sysRes.json();
+          setSystemConfig(prev => ({
+            ...prev,
+            maintenanceMode: Boolean(sysData.is_maintenance_mode),
+            maintenanceTitle: sysData.maintenance_title || "Tizimda profilaktika ishlari olib borilmoqda",
+            maintenanceMessage: sysData.maintenance_message || "Serverlarda rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi.",
+            estimatedEndTime: sysData.estimated_end_time || "14:00",
+            supportPhone: sysData.support_phone || "+998 71 200-00-00",
+          }));
+        }
+        if (schRes.ok) {
+          const schData = await schRes.json();
+          if (Array.isArray(schData) && schData.length > 0) {
+            const map = {};
+            schData.forEach(c => { if (c && c.school_id) map[String(c.school_id)] = c; });
+            const merged = schoolsList.map(s => {
+              const c = map[String(s.id)];
+              return c ? {
+                ...s,
+                status: c.status || s.status || 'ACTIVE',
+                statusReason: c.status_reason || s.statusReason || '',
+                warningBanner: c.warning_banner !== undefined ? c.warning_banner : (s.warningBanner || ''),
+                paymentStatus: c.payment_status || s.paymentStatus || 'PAID',
+                debtAmount: c.debt_amount || s.debtAmount || "0 so'm",
+                accessInfoDashboard: c.access_info_dashboard,
+                accessInfoMobile: c.access_info_mobile,
+              } : s;
+            });
+            onUpdateSchools(merged);
+          }
         }
       } catch (_) {}
     };
@@ -262,6 +296,22 @@ export default function SuperAdminDashboardView({
   const [editingSchool, setEditingSchool] = useState(null);
   const [warningModalSchool, setWarningModalSchool] = useState(null);
   const [warningBannerInput, setWarningBannerInput] = useState('');
+
+  // Maintenance va Maktab to'xtatish modallari
+  const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
+  const [maintenanceForm, setMaintenanceForm] = useState({
+    is_maintenance_mode: false,
+    maintenance_title: "Tizimda profilaktika ishlari olib borilmoqda",
+    maintenance_message: "Tizim serverlarida rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi.",
+    estimated_end_time: "14:00",
+    support_phone: "+998 71 200-00-00",
+  });
+  const [schoolSuspendModalSchool, setSchoolSuspendModalSchool] = useState(null);
+  const [suspendForm, setSuspendForm] = useState({
+    reason_type: 'DEBT',
+    status_reason: "Oylik obuna to'lovi to'lanmaganligi sababli xizmatlar vaqtincha to'xtatildi",
+    debt_amount: "4 800 000 so‘m",
+  });
 
   // 3. Billing & Subscriptions state
   const [pricingTiers, setPricingTiers] = useState(() => {
@@ -471,19 +521,167 @@ export default function SuperAdminDashboardView({
     showToast(`${format.toUpperCase()} hisobot muvaffaqiyatli yuklab olindi!`);
   };
 
-  const handleSetSchoolStatus = (school, newStatus, reason = '') => {
+  const handleSetSchoolStatus = async (school, newStatus, reason = '', paymentStatus = null, debtAmount = null) => {
+    const isDebt = newStatus === 'SUSPENDED' && (reason.toLowerCase().includes('o‘lov') || reason.toLowerCase().includes('qarz') || reason.toLowerCase().includes("to'lov"));
+    const pStatus = paymentStatus || (isDebt ? 'OVERDUE' : (newStatus === 'ACTIVE' ? 'PAID' : (school.paymentStatus || 'PAID')));
+    const dAmount = debtAmount !== null ? debtAmount : (isDebt ? (school.debtAmount || "4 800 000 so‘m") : (newStatus === 'ACTIVE' ? "0 so'm" : (school.debtAmount || "0 so'm")));
+
+    try {
+      const res = await fetch(`/api/schools/${school.id}/status/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          status_reason: reason,
+          warning_banner: (newStatus === 'ACTIVE' && !reason) ? '' : (reason || school.warningBanner || ''),
+          payment_status: pStatus,
+          debt_amount: dAmount,
+          updated_by: `${currentUser?.name || 'Super Admin'}`,
+        }),
+      });
+
+      if (res.ok) {
+        const respData = await res.json();
+        const updated = schoolsList.map(s =>
+          s.id === school.id
+            ? {
+                ...s,
+                status: newStatus,
+                statusReason: reason,
+                warningBanner: (newStatus === 'ACTIVE' && !reason) ? '' : (reason || s.warningBanner),
+                paymentStatus: pStatus,
+                debtAmount: dAmount,
+                accessInfoDashboard: respData.access_info_dashboard,
+                accessInfoMobile: respData.access_info_mobile,
+              }
+            : s
+        );
+        onUpdateSchools(updated);
+        appendAuditLog(`SCHOOL_STATUS_${newStatus}`, school.name, `Holat ${newStatus} ga o'zgartirildi. ${reason}`);
+        showToast(`"${school.name}" holati bazada yangilandi!`);
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend status update error:", err);
+    }
+
+    // Local fallback
     const updated = schoolsList.map(s =>
       s.id === school.id
         ? {
             ...s,
             status: newStatus,
-            warningBanner: reason || s.warningBanner,
+            statusReason: reason,
+            warningBanner: (newStatus === 'ACTIVE' && !reason) ? '' : (reason || s.warningBanner),
+            paymentStatus: pStatus,
+            debtAmount: dAmount,
           }
         : s
     );
     onUpdateSchools(updated);
     appendAuditLog(`SCHOOL_STATUS_${newStatus}`, school.name, `Holat ${newStatus} ga o'zgartirildi. ${reason}`);
     showToast(`"${school.name}" holati yangilandi!`);
+  };
+
+  const handleConfirmSuspendSchool = (e) => {
+    e.preventDefault();
+    if (!schoolSuspendModalSchool) return;
+    const isDebt = suspendForm.reason_type === 'DEBT';
+    const reasonText = suspendForm.status_reason.trim() || (
+      isDebt 
+        ? "Oylik obuna to'lovi to'lanmaganligi sababli xizmatlar vaqtincha to'xtatildi"
+        : "Rejali profilaktika va texnik sozlash ishlari sababli vaqtincha to'xtatildi"
+    );
+    const pStatus = isDebt ? 'OVERDUE' : 'PAID';
+    const dAmount = isDebt ? (suspendForm.debt_amount || "4 800 000 so‘m") : "0 so'm";
+
+    handleSetSchoolStatus(schoolSuspendModalSchool, 'SUSPENDED', reasonText, pStatus, dAmount);
+    setSchoolSuspendModalSchool(null);
+  };
+
+  const handleSaveMaintenanceConfig = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    try {
+      const res = await fetch('/api/system-config/', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN',
+        },
+        body: JSON.stringify({
+          is_maintenance_mode: maintenanceForm.is_maintenance_mode,
+          maintenance_title: maintenanceForm.maintenance_title,
+          maintenance_message: maintenanceForm.maintenance_message,
+          estimated_end_time: maintenanceForm.estimated_end_time,
+          support_phone: maintenanceForm.support_phone,
+          updated_by: `${currentUser?.name || 'Super Admin'}`,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setSystemConfig(prev => ({
+          ...prev,
+          maintenanceMode: Boolean(saved.is_maintenance_mode),
+          maintenanceTitle: saved.maintenance_title,
+          maintenanceMessage: saved.maintenance_message,
+          estimatedEndTime: saved.estimated_end_time,
+          supportPhone: saved.support_phone,
+        }));
+        setMaintenanceModalOpen(false);
+        appendAuditLog(
+          saved.is_maintenance_mode ? 'MAINTENANCE_ENABLED' : 'MAINTENANCE_DISABLED',
+          'Global System',
+          saved.is_maintenance_mode 
+            ? `Texnik profilaktika yoqildi. Tugash: ${saved.estimated_end_time}` 
+            : 'Normal ish rejimi tiklandi'
+        );
+        showToast(
+          saved.is_maintenance_mode 
+            ? "⚠️ Texnik profilaktika rejimi yoqildi! Barcha tashqi mijozlar qulflondi." 
+            : "✅ Normal ish rejimi muvaffaqiyatli tiklandi!"
+        );
+      }
+    } catch (err) {
+      showToast("Xatolik yuz berdi: " + err.message);
+    }
+  };
+
+  const handleQuickToggleMaintenance = async () => {
+    const nextMode = !systemConfig.maintenanceMode;
+    try {
+      const res = await fetch('/api/system-config/', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN',
+        },
+        body: JSON.stringify({
+          is_maintenance_mode: nextMode,
+          updated_by: `${currentUser?.name || 'Super Admin'}`,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setSystemConfig(prev => ({
+          ...prev,
+          maintenanceMode: Boolean(saved.is_maintenance_mode),
+        }));
+        appendAuditLog(
+          nextMode ? 'MAINTENANCE_ENABLED' : 'MAINTENANCE_DISABLED',
+          'Global System',
+          nextMode ? 'Texnik profilaktika yoqildi' : 'Normal rejim tiklandi'
+        );
+        showToast(nextMode ? "⚠️ Profilaktika rejimi yoqildi!" : "✅ Normal rejim tiklandi!");
+      }
+    } catch (err) {
+      showToast("Xatolik: " + err.message);
+    }
   };
 
   const handleHardDeleteSchool = (school) => {
@@ -499,14 +697,30 @@ export default function SuperAdminDashboardView({
     showToast(`"${school.name}" tizimdan o'chirildi.`);
   };
 
-  const handleSaveWarningBanner = (e) => {
+  const handleSaveWarningBanner = async (e) => {
     e.preventDefault();
     if (!warningModalSchool) return;
+    const bannerText = warningBannerInput.trim();
+    try {
+      await fetch(`/api/schools/${warningModalSchool.id}/status/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN',
+        },
+        body: JSON.stringify({
+          warning_banner: bannerText,
+          updated_by: `${currentUser?.name || 'Super Admin'}`,
+        }),
+      });
+    } catch (_) {}
+
     const updated = schoolsList.map(s =>
-      s.id === warningModalSchool.id ? { ...s, warningBanner: warningBannerInput.trim() } : s
+      s.id === warningModalSchool.id ? { ...s, warningBanner: bannerText } : s
     );
     onUpdateSchools(updated);
-    appendAuditLog('SET_WARNING_BANNER', warningModalSchool.name, `Ogohlantirish banneri: "${warningBannerInput.trim()}"`);
+    appendAuditLog('SET_WARNING_BANNER', warningModalSchool.name, `Ogohlantirish banneri: "${bannerText}"`);
     const schoolName = warningModalSchool.name;
     setWarningModalSchool(null);
     showToast(`"${schoolName}" paneliga ogohlantirish banneri o'rnatildi!`);
@@ -1877,19 +2091,26 @@ export default function SuperAdminDashboardView({
                             <Bell size={13} /> Ogohlantirish Banneri
                           </button>
 
-                          {currentSelectedSchool.status !== 'SUSPENDED' ? (
+                          {(currentSelectedSchool.status !== 'SUSPENDED' && currentSelectedSchool.status !== 'BLOCKED') ? (
                             <button
                               className="sa-btn"
-                              onClick={() => handleSetSchoolStatus(currentSelectedSchool, 'SUSPENDED', 'To‘lov qilinmagani sababli vaqtincha to‘xtatildi')}
+                              onClick={() => {
+                                setSchoolSuspendModalSchool(currentSelectedSchool);
+                                setSuspendForm({
+                                  reason_type: 'DEBT',
+                                  status_reason: "Oylik obuna to'lovi to'lanmaganligi sababli xizmatlar vaqtincha to'xtatildi",
+                                  debt_amount: currentSelectedSchool.debtAmount || "4 800 000 so‘m"
+                                });
+                              }}
                               style={{ padding: '8px 13px', borderRadius: 12, border: 'none', backgroundColor: '#F59E0B', color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                               <Pause size={13} /> Vaqtincha To‘xtatish
                             </button>
                           ) : (
                             <button
                               className="sa-btn"
-                              onClick={() => handleSetSchoolStatus(currentSelectedSchool, 'ACTIVE')}
+                              onClick={() => handleSetSchoolStatus(currentSelectedSchool, 'ACTIVE', '', 'PAID', "0 so'm")}
                               style={{ padding: '8px 13px', borderRadius: 12, border: 'none', backgroundColor: THEME.green, color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                              <CheckCircle2 size={13} /> Faollashtirish
+                              <CheckCircle2 size={13} /> Faollashtirish (Tiklash)
                             </button>
                           )}
 
@@ -2435,19 +2656,42 @@ export default function SuperAdminDashboardView({
                       </button>
                     </div>
 
-                    <div style={{ ...miniStatBoxStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: systemConfig.maintenanceMode ? '#FFF5F6' : '#F9FAFE' }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: systemConfig.maintenanceMode ? '#E11D48' : THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <Wrench size={14} color={systemConfig.maintenanceMode ? '#E11D48' : THEME.primary} /> Texnik Ishlar Rejimi (Maintenance)
+                    <div style={{ ...miniStatBoxStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: systemConfig.maintenanceMode ? '#FFF5F6' : '#F9FAFE', border: systemConfig.maintenanceMode ? '1px solid #FECDD3' : '1px solid #E2E8F0', padding: '14px 18px', borderRadius: 18 }}>
+                      <div style={{ flex: 1, marginRight: 14 }}>
+                        <div style={{ fontWeight: 800, fontSize: 13, color: systemConfig.maintenanceMode ? '#E11D48' : THEME.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <Wrench size={16} color={systemConfig.maintenanceMode ? '#E11D48' : THEME.primary} /> Texnik Ishlar Rejimi (Maintenance)
                         </div>
-                        <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Super Admindan tashqari kirishlarni vaqtincha cheklash</div>
+                        <div style={{ fontSize: 11, color: systemConfig.maintenanceMode ? '#BE123C' : THEME.textMuted, marginTop: 3 }}>
+                          {systemConfig.maintenanceMode 
+                            ? `⚠️ PROFILAKTIKA FAOL • Dashbortlar, mobil ilovalar va qurilmalar qulflangan (${systemConfig.estimatedEndTime || '14:00'})`
+                            : "Normal Ish Rejimi • Barcha maktablar, mobil ilovalar va qurilmalar faol ishlamoqda"}
+                        </div>
                       </div>
-                      <button
-                        className="sa-btn"
-                        onClick={() => setSystemConfig({ ...systemConfig, maintenanceMode: !systemConfig.maintenanceMode })}
-                        style={{ padding: '8px 14px', borderRadius: 12, border: 'none', backgroundColor: systemConfig.maintenanceMode ? '#E11D48' : '#E2E8F0', color: systemConfig.maintenanceMode ? '#FFFFFF' : THEME.textDark, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                        {systemConfig.maintenanceMode ? 'PROFILAKTIKA FAOL' : 'Normal Rejim'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button
+                          className="sa-btn"
+                          type="button"
+                          onClick={() => {
+                            setMaintenanceForm({
+                              is_maintenance_mode: Boolean(systemConfig.maintenanceMode),
+                              maintenance_title: systemConfig.maintenanceTitle || "Tizimda profilaktika ishlari olib borilmoqda",
+                              maintenance_message: systemConfig.maintenanceMessage || "Tizim serverlarida rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi.",
+                              estimated_end_time: systemConfig.estimatedEndTime || "14:00",
+                              support_phone: systemConfig.supportPhone || "+998 71 200-00-00",
+                            });
+                            setMaintenanceModalOpen(true);
+                          }}
+                          style={{ padding: '8px 14px', borderRadius: 12, border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', color: THEME.textDark, fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <Settings size={13} /> Sozlash
+                        </button>
+                        <button
+                          className="sa-btn"
+                          type="button"
+                          onClick={handleQuickToggleMaintenance}
+                          style={{ padding: '8px 14px', borderRadius: 12, border: 'none', backgroundColor: systemConfig.maintenanceMode ? '#E11D48' : '#10B981', color: '#FFFFFF', fontWeight: 800, fontSize: 12, cursor: 'pointer', boxShadow: systemConfig.maintenanceMode ? '0 4px 12px rgba(225, 29, 72, 0.3)' : '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
+                          {systemConfig.maintenanceMode ? 'O‘chirish' : 'Yoqish'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2672,6 +2916,215 @@ export default function SuperAdminDashboardView({
                 </button>
                 <button type="submit" style={{ ...primaryBtnStyle, flex: 1.4, justifyContent: 'center' }}>
                   Bannerni O‘rnatish
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Global Texnik Profilaktika (Maintenance) Modali */}
+      {maintenanceModalOpen && (
+        <div style={modalBackdropStyle}>
+          <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 30, width: '100%', maxWidth: 520, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.22)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, color: '#0F172A' }}>
+                <Wrench size={20} color="#EA580C" /> Texnik Ishlar Rejimi (Maintenance)
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setMaintenanceModalOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: THEME.textMuted }}>
+                <X size={20} />
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: THEME.textMuted, margin: '0 0 16px 0', lineHeight: 1.5 }}>
+              Ushbu rejim yoqilganda Super Admindan tashqari barcha maktab boshqaruv dashbortlari, o'qituvchilar kabinetlari, mobil ilovalar va turniket qurilmalari qulflanadi va ushbu xabar ko'rsatiladi.
+            </p>
+
+            <form onSubmit={handleSaveMaintenanceConfig} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ padding: '12px 16px', borderRadius: 16, backgroundColor: maintenanceForm.is_maintenance_mode ? '#FFF1F2' : '#F0FDF4', border: maintenanceForm.is_maintenance_mode ? '1px solid #FECDD3' : '1px solid #BBF7D0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: maintenanceForm.is_maintenance_mode ? '#E11D48' : '#15803D' }}>
+                    {maintenanceForm.is_maintenance_mode ? "Profilaktika Rejimi Yoqilgan" : "Normal Rejim (Tizim Ochiq)"}
+                  </div>
+                  <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>
+                    {maintenanceForm.is_maintenance_mode ? "Tashqi mijozlar to'liq bloklangan" : "Barcha tizimlar odatdagidek ishlamoqda"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMaintenanceForm({ ...maintenanceForm, is_maintenance_mode: !maintenanceForm.is_maintenance_mode })}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 12,
+                    border: 'none',
+                    backgroundColor: maintenanceForm.is_maintenance_mode ? '#E11D48' : '#10B981',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: 12,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {maintenanceForm.is_maintenance_mode ? "O'CHIRISH" : "YOQISH"}
+                </button>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Ogohlantirish Sarlavhasi</label>
+                <input
+                  required
+                  value={maintenanceForm.maintenance_title}
+                  onChange={e => setMaintenanceForm({ ...maintenanceForm, maintenance_title: e.target.value })}
+                  style={{ ...inputFieldStyle, marginTop: 6 }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Foydalanuvchilarga Ko'rsatiladigan Xabar</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={maintenanceForm.maintenance_message}
+                  onChange={e => setMaintenanceForm({ ...maintenanceForm, maintenance_message: e.target.value })}
+                  style={{ ...inputFieldStyle, resize: 'vertical', marginTop: 6 }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Taxminiy Tugash Vaqti</label>
+                  <input
+                    placeholder="Masalan: 14:00 yoki 18:30"
+                    value={maintenanceForm.estimated_end_time}
+                    onChange={e => setMaintenanceForm({ ...maintenanceForm, estimated_end_time: e.target.value })}
+                    style={{ ...inputFieldStyle, marginTop: 6 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Aloqa / Yordam Telefoni</label>
+                  <input
+                    value={maintenanceForm.support_phone}
+                    onChange={e => setMaintenanceForm({ ...maintenanceForm, support_phone: e.target.value })}
+                    style={{ ...inputFieldStyle, marginTop: 6 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button type="button" onClick={() => setMaintenanceModalOpen(false)} style={{ ...secondaryBtnStyle, flex: 1, justifyContent: 'center' }}>
+                  Bekor qilish
+                </button>
+                <button type="submit" style={{ ...primaryBtnStyle, flex: 1.4, justifyContent: 'center' }}>
+                  Saqlash va Tatbiq Qilish
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Maktabni Vaqtincha To'xtatish (Pauza / Qarzdorlik) Modali */}
+      {schoolSuspendModalSchool && (
+        <div style={modalBackdropStyle}>
+          <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 30, width: '100%', maxWidth: 480, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.22)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, color: '#0F172A' }}>
+                <Pause size={18} color="#D97706" /> "{schoolSuspendModalSchool.name}" ni To‘xtatish
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setSchoolSuspendModalSchool(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: THEME.textMuted }}>
+                <X size={20} />
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: THEME.textMuted, margin: '0 0 16px 0', lineHeight: 1.5 }}>
+              Maktab xizmatlari vaqtincha to‘xtatilganda: maktab direktoriga aniq sabab va qarzdorlik ma'lumoti chiqadi. O‘quvchi va ota-onalar mobil ilovalarida esa faqat neytral "Xizmatlar vaqtincha to‘xtatilgan" xabari ko‘rinadi.
+            </p>
+
+            <form onSubmit={handleConfirmSuspendSchool} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>To‘xtatish Sababi Turi</label>
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSuspendForm({
+                        ...suspendForm,
+                        reason_type: 'DEBT',
+                        status_reason: "Oylik obuna to'lovi to'lanmaganligi sababli xizmatlar vaqtincha to'xtatildi",
+                      });
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '9px 12px',
+                      borderRadius: 12,
+                      border: suspendForm.reason_type === 'DEBT' ? '2px solid #E11D48' : '1px solid #E2E8F0',
+                      backgroundColor: suspendForm.reason_type === 'DEBT' ? '#FFF1F2' : '#FFFFFF',
+                      color: suspendForm.reason_type === 'DEBT' ? '#E11D48' : THEME.textDark,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Qarzdorlik
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSuspendForm({
+                        ...suspendForm,
+                        reason_type: 'MAINTENANCE',
+                        status_reason: "Rejali profilaktika va texnik sozlash ishlari sababli vaqtincha to'xtatildi",
+                      });
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '9px 12px',
+                      borderRadius: 12,
+                      border: suspendForm.reason_type === 'MAINTENANCE' ? '2px solid #F59E0B' : '1px solid #E2E8F0',
+                      backgroundColor: suspendForm.reason_type === 'MAINTENANCE' ? '#FFFBEB' : '#FFFFFF',
+                      color: suspendForm.reason_type === 'MAINTENANCE' ? '#B45309' : THEME.textDark,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Profilaktika / Pauza
+                  </button>
+                </div>
+              </div>
+
+              {suspendForm.reason_type === 'DEBT' && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Qarzdorlik Summasi</label>
+                  <input
+                    required
+                    value={suspendForm.debt_amount}
+                    onChange={e => setSuspendForm({ ...suspendForm, debt_amount: e.target.value })}
+                    style={{ ...inputFieldStyle, marginTop: 6, fontWeight: 800, color: '#E11D48' }}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Direktor Dashbordida Ko‘rinadigan Aniq Xabar</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={suspendForm.status_reason}
+                  onChange={e => setSuspendForm({ ...suspendForm, status_reason: e.target.value })}
+                  style={{ ...inputFieldStyle, resize: 'vertical', marginTop: 6 }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button type="button" onClick={() => setSchoolSuspendModalSchool(null)} style={{ ...secondaryBtnStyle, flex: 1, justifyContent: 'center' }}>
+                  Bekor qilish
+                </button>
+                <button type="submit" style={{ ...primaryBtnStyle, backgroundColor: '#E11D48', background: '#E11D48', flex: 1.4, justifyContent: 'center' }}>
+                  Maktabni To‘xtatish
                 </button>
               </div>
             </form>

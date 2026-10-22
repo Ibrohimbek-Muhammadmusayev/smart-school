@@ -41,6 +41,37 @@ class User(AbstractUser):
 
 
 
+class SystemConfig(models.Model):
+    is_maintenance_mode = models.BooleanField(default=False)
+    maintenance_title = models.CharField(max_length=255, default="Tizimda profilaktika ishlari olib borilmoqda")
+    maintenance_message = models.TextField(
+        default="Tizim serverlarida rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi."
+    )
+    estimated_end_time = models.CharField(max_length=100, blank=True, default="14:00")
+    support_phone = models.CharField(max_length=50, blank=True, default="+998 71 200-00-00")
+    support_email = models.CharField(max_length=100, blank=True, default="support@smart-school.uz")
+    updated_by = models.CharField(max_length=255, blank=True, default="Super Administrator")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(id=1)
+        return obj
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'is_maintenance_mode': bool(self.is_maintenance_mode),
+            'maintenance_title': self.maintenance_title,
+            'maintenance_message': self.maintenance_message,
+            'estimated_end_time': self.estimated_end_time or "Tez orada",
+            'support_phone': self.support_phone or "+998 71 200-00-00",
+            'support_email': self.support_email or "support@smart-school.uz",
+            'updated_by': self.updated_by or "Super Administrator",
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M') if self.updated_at else '',
+        }
+
+
 class SchoolConfig(models.Model):
     GROUP_TERM_CHOICES = (
         ('SINF', 'Sinf / Sinflar (Maktab standarti)'),
@@ -54,6 +85,18 @@ class SchoolConfig(models.Model):
         ('OQUVCHI', "O'quvchi / O'quvchilar"),
         ('TALABA', 'Talaba / Talabalar'),
     )
+    STATUS_CHOICES = (
+        ('ACTIVE', 'Faol'),
+        ('SUSPENDED', "Vaqtincha to'xtatilgan (Pauza)"),
+        ('BLOCKED', 'Bloklangan'),
+        ('TRIAL', 'Sinov muddati (Trial)'),
+        ('ARCHIVED', 'Arxivlangan'),
+    )
+    PAYMENT_STATUS_CHOICES = (
+        ('PAID', "To'langan"),
+        ('PENDING', 'Kutilmoqda'),
+        ('OVERDUE', 'Muddati o‘tgan (Qarzdorlik)'),
+    )
 
     school_id = models.CharField(max_length=64, unique=True, db_index=True)
     school_name = models.CharField(max_length=255, default="1-sonli Ixtisoslashtirilgan Maktab-Kollej")
@@ -63,6 +106,13 @@ class SchoolConfig(models.Model):
     director_name = models.CharField(max_length=150, blank=True, default="Rahimov Jamshid")
     phone = models.CharField(max_length=50, blank=True, default="+998 71 234-56-78")
     academic_year = models.CharField(max_length=30, default="2026-2027")
+
+    # Maktab holati, to'lov holati va ogohlantirish bannerlari
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
+    status_reason = models.TextField(blank=True, default='') # Sababi (masalan: "Oylik abonent to'lovi to'lanmaganligi sababli to'xtatildi")
+    warning_banner = models.TextField(blank=True, default='') # Maktab dashbortida ko'rinuvchi ogohlantirish
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PAID')
+    debt_amount = models.CharField(max_length=50, blank=True, default="0 so'm")
 
     # Tizim terminologiyasi va rejim sozlamalari (Sinf vs Guruh, Dars vs Para, O'quvchi vs Talaba)
     group_term = models.CharField(max_length=20, choices=GROUP_TERM_CHOICES, default='SINF')
@@ -272,6 +322,54 @@ class SchoolConfig(models.Model):
         unit = 'guruh' if (self.group_term or 'SINF').upper() == 'GURUH' else 'sinf'
         return f"{base} {unit}"
 
+    def get_access_info(self, client_type='DASHBOARD'):
+        """
+        Mijoz turiga (DASHBOARD - Maktab Admini, MOBILE - O'quvchi/Ota-ona ilovasi, DEVICE - Turniket/Face ID)
+        qarab mos ma'lumot va ogohlantirish qaytaradi.
+        """
+        is_active = (self.status == 'ACTIVE' or self.status == 'TRIAL')
+        if is_active:
+            return {
+                'is_allowed': True,
+                'status': self.status,
+                'payment_status': self.payment_status,
+                'warning_banner': self.warning_banner or '',
+            }
+
+        is_debt = (self.payment_status == 'OVERDUE') or ('qarzdor' in (self.status_reason or '').lower())
+        
+        if client_type == 'DASHBOARD':
+            # Maktab Admini (Direktor) uchun aniq, batafsil sabab
+            title = "Maktab xizmatlari qarzdorlik sababli to'xtatilgan" if is_debt else (
+                "Maktab xizmatlari vaqtincha to'xtatilgan (Pauza)" if self.status == 'SUSPENDED' else "Maktab bloklangan"
+            )
+            msg = self.status_reason or (
+                f"Hurmatli maktab ma'muriyati! Tizimdan foydalanish oylik to'lovi muddati o'tganligi sababli xizmatlar vaqtincha to'xtatildi. "
+                f"Qarzdorlik: {self.debt_amount or 'Mavjud'}. Iltimos, hisob-kitob bo'limi yoki Bosh administrator bilan bog'laning."
+                if is_debt else "Tizim ma'muri (Super Admin) tomonidan maktab faoliyati vaqtincha to'xtatilgan."
+            )
+            return {
+                'is_allowed': False,
+                'status': self.status,
+                'is_debt': is_debt,
+                'debt_amount': self.debt_amount or "0 so'm",
+                'title': title,
+                'message': msg,
+                'warning_banner': self.warning_banner or '',
+                'support_phone': "+998 71 200-00-00",
+            }
+        else:
+            # MOBIL ILOVA va QURILMALAR uchun: Ota-onalar va o'quvchilarga noqulaylik bo'lmasligi uchun neytral xabar!
+            return {
+                'is_allowed': False,
+                'status': self.status,
+                'is_debt': False,
+                'title': "Xizmatlar vaqtincha to'xtatilgan",
+                'message': "Maktab tizimida rejali profilaktika yoki texnik yangilanish ishlari sababli xizmatlar vaqtincha to'xtatilgan. Iltimos, ma'lumot olish uchun maktab ma'muriyati bilan bog'laning.",
+                'warning_banner': '',
+                'support_phone': "+998 71 200-00-00",
+            }
+
     def to_dict(self):
         is_guruh = (self.group_term or 'SINF').upper() == 'GURUH'
         is_para = (self.lesson_term or 'DARS').upper() == 'PARA'
@@ -286,6 +384,13 @@ class SchoolConfig(models.Model):
             'director_name': self.director_name,
             'phone': self.phone,
             'academic_year': self.academic_year,
+            'status': self.status or 'ACTIVE',
+            'status_reason': self.status_reason or '',
+            'warning_banner': self.warning_banner or '',
+            'payment_status': self.payment_status or 'PAID',
+            'debt_amount': self.debt_amount or "0 so'm",
+            'access_info_dashboard': self.get_access_info('DASHBOARD'),
+            'access_info_mobile': self.get_access_info('MOBILE'),
             'group_term': 'GURUH' if is_guruh else 'SINF',
             'lesson_term': 'PARA' if is_para else 'DARS',
             'student_term': 'TALABA' if is_talaba else 'OQUVCHI',

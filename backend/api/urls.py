@@ -7,9 +7,13 @@ from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView,
                     ClassScheduleManagementView, StudentDashboardSummaryView, StudentMonthlyAttendanceView,
                     StudentProfileView,
                     DeviceEventIngestionView, DeviceLogsListView, DeviceSimulateView,
-                    HikvisionTestConnectionView, HikvisionSyncStudentsView)
+                    HikvisionTestConnectionView, HikvisionSyncStudentsView,
+                    SystemConfigView, SchoolStatusActionView, SchoolAccessCheckView)
 
 urlpatterns = [
+    path('system-config/', SystemConfigView.as_view(), name='system_config'),
+    path('schools/<str:school_id>/status/', SchoolStatusActionView.as_view(), name='school_status_action'),
+    path('schools/<str:school_id>/access-status/', SchoolAccessCheckView.as_view(), name='school_access_status'),
     path('auth/passport-login/', PassportLoginView.as_view(), name='passport_login'),
     path('auth/face-verify/', FaceIdVerifyView.as_view(), name='face_verify'),
     path('qr/generate/', GenerateDynamicQRView.as_view(), name='generate_qr'),

@@ -11,10 +11,11 @@ import {
   Edit, Trash2, Copy, ZoomIn, ExternalLink,
   Radio, Play, Pause, Cpu, Upload, Settings,
   Sun, Sunset, Camera, ScanFace, DoorOpen, Globe, FileText, FileSpreadsheet,
-  Star, Zap, FlaskConical, ShieldCheck, CheckSquare, Square
+  Star, Zap, FlaskConical, ShieldCheck, CheckSquare, Square, Wrench
 } from 'lucide-react';
 import SuperAdminDashboardView from './SuperAdminDashboard';
 import SchoolMapPicker from './components/SchoolMapPicker';
+import { MaintenanceScreen, SchoolSuspendedScreen, TeacherSuspendedScreen } from './components/MaintenanceScreens';
 
 // Easy Learn Palette Constants
 const THEME = {
@@ -295,6 +296,13 @@ export default function App() {
               groupTerm: cfg.group_term || s.groupTerm || 'SINF',
               lessonTerm: cfg.lesson_term || s.lessonTerm || 'DARS',
               studentTerm: cfg.student_term || s.studentTerm || 'OQUVCHI',
+              status: cfg.status || s.status || 'ACTIVE',
+              statusReason: cfg.status_reason || s.statusReason || '',
+              warningBanner: cfg.warning_banner !== undefined ? cfg.warning_banner : (s.warningBanner || ''),
+              paymentStatus: cfg.payment_status || s.paymentStatus || 'PAID',
+              debtAmount: cfg.debt_amount || s.debtAmount || "0 so'm",
+              accessInfoDashboard: cfg.access_info_dashboard || null,
+              accessInfoMobile: cfg.access_info_mobile || null,
             };
           });
           localStorage.setItem('smart_school_institutions', JSON.stringify(merged));
@@ -338,6 +346,30 @@ export default function App() {
     } catch (_) {}
     return null;
   });
+
+  // Global Texnik Profilaktika (Maintenance) holati
+  const [systemMaintenance, setSystemMaintenance] = useState(null);
+  const [maintenanceChecking, setMaintenanceChecking] = useState(false);
+
+  const fetchSystemMaintenance = async () => {
+    try {
+      setMaintenanceChecking(true);
+      const res = await fetch('/api/system-config/');
+      if (res.ok) {
+        const data = await res.json();
+        setSystemMaintenance(data);
+      }
+    } catch (_) {
+    } finally {
+      setMaintenanceChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSystemMaintenance();
+    const interval = setInterval(fetchSystemMaintenance, 12000);
+    return () => clearInterval(interval);
+  }, []);
 
   const saveSession = (user) => {
     const sessionData = {
@@ -401,8 +433,26 @@ export default function App() {
     setCurrentUser(null);
   };
 
+  // 1. Agar Global Texnik Profilaktika Rejimi faol bo'lsa va foydalanuvchi Super Admin bo'lmasa
+  if (systemMaintenance?.is_maintenance_mode && currentUser?.role !== 'SUPER_ADMIN') {
+    return (
+      <MaintenanceScreen
+        config={systemMaintenance}
+        onRefresh={fetchSystemMaintenance}
+        checking={maintenanceChecking}
+        onLogout={currentUser ? handleLogout : null}
+      />
+    );
+  }
+
   if (!currentUser) {
-    return <LoginPage onLoginSuccess={saveSession} schoolsList={schoolsList} />;
+    return (
+      <LoginPage 
+        onLoginSuccess={saveSession} 
+        schoolsList={schoolsList} 
+        systemMaintenance={systemMaintenance}
+      />
+    );
   }
 
   if (currentUser.role === 'SUPER_ADMIN') {
@@ -449,12 +499,55 @@ export default function App() {
   }
 
   if (currentUser.role === 'TEACHER') {
+    const teacherSchool = schoolsList.find(s => String(s.id) === String(currentUser.schoolId)) || schoolsList[0];
+    if (teacherSchool && (teacherSchool.status === 'SUSPENDED' || teacherSchool.status === 'BLOCKED')) {
+      return (
+        <TeacherSuspendedScreen
+          school={teacherSchool}
+          onLogout={handleLogout}
+        />
+      );
+    }
     return <TeacherDashboardView currentUser={currentUser} handleLogout={handleLogout} />;
   }
 
   const matchedUserSchool =
     schoolsList.find(s => String(s.id) === String(currentUser.schoolId) || s.username === currentUser.username) ||
     schoolsList[0];
+
+  // Agar maktab xizmatlari to'xtatilgan yoki qarzdorlik sababli bloklangan bo'lsa
+  if (matchedUserSchool && (matchedUserSchool.status === 'SUSPENDED' || matchedUserSchool.status === 'BLOCKED')) {
+    return (
+      <SchoolSuspendedScreen
+        school={matchedUserSchool}
+        onRefresh={() => {
+          fetch('/api/school-config/?all_schools=1')
+            .then(r => r.ok ? r.json() : [])
+            .then(configs => {
+              if (Array.isArray(configs)) {
+                setSchoolsList(prev => {
+                  const map = {};
+                  configs.forEach(c => { if (c && c.school_id) map[String(c.school_id)] = c; });
+                  return prev.map(s => {
+                    const c = map[String(s.id)];
+                    return c ? {
+                      ...s,
+                      status: c.status,
+                      statusReason: c.status_reason,
+                      warningBanner: c.warning_banner,
+                      paymentStatus: c.payment_status,
+                      debtAmount: c.debt_amount,
+                      accessInfoDashboard: c.access_info_dashboard,
+                    } : s;
+                  });
+                });
+              }
+            });
+        }}
+        onLogout={handleLogout}
+      />
+    );
+  }
 
   return (
     <SchoolAdminDashboardView
@@ -484,7 +577,7 @@ export default function App() {
 // =========================================================================
 // 1. UNIVERSAL LOGIN SAHIFASI (EASY LEARN PURPLE THEME)
 // =========================================================================
-function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
+function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMaintenance }) {
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
   const [loginError, setLoginError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -494,6 +587,13 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
     setLoginError(null);
     const username = (loginForm.username || '').trim();
     const password = (loginForm.password || '').trim();
+
+    // 0. Agar Texnik Profilaktika Rejimi yoqilgan bo'lsa, faqat Super Admin kirishi mumkin
+    if (systemMaintenance?.is_maintenance_mode && username !== 'admin') {
+      const endInfo = systemMaintenance.estimated_end_time ? ` (Taxminiy tugash: ${systemMaintenance.estimated_end_time})` : '';
+      setLoginError(`⚠️ Tizimda rejali profilaktika ishlari olib borilmoqda${endInfo}. Hozirda faqat Bosh Administrator (Super Admin) kirishi mumkin.`);
+      return;
+    }
 
     // 1. Asosiy Super Admin (Barcha maktablar boshqaruvi)
     if (username === 'admin' && password === 'admin123') {
@@ -511,10 +611,6 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
       (s) => s.username.toLowerCase() === username.toLowerCase() && s.password === password
     );
     if (matchedSchool) {
-      if (matchedSchool.status === 'BLOCKED') {
-        setLoginError(`"${matchedSchool.name}" hisobi Super Admin tomonidan vaqtincha bloklangan!`);
-        return;
-      }
       onLoginSuccess({
         role: 'SCHOOL_ADMIN',
         schoolId: String(matchedSchool.id),
@@ -546,6 +642,11 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
           )
         );
         if (matchedTeacher) {
+          const tSchool = schoolsList.find(s => String(s.id) === String(matchedTeacher.school_id || '1'));
+          if (tSchool && (tSchool.status === 'SUSPENDED' || tSchool.status === 'BLOCKED')) {
+            setLoginError("Maktab tizimida xizmatlar vaqtincha to'xtatilgan. Iltimos, maktab ma'muriyati bilan bog'laning.");
+            return;
+          }
           onLoginSuccess({
             role: 'TEACHER',
             schoolId: String(matchedTeacher.school_id || '1'),
@@ -567,6 +668,11 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
 
     // Offline / Standart Test O'qituvchi hisobi
     if ((username === 'teacher' || username === '20101') && (password === 'teacher123' || password === 'admin123')) {
+      const tSchool = schoolsList.find(s => String(s.id) === '1');
+      if (tSchool && (tSchool.status === 'SUSPENDED' || tSchool.status === 'BLOCKED')) {
+        setLoginError("Maktab tizimida xizmatlar vaqtincha to'xtatilgan. Iltimos, maktab ma'muriyati bilan bog'laning.");
+        return;
+      }
       onLoginSuccess({
         role: 'TEACHER',
         schoolId: '1',
@@ -594,6 +700,30 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS }) {
           />
           <p style={{ fontSize: 13, color: THEME.textMuted, marginTop: 4 }}>Yagona Ta'lim va Davomat Boshqaruv Ekotizimi</p>
         </div>
+
+        {systemMaintenance?.is_maintenance_mode && (
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: '#FEF3C7',
+            border: '1px solid #F59E0B',
+            borderRadius: 16,
+            color: '#B45309',
+            fontSize: 12,
+            lineHeight: 1.5,
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10
+          }}>
+            <Wrench size={18} color="#D97706" style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 800 }}>Texnik profilaktika rejimi faol!</div>
+              <div style={{ fontSize: 11, marginTop: 2 }}>
+                {systemMaintenance.maintenance_message || "Serverlarda rejali yangilanish olib borilmoqda."} (Faqat Super Admin kirishi mumkin)
+              </div>
+            </div>
+          </div>
+        )}
 
         {loginError && (
           <div style={{ padding: 12, backgroundColor: '#FFF0F0', border: '1px solid #FFD0D0', borderRadius: 14, color: '#D63031', fontSize: 13, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
