@@ -2129,8 +2129,37 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
 }
 
 // =========================================================================
-// 3. BOSH SAHIFA: MAKTAB BOSHQARUV & KUNLIK DAVOMAT ANALITIKA MARKAZI
+// 3. ENTERPRISE B2B BOSH SAHIFA: MAKTAB BOSHQARUV & ANALITIKA MARKAZI
 // =========================================================================
+
+// Yengil va toza Micro-Sparkline komponenti (KPI kartalari uchun)
+function MicroSparkline({ data = [92, 93, 91.5, 94.2, 95.1, 94.8, 95.8], color = '#6C5CE7' }) {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data) || 1;
+  const range = max - min || 1;
+  const w = 68;
+  const h = 24;
+  const pts = data.map((v, i) => {
+    const x = (i / Math.max(1, data.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 6) - 3;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  return (
+    <svg width={w} height={h} style={{ overflow: 'visible', display: 'block' }}>
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={pts}
+      />
+    </svg>
+  );
+}
+
 function AttendanceMatrixSection({
   realStudents = [],
   classesList = [],
@@ -2168,16 +2197,14 @@ function AttendanceMatrixSection({
     const now = new Date();
     let stepsBack = 0;
 
-    // Yakshanba kunlarini o'tkazib yuborib, maktab ish kunlarini yig'amiz
     while (list.length < count && stepsBack < 30) {
       const d = new Date(now);
       d.setDate(d.getDate() - stepsBack);
-      const dayOfWeek = d.getDay(); // 0 is Sunday
+      const dayOfWeek = d.getDay();
       if (dayOfWeek !== 0) {
         const isToday = stepsBack === 0;
         const seed = (d.getDate() * 7 + d.getMonth() * 13 + dayOfWeek * 17) % 100;
         
-        // Haqiqiy davomat foizlari (92% - 98% oralig'ida)
         const percent = isToday ? 95.8 : Number((92.4 + (seed % 55) / 10).toFixed(1));
         const presentCount = Math.round((percent / 100) * totalEnrolled);
         const lateCount = Math.max(2, Math.round(((100 - percent) * 0.45 / 100) * totalEnrolled));
@@ -2199,7 +2226,6 @@ function AttendanceMatrixSection({
       stepsBack++;
     }
 
-    // Oldingi kunga nisbatan farqni hisoblash
     return list.map((item, idx) => {
       if (idx === 0) return { ...item, diff: 0 };
       const prev = list[idx - 1];
@@ -2216,6 +2242,12 @@ function AttendanceMatrixSection({
     lateCount: Math.round(totalEnrolled * 0.025),
     absentCount: Math.round(totalEnrolled * 0.017),
   };
+
+  // Sparkline mini-trend massivlari
+  const davomatSpark = React.useMemo(() => chartDaysData.map(d => d.percent), [chartDaysData]);
+  const presentSpark = React.useMemo(() => chartDaysData.map(d => d.presentCount), [chartDaysData]);
+  const lateSpark = React.useMemo(() => chartDaysData.map(d => d.lateCount), [chartDaysData]);
+  const absentSpark = React.useMemo(() => chartDaysData.map(d => d.absentCount), [chartDaysData]);
 
   // O'rtacha davomat ko'rsatkichi
   const averageAttendance = React.useMemo(() => {
@@ -2243,7 +2275,7 @@ function AttendanceMatrixSection({
     }).sort((a, b) => b.attendanceRate - a.attendanceRate);
   }, [classesList, realStudents]);
 
-  // Diqqat talab o'quvchilar (Davomat xavfi: oxirgi kunlarda NB olganlar)
+  // Diqqat talab o'quvchilar (Davomat xavfi)
   const dangerStudents = React.useMemo(() => {
     if (realStudents.length === 0) {
       return [
@@ -2320,14 +2352,14 @@ function AttendanceMatrixSection({
 
   // SVG Chart geometriyasi
   const svgWidth = 840;
-  const svgHeight = 220;
-  const padLeft = 50;
-  const padRight = 35;
-  const padTop = 25;
-  const padBottom = 42;
+  const svgHeight = 210;
+  const padLeft = 45;
+  const padRight = 20;
+  const padTop = 18;
+  const padBottom = 34;
   const plotW = svgWidth - padLeft - padRight;
   const plotH = svgHeight - padTop - padBottom;
-  const minVal = 85;
+  const minVal = 80;
   const maxVal = 100;
 
   // Har bir kunning SVG koordinatalari
@@ -2362,7 +2394,7 @@ function AttendanceMatrixSection({
     return p;
   }, [chartPoints]);
 
-  // Gradient bilan to'ldirilgan maydon (Area path)
+  // Gradient maydon
   const splineAreaPath = React.useMemo(() => {
     if (!splinePath || chartPoints.length < 2) return '';
     const lastX = chartPoints[chartPoints.length - 1].x;
@@ -2374,74 +2406,65 @@ function AttendanceMatrixSection({
   // Tanlangan hover ma'lumoti
   const activeTooltip = hoveredPointIndex !== null && chartPoints[hoveredPointIndex] 
     ? chartPoints[hoveredPointIndex] 
-    : chartPoints[chartPoints.length - 1];
+    : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       
-      {/* 1. XUSH KELIBSIZ & TEZKOR O'TISH ASOSIY BANNERI */}
-      <div style={{ 
-        backgroundColor: '#FFFFFF', 
-        padding: '22px 28px', 
-        borderRadius: 22, 
-        border: '1px solid rgba(108, 92, 231, 0.1)', 
-        boxShadow: '0 8px 30px -4px rgba(108, 92, 231, 0.06), 0 2px 8px -1px rgba(0, 0, 0, 0.02)',
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        flexWrap: 'wrap', 
-        gap: 20 
+      {/* 1. ENTERPRISE HEADER & BREADCRUMB & TEZKOR AMALLAR */}
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        borderRadius: 10,
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        padding: '16px 20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 14
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              gap: 6, 
-              padding: '4px 12px', 
-              borderRadius: 30, 
-              backgroundColor: '#E8F8F5', 
-              color: THEME.green, 
-              fontSize: 12, 
-              fontWeight: 800 
-            }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: THEME.green, boxShadow: '0 0 8px #10AC84' }}></span>
-              Jonli Rejim • Idrok Vision & Turniket Faol
-            </span>
-            <span style={{ fontSize: 13, color: THEME.textMuted }}>
-              Bugun: {new Date().toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })}
-            </span>
+          {/* Breadcrumb */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#8A90A2', marginBottom: 4 }}>
+            <span>Dashboard</span>
+            <span>/</span>
+            <span>{schoolName || "Maktab"}</span>
+            <span>/</span>
+            <span style={{ color: '#1E2038', fontWeight: 600 }}>Bosh Sahifa</span>
           </div>
 
-          <div style={{ fontWeight: 900, fontSize: 22, color: THEME.textDark, marginTop: 8 }}>
-            Bosh Sahifa & Analitika Markazi — {schoolName}
-          </div>
-          <div style={{ fontSize: 13, color: THEME.textMuted, marginTop: 4 }}>
-            Maktabning kunlik real davomat ko'rsatkichlari, dinamik grafiklar va tezkor boshqaruv vositalari
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1 style={{ fontSize: 18, fontWeight: 600, color: '#1E2038', margin: 0 }}>
+              Bosh Sahifa & Analitika Markazi
+            </h1>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#8A90A2' }}>
+              <span className="sa-ping-dot"></span>
+              Jonli Rejim • Idrok Vision & Turniket Faol
+            </span>
           </div>
         </div>
 
-        {/* Tezkor O'tish Amallari */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {/* Tezkor Boshqaruv Tugmalari (Enterprise 6px radius) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {onAddStudent && (
             <button
               onClick={onAddStudent}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 8,
-                padding: '11px 18px',
-                borderRadius: 14,
+                gap: 6,
+                padding: '7px 14px',
+                borderRadius: 6,
                 border: 'none',
-                background: THEME.gradient,
-                color: '#FFF',
-                fontWeight: 800,
-                fontSize: 13,
+                background: 'linear-gradient(135deg, #7C69EF 0%, #5845D8 100%)',
+                color: '#FFFFFF',
+                fontWeight: 600,
+                fontSize: 12.5,
                 cursor: 'pointer',
-                boxShadow: '0 4px 16px rgba(108, 92, 231, 0.35)',
-                transition: 'all 0.2s',
+                transition: 'opacity 0.15s ease',
               }}>
-              <Plus size={16} /> Yangi O'quvchi
+              <Plus size={14} /> Yangi O'quvchi
             </button>
           )}
 
@@ -2452,18 +2475,18 @@ function AttendanceMatrixSection({
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 7,
-                  padding: '11px 16px',
-                  borderRadius: 14,
-                  border: `1px solid ${THEME.border}`,
+                  gap: 6,
+                  padding: '7px 12px',
+                  borderRadius: 6,
+                  border: '1px solid #E2E8F0',
                   backgroundColor: '#FFFFFF',
-                  color: THEME.textDark,
-                  fontWeight: 700,
-                  fontSize: 13,
+                  color: '#1E2038',
+                  fontWeight: 500,
+                  fontSize: 12.5,
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
+                  transition: 'border-color 0.15s ease',
                 }}>
-                <Calendar size={16} color={THEME.primary} /> {terms.lessonSingular} Jadvali
+                <Calendar size={14} color="#6C5CE7" /> {terms.lessonSingular} Jadvali
               </button>
 
               <button
@@ -2471,17 +2494,18 @@ function AttendanceMatrixSection({
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 7,
-                  padding: '11px 16px',
-                  borderRadius: 14,
-                  border: `1px solid ${THEME.border}`,
+                  gap: 6,
+                  padding: '7px 12px',
+                  borderRadius: 6,
+                  border: '1px solid #E2E8F0',
                   backgroundColor: '#FFFFFF',
-                  color: THEME.textDark,
-                  fontWeight: 700,
-                  fontSize: 13,
+                  color: '#1E2038',
+                  fontWeight: 500,
+                  fontSize: 12.5,
                   cursor: 'pointer',
+                  transition: 'border-color 0.15s ease',
                 }}>
-                <FolderOpen size={16} color={THEME.primary} /> {terms.groupPlural}
+                <FolderOpen size={14} color="#6C5CE7" /> {terms.groupPlural}
               </button>
 
               <button
@@ -2489,17 +2513,18 @@ function AttendanceMatrixSection({
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 7,
-                  padding: '11px 16px',
-                  borderRadius: 14,
-                  border: `1px solid rgba(16, 172, 132, 0.3)`,
+                  gap: 6,
+                  padding: '7px 12px',
+                  borderRadius: 6,
+                  border: '1px solid rgba(16, 172, 132, 0.3)',
                   backgroundColor: '#E8F8F5',
-                  color: THEME.green,
-                  fontWeight: 800,
-                  fontSize: 13,
+                  color: '#10AC84',
+                  fontWeight: 600,
+                  fontSize: 12.5,
                   cursor: 'pointer',
+                  transition: 'border-color 0.15s ease',
                 }}>
-                <Cpu size={16} /> Idrok Vision (Face ID)
+                <Cpu size={14} /> Idrok Vision
               </button>
             </>
           )}
@@ -2510,359 +2535,259 @@ function AttendanceMatrixSection({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 7,
-              padding: '11px 16px',
-              borderRadius: 14,
-              border: `1px solid ${THEME.border}`,
+              gap: 6,
+              padding: '7px 12px',
+              borderRadius: 6,
+              border: '1px solid #E2E8F0',
               backgroundColor: '#FFFFFF',
-              color: THEME.textDark,
-              fontWeight: 700,
-              fontSize: 13,
+              color: '#1E2038',
+              fontWeight: 500,
+              fontSize: 12.5,
               cursor: 'pointer',
+              transition: 'border-color 0.15s ease',
             }}>
-            <Download size={16} color={THEME.primary} /> Tabel (CSV)
+            <Download size={14} color="#6C5CE7" /> Tabel (CSV)
           </button>
         </div>
       </div>
 
-      {/* 2. TOP 4 TA KUNLIK ASOSIY KPI BENTO KARTALARI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 18 }}>
+      {/* 2. TOP 4 TA KPI VA STATISTIKA KARTALARI (SPARKLINE BILAN) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
         
         {/* Karta 1: Bugungi Real Davomat */}
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          padding: '22px 24px',
-          borderRadius: 20,
-          border: '1px solid rgba(108, 92, 231, 0.12)',
-          boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.05)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
+        <div className="sa-card" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: THEME.textMuted }}>Bugungi Real Davomat</div>
-            <div style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              backgroundColor: THEME.primaryLight,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: THEME.primary
-            }}>
-              <TrendingUp size={20} />
-            </div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#8A90A2' }}>Bugungi Real Davomat</div>
+            <MicroSparkline data={davomatSpark} color="#6C5CE7" />
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 12 }}>
-            <div style={{ fontSize: 32, fontWeight: 900, color: THEME.primary }}>{todayStats.percent}%</div>
-            <div style={{
+          <div style={{ fontSize: 28, fontWeight: 600, color: '#1E2038', letterSpacing: '-0.02em', marginTop: 4 }}>
+            {todayStats.percent}%
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <span style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 3,
-              fontSize: 12,
-              fontWeight: 800,
-              color: todayStats.diff >= 0 ? THEME.green : '#EF4444',
+              gap: 2,
+              fontSize: 11,
+              fontWeight: 600,
+              color: todayStats.diff >= 0 ? '#10AC84' : '#EF4444',
               backgroundColor: todayStats.diff >= 0 ? '#E8F8F5' : '#FEE2E2',
-              padding: '3px 8px',
-              borderRadius: 8
+              padding: '2px 6px',
+              borderRadius: 4
             }}>
-              {todayStats.diff >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-              {todayStats.diff >= 0 ? `+${todayStats.diff}%` : `${todayStats.diff}%`}
-            </div>
-          </div>
-          <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 8 }}>
-            Kechagiga nisbatan o'zgarish • {todayStats.presentCount + todayStats.lateCount} / {todayStats.total} ta o'quvchi
+              {todayStats.diff >= 0 ? `▲ +${todayStats.diff}%` : `▼ ${todayStats.diff}%`}
+            </span>
+            <span style={{ fontSize: 11, color: '#8A90A2' }}>o'tgan haftaga nisbatan</span>
           </div>
         </div>
 
-        {/* Karta 2: O'z Vaqtida Kelganlar (Bor) */}
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          padding: '22px 24px',
-          borderRadius: 20,
-          border: '1px solid rgba(16, 172, 132, 0.15)',
-          boxShadow: '0 4px 20px -2px rgba(16, 172, 132, 0.05)',
-        }}>
+        {/* Karta 2: Darsda Bor (O'z vaqtida) */}
+        <div className="sa-card" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: THEME.textMuted }}>Darsda Bor (O'z vaqtida)</div>
-            <div style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              backgroundColor: '#E8F8F5',
-              display: 'flex',
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#8A90A2' }}>Darsda Bor (O'z vaqtida)</div>
+            <MicroSparkline data={presentSpark} color="#10AC84" />
+          </div>
+          <div style={{ fontSize: 28, fontWeight: 600, color: '#1E2038', letterSpacing: '-0.02em', marginTop: 4 }}>
+            {todayStats.presentCount} <span style={{ fontSize: 14, fontWeight: 400, color: '#8A90A2' }}>ta</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <span style={{
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: THEME.green
+              gap: 2,
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#10AC84',
+              backgroundColor: '#E8F8F5',
+              padding: '2px 6px',
+              borderRadius: 4
             }}>
-              <CheckCircle2 size={20} />
-            </div>
-          </div>
-          <div style={{ fontSize: 32, fontWeight: 900, color: THEME.textDark, marginTop: 12 }}>
-            {todayStats.presentCount} <span style={{ fontSize: 15, fontWeight: 600, color: THEME.textMuted }}>o'quvchi</span>
-          </div>
-          <div style={{ fontSize: 12, color: THEME.green, fontWeight: 700, marginTop: 8 }}>
-            ● Maktab turniketi & Face ID orqali qayd etildi
+              ▲ +0.8%
+            </span>
+            <span style={{ fontSize: 11, color: '#8A90A2' }}>turniket & Face ID orqali</span>
           </div>
         </div>
 
         {/* Karta 3: Kechikkanlar */}
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          padding: '22px 24px',
-          borderRadius: 20,
-          border: '1px solid rgba(255, 159, 67, 0.15)',
-          boxShadow: '0 4px 20px -2px rgba(255, 159, 67, 0.05)',
-        }}>
+        <div className="sa-card" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: THEME.textMuted }}>Kechikkanlar</div>
-            <div style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              backgroundColor: '#FFF4E5',
-              display: 'flex',
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#8A90A2' }}>Kechikkanlar</div>
+            <MicroSparkline data={lateSpark} color="#FF9F43" />
+          </div>
+          <div style={{ fontSize: 28, fontWeight: 600, color: '#1E2038', letterSpacing: '-0.02em', marginTop: 4 }}>
+            {todayStats.lateCount} <span style={{ fontSize: 14, fontWeight: 400, color: '#8A90A2' }}>ta</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <span style={{
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: THEME.orange
+              gap: 2,
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#FF9F43',
+              backgroundColor: '#FFF4E5',
+              padding: '2px 6px',
+              borderRadius: 4
             }}>
-              <Clock size={20} />
-            </div>
-          </div>
-          <div style={{ fontSize: 32, fontWeight: 900, color: THEME.orange, marginTop: 12 }}>
-            {todayStats.lateCount} <span style={{ fontSize: 15, fontWeight: 600, color: THEME.textMuted }}>o'quvchi</span>
-          </div>
-          <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 8 }}>
-            08:30 dan keyin kirganlar (ogohlantirish berildi)
+              ▼ -0.3%
+            </span>
+            <span style={{ fontSize: 11, color: '#8A90A2' }}>qo'ng'iroqdan so'ng</span>
           </div>
         </div>
 
         {/* Karta 4: Dars Qoldirganlar (NB) */}
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          padding: '22px 24px',
-          borderRadius: 20,
-          border: '1px solid rgba(239, 68, 68, 0.15)',
-          boxShadow: '0 4px 20px -2px rgba(239, 68, 68, 0.05)',
-        }}>
+        <div className="sa-card" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: THEME.textMuted }}>Dars Qoldirganlar (NB)</div>
-            <div style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              backgroundColor: '#FEE2E2',
-              display: 'flex',
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#8A90A2' }}>Dars Qoldirganlar (NB)</div>
+            <MicroSparkline data={absentSpark} color="#EF4444" />
+          </div>
+          <div style={{ fontSize: 28, fontWeight: 600, color: '#1E2038', letterSpacing: '-0.02em', marginTop: 4 }}>
+            {todayStats.absentCount} <span style={{ fontSize: 14, fontWeight: 400, color: '#8A90A2' }}>ta</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <span style={{
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: '#EF4444'
+              gap: 2,
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#EF4444',
+              backgroundColor: '#FEE2E2',
+              padding: '2px 6px',
+              borderRadius: 4
             }}>
-              <UserX size={20} />
-            </div>
-          </div>
-          <div style={{ fontSize: 32, fontWeight: 900, color: '#EF4444', marginTop: 12 }}>
-            {todayStats.absentCount} <span style={{ fontSize: 15, fontWeight: 600, color: THEME.textMuted }}>o'quvchi</span>
-          </div>
-          <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 700, marginTop: 8 }}>
-            ⚠️ Sababsiz kelmaganlar • Ota-onalariga xabar
+              ▼ -0.5%
+            </span>
+            <span style={{ fontSize: 11, color: '#8A90A2' }}>sababsiz qoldirganlar</span>
           </div>
         </div>
 
       </div>
 
-      {/* 3. ASOSIY GRAFIK: KUNLIK DAVOMAT STATISTIKASI (O'TGAN KUNLARGA NISBATAN) */}
-      <div style={{
-        backgroundColor: '#FFFFFF',
-        padding: '24px 28px',
-        borderRadius: 22,
-        border: '1px solid rgba(108, 92, 231, 0.1)',
-        boxShadow: '0 6px 24px -2px rgba(108, 92, 231, 0.05)',
-      }}>
+      {/* 3. ASOSIY ENTERPRISE GRAFIK: KUNLIK DAVOMAT STATISTIKASI */}
+      <div className="sa-card" style={{ padding: '20px 24px', position: 'relative' }}>
+        
         {/* Grafik Sarlavhasi va Boshqaruv Tugmalari */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <BarChart3 size={20} color={THEME.primary} />
-              <span style={{ fontWeight: 900, fontSize: 17, color: THEME.textDark }}>
-                Kunlik Davomat Statistikasi & Dinamikasi
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#1E2038' }}>
+                Kunlik Davomat Dinamikasi
               </span>
               <span style={{
-                fontSize: 12,
-                fontWeight: 800,
-                color: THEME.primary,
-                backgroundColor: THEME.primaryLight,
-                padding: '2px 10px',
-                borderRadius: 10
+                fontSize: 11.5,
+                fontWeight: 600,
+                color: '#6C5CE7',
+                backgroundColor: '#F1F0FF',
+                padding: '2px 8px',
+                borderRadius: 4
               }}>
-                Haftalik O'rtacha: {averageAttendance}%
+                O'rtacha: {averageAttendance}%
               </span>
             </div>
-            <div style={{ fontSize: 12.5, color: THEME.textMuted, marginTop: 4 }}>
-              O'tgan kunlarga nisbatan real davomat ko'rsatkichlari, farq dinamikasi va har kungi o'quvchilar balansi
+            <div style={{ fontSize: 12, color: '#8A90A2', marginTop: 2 }}>
+              O'tgan kunlarga nisbatan real davomat ko'rsatkichlari va dinamikasi
             </div>
           </div>
 
-          {/* Chart boshqaruvlari: Rejim (Area/Bar) va Davr (7d/14d) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', backgroundColor: '#F1F5F9', padding: 3, borderRadius: 12 }}>
+          {/* Rejim (Area/Bar) va Davr (7d/14d) Filtrlari */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', backgroundColor: '#F1F5F9', padding: 2, borderRadius: 6 }}>
               <button
                 onClick={() => setChartMode('area')}
                 style={{
-                  padding: '6px 14px',
-                  borderRadius: 9,
+                  padding: '4px 10px',
+                  borderRadius: 4,
                   border: 'none',
                   backgroundColor: chartMode === 'area' ? '#FFFFFF' : 'transparent',
-                  color: chartMode === 'area' ? THEME.primary : THEME.textMuted,
-                  fontWeight: 800,
+                  color: chartMode === 'area' ? '#6C5CE7' : '#8A90A2',
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
-                  boxShadow: chartMode === 'area' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-                  transition: 'all 0.2s'
+                  boxShadow: chartMode === 'area' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s ease'
                 }}>
-                📈 Silliq Chiziqli
+                Silliq Chiziqli
               </button>
               <button
                 onClick={() => setChartMode('bar')}
                 style={{
-                  padding: '6px 14px',
-                  borderRadius: 9,
+                  padding: '4px 10px',
+                  borderRadius: 4,
                   border: 'none',
                   backgroundColor: chartMode === 'bar' ? '#FFFFFF' : 'transparent',
-                  color: chartMode === 'bar' ? THEME.primary : THEME.textMuted,
-                  fontWeight: 800,
+                  color: chartMode === 'bar' ? '#6C5CE7' : '#8A90A2',
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
-                  boxShadow: chartMode === 'bar' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-                  transition: 'all 0.2s'
+                  boxShadow: chartMode === 'bar' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s ease'
                 }}>
-                📊 Ustunli (Bar)
+                Ustunli
               </button>
             </div>
 
-            <div style={{ display: 'flex', backgroundColor: '#F1F5F9', padding: 3, borderRadius: 12 }}>
+            <div style={{ display: 'flex', backgroundColor: '#F1F5F9', padding: 2, borderRadius: 6 }}>
               <button
                 onClick={() => setChartRange('7d')}
                 style={{
-                  padding: '6px 12px',
-                  borderRadius: 9,
+                  padding: '4px 8px',
+                  borderRadius: 4,
                   border: 'none',
-                  backgroundColor: chartRange === '7d' ? THEME.primary : 'transparent',
-                  color: chartRange === '7d' ? '#FFFFFF' : THEME.textMuted,
-                  fontWeight: 800,
+                  backgroundColor: chartRange === '7d' ? '#6C5CE7' : 'transparent',
+                  color: chartRange === '7d' ? '#FFFFFF' : '#8A90A2',
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.15s ease'
                 }}>
-                7 Kunlik
+                7 Kun
               </button>
               <button
                 onClick={() => setChartRange('14d')}
                 style={{
-                  padding: '6px 12px',
-                  borderRadius: 9,
+                  padding: '4px 8px',
+                  borderRadius: 4,
                   border: 'none',
-                  backgroundColor: chartRange === '14d' ? THEME.primary : 'transparent',
-                  color: chartRange === '14d' ? '#FFFFFF' : THEME.textMuted,
-                  fontWeight: 800,
+                  backgroundColor: chartRange === '14d' ? '#6C5CE7' : 'transparent',
+                  color: chartRange === '14d' ? '#FFFFFF' : '#8A90A2',
+                  fontWeight: 600,
                   fontSize: 12,
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.15s ease'
                 }}>
-                14 Kunlik
+                14 Kun
               </button>
             </div>
           </div>
         </div>
-
-        {/* Jonli Interaktiv Tooltip Paneli */}
-        {activeTooltip && (
-          <div style={{
-            backgroundColor: '#F8F9FE',
-            padding: '12px 18px',
-            borderRadius: 14,
-            border: '1px solid rgba(108, 92, 231, 0.12)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-            marginBottom: 16
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                backgroundColor: activeTooltip.isToday ? THEME.green : THEME.primary,
-                boxShadow: `0 0 8px ${activeTooltip.isToday ? THEME.green : THEME.primary}`
-              }}></div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: THEME.textDark }}>
-                {activeTooltip.weekday} ({activeTooltip.dateLabel}) {activeTooltip.isToday && <span style={{ color: THEME.green }}>— Jonli Bugun</span>}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, flexWrap: 'wrap' }}>
-              <div>
-                <span style={{ color: THEME.textMuted }}>Umumiy Davomat: </span>
-                <strong style={{ color: THEME.primary, fontSize: 15 }}>{activeTooltip.percent}%</strong>
-              </div>
-
-              <div>
-                <span style={{ color: THEME.textMuted }}>Oldingi kunga nisbatan: </span>
-                <strong style={{ 
-                  color: activeTooltip.diff >= 0 ? THEME.green : '#EF4444',
-                  fontWeight: 800
-                }}>
-                  {activeTooltip.diff >= 0 ? `▲ +${activeTooltip.diff}%` : `▼ ${activeTooltip.diff}%`}
-                </strong>
-              </div>
-
-              <div>
-                <span style={{ color: THEME.textMuted }}>Kelganlar: </span>
-                <strong style={{ color: THEME.green }}>{activeTooltip.presentCount} ta</strong>
-              </div>
-
-              <div>
-                <span style={{ color: THEME.textMuted }}>Kechikkanlar: </span>
-                <strong style={{ color: THEME.orange }}>{activeTooltip.lateCount} ta</strong>
-              </div>
-
-              <div>
-                <span style={{ color: THEME.textMuted }}>NB (Kelmadi): </span>
-                <strong style={{ color: '#EF4444' }}>{activeTooltip.absentCount} ta</strong>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* SVG Chizma Maydoni */}
         <div style={{ position: 'relative', width: '100%', overflowX: 'auto' }}>
           <svg
             viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            style={{ width: '100%', height: 'auto', minWidth: 680, display: 'block' }}>
+            onMouseLeave={() => setHoveredPointIndex(null)}
+            style={{ width: '100%', height: 'auto', minWidth: 640, display: 'block' }}>
             <defs>
-              {/* Silliq chiziq ostidagi gradient */}
-              <linearGradient id="attendanceGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6C5CE7" stopOpacity="0.3" />
-                <stop offset="85%" stopColor="#6C5CE7" stopOpacity="0.02" />
-                <stop offset="100%" stopColor="#6C5CE7" stopOpacity="0.0" />
+              {/* Nozik so'nuvchi gradient (0.12 dan 0.0 gacha) */}
+              <linearGradient id="enterpriseChartGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6C5CE7" stopOpacity="0.12" />
+                <stop offset="90%" stopColor="#6C5CE7" stopOpacity="0.0" />
               </linearGradient>
 
-              {/* Ustunlar gradienti */}
-              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="entBarGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#6C5CE7" />
-                <stop offset="100%" stopColor="#9C8EF7" />
+                <stop offset="100%" stopColor="#8B7AF5" />
               </linearGradient>
 
-              {/* Bugungi ustun gradienti */}
-              <linearGradient id="todayBarGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="entTodayBarGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#10AC84" />
                 <stop offset="100%" stopColor="#2ED573" />
               </linearGradient>
             </defs>
 
-            {/* Gorizontal yordamchi to'r chiziqlari (85%, 90%, 95%, 100%) */}
-            {[85, 90, 95, 100].map((level) => {
+            {/* Gorizontal yordamchi to'r chiziqlari (80%, 85%, 90%, 95%, 100%) */}
+            {[80, 85, 90, 95, 100].map((level) => {
               const y = padTop + (1 - (level - minVal) / (maxVal - minVal)) * plotH;
               return (
                 <g key={level}>
@@ -2872,15 +2797,15 @@ function AttendanceMatrixSection({
                     x2={svgWidth - padRight}
                     y2={y}
                     stroke="#E2E8F0"
-                    strokeDasharray={level === 100 ? undefined : "4 4"}
-                    strokeWidth={level === 100 ? "1.5" : "1"}
+                    strokeDasharray="4 4"
+                    strokeWidth="1"
                   />
                   <text
-                    x={padLeft - 10}
+                    x={padLeft - 8}
                     y={y + 4}
                     textAnchor="end"
                     fontSize="11"
-                    fontWeight="700"
+                    fontWeight="500"
                     fill="#94A3B8">
                     {level}%
                   </text>
@@ -2891,115 +2816,89 @@ function AttendanceMatrixSection({
             {/* REJIM 1: SILLIQ CHIZIQLI (SPLINE AREA) */}
             {chartMode === 'area' && (
               <>
-                {/* Maydon foni */}
-                <path d={splineAreaPath} fill="url(#attendanceGradient)" />
+                <path d={splineAreaPath} fill="url(#enterpriseChartGradient)" />
 
-                {/* Asosiy chiziq */}
+                {/* Toza 2px chiziq */}
                 <path
                   d={splinePath}
                   fill="none"
-                  stroke={THEME.primary}
-                  strokeWidth="3.5"
+                  stroke="#6C5CE7"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
 
-                {/* Nuqtalar va interaktiv aylanalar */}
+                {/* Hover trigger maydonlari va crosshair */}
                 {chartPoints.map((pt, i) => {
                   const isHovered = hoveredPointIndex === i;
                   return (
                     <g
                       key={i}
                       onMouseEnter={() => setHoveredPointIndex(i)}
-                      onMouseLeave={() => setHoveredPointIndex(null)}
                       style={{ cursor: 'pointer' }}>
-                      {/* Vertikal chiziq (hover qilinganda) */}
+                      
+                      {/* Vertikal yo'naltiruvchi chiziq (Crosshair) */}
                       {isHovered && (
                         <line
                           x1={pt.x}
                           y1={padTop}
                           x2={pt.x}
                           y2={padTop + plotH}
-                          stroke={THEME.primary}
-                          strokeWidth="1.5"
+                          stroke="#94A3B8"
+                          strokeWidth="1"
                           strokeDasharray="3 3"
-                          opacity="0.7"
                         />
                       )}
 
-                      {/* Tashqi doira */}
-                      <circle
-                        cx={pt.x}
-                        cy={pt.y}
-                        r={pt.isToday ? 7 : (isHovered ? 7 : 5)}
-                        fill={pt.isToday ? "#10AC84" : "#FFFFFF"}
-                        stroke={pt.isToday ? "#FFFFFF" : THEME.primary}
-                        strokeWidth={pt.isToday ? 2.5 : 3}
-                        style={{ transition: 'all 0.15s ease-out' }}
-                      />
-
-                      {/* Bugun belgisi ustida yaltirash halqasi */}
-                      {pt.isToday && (
+                      {/* Faqat hover bo'lganda ko'rinuvchi nuqta */}
+                      {isHovered && (
                         <circle
                           cx={pt.x}
                           cy={pt.y}
-                          r={11}
-                          fill="none"
-                          stroke="#10AC84"
-                          strokeWidth="1.5"
-                          opacity="0.6"
+                          r={4}
+                          fill="#6C5CE7"
+                          stroke="#FFFFFF"
+                          strokeWidth={2}
                         />
                       )}
 
-                      {/* Foiz yozuvi */}
-                      <text
-                        x={pt.x}
-                        y={pt.y - (pt.isToday ? 14 : 10)}
-                        textAnchor="middle"
-                        fontSize={pt.isToday ? "12" : "11"}
-                        fontWeight={pt.isToday ? "900" : "800"}
-                        fill={pt.isToday ? "#10AC84" : THEME.textDark}>
-                        {pt.percent}%
-                      </text>
+                      {/* Hover hududi */}
+                      <rect
+                        x={pt.x - 18}
+                        y={padTop}
+                        width={36}
+                        height={plotH}
+                        fill="transparent"
+                      />
                     </g>
                   );
                 })}
               </>
             )}
 
-            {/* REJIM 2: USTUNLI (BAR CHART) */}
+            {/* REJIM 2: USTUNLI (BAR) */}
             {chartMode === 'bar' && (
               chartPoints.map((pt, i) => {
-                const barWidth = Math.min(38, Math.max(18, (plotW / chartPoints.length) * 0.55));
-                const barHeight = Math.max(8, (padTop + plotH) - pt.y);
+                const barWidth = Math.min(24, Math.max(12, (plotW / chartPoints.length) * 0.4));
+                const barHeight = Math.max(4, (padTop + plotH) - pt.y);
                 const isHovered = hoveredPointIndex === i;
 
                 return (
                   <g
                     key={i}
                     onMouseEnter={() => setHoveredPointIndex(i)}
-                    onMouseLeave={() => setHoveredPointIndex(null)}
                     style={{ cursor: 'pointer' }}>
                     <rect
                       x={pt.x - barWidth / 2}
                       y={pt.y}
                       width={barWidth}
                       height={barHeight}
-                      rx={6}
-                      ry={6}
-                      fill={pt.isToday ? "url(#todayBarGradient)" : (isHovered ? THEME.primaryDark : "url(#barGradient)")}
+                      rx={3}
+                      ry={3}
+                      fill={pt.isToday ? "url(#entTodayBarGradient)" : (isHovered ? "#5845D8" : "url(#entBarGradient)")}
                       opacity={isHovered ? 1 : 0.9}
-                      style={{ transition: 'all 0.15s ease-out' }}
+                      transition="opacity 0.15s ease"
                     />
-                    <text
-                      x={pt.x}
-                      y={pt.y - 7}
-                      textAnchor="middle"
-                      fontSize="11"
-                      fontWeight="800"
-                      fill={pt.isToday ? "#10AC84" : THEME.textDark}>
-                      {pt.percent}%
-                    </text>
                   </g>
                 );
               })
@@ -3007,24 +2906,24 @@ function AttendanceMatrixSection({
 
             {/* X-o'qi kunlari va sanalari */}
             {chartPoints.map((pt, i) => {
-              const bottomY = padTop + plotH + 16;
+              const bottomY = padTop + plotH + 15;
               return (
                 <g key={i}>
                   <text
                     x={pt.x}
                     y={bottomY}
                     textAnchor="middle"
-                    fontSize="11.5"
-                    fontWeight={pt.isToday ? "900" : "700"}
-                    fill={pt.isToday ? "#10AC84" : THEME.textDark}>
+                    fontSize="11"
+                    fontWeight={pt.isToday ? "600" : "500"}
+                    fill={pt.isToday ? "#10AC84" : "#1E2038"}>
                     {pt.weekday}
                   </text>
                   <text
                     x={pt.x}
-                    y={bottomY + 14}
+                    y={bottomY + 13}
                     textAnchor="middle"
                     fontSize="10"
-                    fontWeight="500"
+                    fontWeight="400"
                     fill="#94A3B8">
                     {pt.dateLabel}
                   </text>
@@ -3032,149 +2931,151 @@ function AttendanceMatrixSection({
               );
             })}
           </svg>
-        </div>
 
-        {/* Grafik ostidagi xulosa banneri */}
-        <div style={{
-          marginTop: 14,
-          paddingTop: 14,
-          borderTop: '1px solid #F1F5F9',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 10,
-          fontSize: 12.5,
-          color: THEME.textMuted
-        }}>
-          <div>
-            💡 <strong style={{ color: THEME.textDark }}>Xulosa:</strong> Oxirgi kunlarda davomat barqaror <strong style={{ color: THEME.green }}>95%+</strong> darajasida saqlanmoqda. Eng yuqori ko'rsatkich Chorshanba kuni qayd etildi.
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: THEME.primary }}></span>
-              Oddiy ish kuni
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: THEME.green }}></span>
-              Bugun (Jonli)
-            </span>
-          </div>
+          {/* Interaktiv Dark Tooltip (Floating Popover) */}
+          {activeTooltip && (
+            <div style={{
+              position: 'absolute',
+              top: Math.max(12, activeTooltip.y - 105),
+              left: Math.min(Math.max(activeTooltip.x - 90, 10), svgWidth - 190),
+              backgroundColor: '#1E2038',
+              borderRadius: 6,
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+              padding: '10px 14px',
+              color: '#FFFFFF',
+              fontSize: 12,
+              pointerEvents: 'none',
+              zIndex: 20,
+              minWidth: 175,
+            }}>
+              <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 2 }}>
+                {activeTooltip.weekday}, {activeTooltip.dateLabel}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#FFFFFF', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span>{activeTooltip.percent}%</span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: activeTooltip.diff >= 0 ? '#10AC84' : '#EF4444' }}>
+                  {activeTooltip.diff >= 0 ? `▲ +${activeTooltip.diff}%` : `▼ ${activeTooltip.diff}%`}
+                </span>
+              </div>
+              <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#CBD5E1', fontSize: 11 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10AC84' }}></span>
+                    Kelganlar:
+                  </span>
+                  <strong style={{ color: '#FFFFFF' }}>{activeTooltip.presentCount} ta</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#CBD5E1', fontSize: 11 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#FF9F43' }}></span>
+                    Kechikkanlar:
+                  </span>
+                  <strong style={{ color: '#FFFFFF' }}>{activeTooltip.lateCount} ta</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#CBD5E1', fontSize: 11 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#EF4444' }}></span>
+                    Qoldirganlar (NB):
+                  </span>
+                  <strong style={{ color: '#FFFFFF' }}>{activeTooltip.absentCount} ta</strong>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 4. IKKITA YONMA-YON ANALITIK BENTO BLOK (Reyting & Diqqat Talab O'quvchilar) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20 }}>
+      {/* 4. IKKITA YONMA-YON ANALITIK BLOK (Reyting & Diqqat Talab O'quvchilar) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14 }}>
         
         {/* Chap Blok: Sinflar Davomat Reytingi */}
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          padding: 24,
-          borderRadius: 22,
-          border: '1px solid rgba(108, 92, 231, 0.1)',
-          boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Award size={20} color={THEME.orange} />
-              <span style={{ fontWeight: 800, fontSize: 16, color: THEME.textDark }}>
-                {terms.groupPlural} Davomat Reytingi
-              </span>
-            </div>
+        <div className="sa-card" style={{ padding: '16px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#1E2038' }}>
+              {terms.groupPlural} Davomat Reytingi
+            </span>
             {onNavigateTab && (
               <button
                 onClick={() => onNavigateTab('groups')}
                 style={{
                   border: 'none',
                   background: 'none',
-                  color: THEME.primary,
-                  fontWeight: 700,
-                  fontSize: 12.5,
+                  color: '#6C5CE7',
+                  fontWeight: 600,
+                  fontSize: 12,
                   cursor: 'pointer'
                 }}>
-                Barchasini ko'rish →
+                Barchasi →
               </button>
             )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {classRankings.slice(0, 4).map((cls, idx) => {
-              const medals = ['🥇', '🥈', '🥉', '🔹'];
-              return (
-                <div
-                  key={cls.id || idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: 14,
-                    backgroundColor: idx === 0 ? '#F8F9FE' : '#FAFAFA',
-                    border: idx === 0 ? '1px solid rgba(108, 92, 231, 0.15)' : '1px solid #F1F5F9',
-                  }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>{medals[idx]}</span>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: 14, color: THEME.textDark }}>
-                        {terms.formatGroupBadge(cls.name)}
-                      </div>
-                      <div style={{ fontSize: 11, color: THEME.textMuted }}>
-                        {cls.studentCount} ta {terms.studentSingularLower}
-                      </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {classRankings.slice(0, 4).map((cls, idx) => (
+              <div
+                key={cls.id || idx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '9px 12px',
+                  borderRadius: 6,
+                  backgroundColor: '#F8F9FE',
+                  border: '1px solid #E2E8F0',
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#8A90A2', width: 14 }}>{idx + 1}</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#1E2038' }}>
+                      {terms.formatGroupBadge(cls.name)}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#8A90A2' }}>
+                      {cls.studentCount} ta {terms.studentSingularLower}
                     </div>
                   </div>
-
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '4px 10px',
-                      borderRadius: 10,
-                      backgroundColor: cls.attendanceRate >= 95 ? '#E8F8F5' : '#FFF4E5',
-                      color: cls.attendanceRate >= 95 ? THEME.green : THEME.orange,
-                      fontWeight: 900,
-                      fontSize: 13
-                    }}>
-                      {cls.attendanceRate}%
-                    </span>
-                  </div>
                 </div>
-              );
-            })}
+
+                <div>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    backgroundColor: cls.attendanceRate >= 95 ? '#E8F8F5' : '#FFF4E5',
+                    color: cls.attendanceRate >= 95 ? '#10AC84' : '#FF9F43',
+                    fontWeight: 600,
+                    fontSize: 12
+                  }}>
+                    {cls.attendanceRate}%
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* O'ng Blok: Diqqat Talab O'quvchilar (Davomat Xavfi) */}
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          padding: 24,
-          borderRadius: 22,
-          border: '1px solid rgba(239, 68, 68, 0.12)',
-          boxShadow: '0 4px 20px -2px rgba(239, 68, 68, 0.04)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AlertTriangle size={20} color="#EF4444" />
-              <span style={{ fontWeight: 800, fontSize: 16, color: THEME.textDark }}>
-                Diqqat Talab {terms.studentPlural} (NB Xavfi)
-              </span>
-            </div>
+        <div className="sa-card" style={{ padding: '16px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#1E2038' }}>
+              Diqqat Talab {terms.studentPlural} (NB Xavfi)
+            </span>
             <span style={{
-              fontSize: 11.5,
-              fontWeight: 800,
+              fontSize: 11,
+              fontWeight: 600,
               backgroundColor: '#FEE2E2',
               color: '#EF4444',
-              padding: '3px 9px',
-              borderRadius: 8
+              padding: '2px 7px',
+              borderRadius: 4
             }}>
-              {dangerStudents.length} ta o'quvchi
+              {dangerStudents.length} ta
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {dangerStudents.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 24, color: THEME.green }}>
-                <CheckCircle2 size={32} style={{ margin: '0 auto 8px' }} />
-                <div style={{ fontWeight: 700 }}>Barcha o'quvchilar davomati me'yorda!</div>
+              <div style={{ textAlign: 'center', padding: 20, color: '#10AC84', fontSize: 13 }}>
+                Barcha o'quvchilar davomati me'yorda
               </div>
             ) : (
               dangerStudents.map((st) => (
@@ -3184,68 +3085,52 @@ function AttendanceMatrixSection({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: 14,
+                    padding: '9px 12px',
+                    borderRadius: 6,
                     backgroundColor: '#FEF2F2',
                     border: '1px solid rgba(239, 68, 68, 0.15)',
                     gap: 10
                   }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 10,
-                      backgroundColor: '#FEE2E2',
-                      color: '#EF4444',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
-                      fontSize: 12
-                    }}>
-                      {st.name ? st.name[0] : 'O'}
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#1E2038' }}>
+                      {st.name}
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: 13.5, color: THEME.textDark }}>
-                        {st.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 700 }}>
-                        {terms.formatGroupBadge(st.class_name)} • {st.nbHours || 6} soat NB qoldirgan
-                      </div>
+                    <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 500 }}>
+                      {terms.formatGroupBadge(st.class_name)} • {st.nbHours || 6} soat NB
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <a
                       href={`tel:${st.phone}`}
                       title={`Ota-onasiga qo'ng'iroq qilish: ${st.phone}`}
                       style={{
-                        padding: '6px 12px',
-                        borderRadius: 10,
+                        padding: '4px 10px',
+                        borderRadius: 4,
                         backgroundColor: '#FFFFFF',
                         border: '1px solid rgba(239, 68, 68, 0.3)',
                         color: '#EF4444',
-                        fontWeight: 700,
-                        fontSize: 12,
+                        fontWeight: 600,
+                        fontSize: 11.5,
                         textDecoration: 'none',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 4
                       }}>
-                      <Phone size={13} /> Bog'lanish
+                      <Phone size={12} /> Bog'lanish
                     </a>
 
                     {onSelectStudent && st.original && (
                       <button
                         onClick={() => onSelectStudent(st.original)}
                         style={{
-                          padding: '6px 10px',
-                          borderRadius: 10,
-                          backgroundColor: THEME.primaryLight,
+                          padding: '4px 8px',
+                          borderRadius: 4,
+                          backgroundColor: '#F1F0FF',
                           border: 'none',
-                          color: THEME.primary,
-                          fontWeight: 700,
-                          fontSize: 12,
+                          color: '#6C5CE7',
+                          fontWeight: 600,
+                          fontSize: 11.5,
                           cursor: 'pointer'
                         }}>
                         Profil
@@ -3260,37 +3145,31 @@ function AttendanceMatrixSection({
 
       </div>
 
-      {/* 5. INTERAKTIV HAFTALIK DARS / PARA DAVOMAT MATRITSASI */}
-      <div style={{ 
-        backgroundColor: '#FFFFFF', 
-        padding: 24, 
-        borderRadius: 22, 
-        border: '1px solid rgba(108, 92, 231, 0.1)', 
-        boxShadow: '0 4px 20px -2px rgba(108, 92, 231, 0.04)',
-      }}>
+      {/* 5. HAFTALIK MATRITSA JADVALI (Batafsil Tabel) */}
+      <div className="sa-card" style={{ padding: '18px 20px' }}>
+        
         {/* Matritsa sarlavhasi va filtrlash paneli */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
           flexWrap: 'wrap', 
-          gap: 16,
-          marginBottom: 20
+          gap: 12,
+          marginBottom: 14
         }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: THEME.textDark }}>
+            <div style={{ fontWeight: 600, fontSize: 15, color: '#1E2038' }}>
               Haftalik {terms.lessonSingular} Matritsasi — Batafsil Tabel
             </div>
-            <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 4 }}>
-              Har bir {terms.studentSingularLower}ning paralar va kunlar kesimidagi davomati
+            <div style={{ fontSize: 12, color: '#8A90A2', marginTop: 2 }}>
+              Har bir {terms.studentSingularLower}ning kunlar va paralar kesimidagi davomati
             </div>
           </div>
 
-          {/* Qidiruv va Filterlar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            {/* Qidiruv */}
-            <div style={{ position: 'relative', width: 200 }}>
-              <Search size={15} color={THEME.textMuted} style={{ position: 'absolute', left: 12, top: 11 }} />
+          {/* Qidiruv va Filterlar (Enterprise 6px radius) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', width: 180 }}>
+              <Search size={14} color="#8A90A2" style={{ position: 'absolute', left: 10, top: 9 }} />
               <input
                 type="text"
                 placeholder={`${terms.studentSingular} qidirish...`}
@@ -3298,27 +3177,26 @@ function AttendanceMatrixSection({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '8px 12px 8px 34px',
-                  borderRadius: 12,
-                  border: `1px solid ${THEME.border}`,
-                  fontSize: 12.5,
+                  padding: '6px 10px 6px 30px',
+                  borderRadius: 6,
+                  border: '1px solid #E2E8F0',
+                  fontSize: 12,
                   outline: 'none',
                 }}
               />
             </div>
 
-            {/* Sinf filtri */}
             <select
               value={selectedClassFilter}
               onChange={(e) => setSelectedClassFilter(e.target.value)}
               style={{
-                padding: '8px 14px',
-                borderRadius: 12,
-                border: `1px solid ${THEME.border}`,
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: '1px solid #E2E8F0',
                 backgroundColor: '#FFFFFF',
-                fontSize: 12.5,
-                fontWeight: 700,
-                color: THEME.textDark,
+                fontSize: 12,
+                fontWeight: 500,
+                color: '#1E2038',
                 outline: 'none',
                 cursor: 'pointer'
               }}>
@@ -3328,18 +3206,17 @@ function AttendanceMatrixSection({
               ))}
             </select>
 
-            {/* Holat filtri */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               style={{
-                padding: '8px 14px',
-                borderRadius: 12,
-                border: `1px solid ${THEME.border}`,
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: '1px solid #E2E8F0',
                 backgroundColor: '#FFFFFF',
-                fontSize: 12.5,
-                fontWeight: 700,
-                color: THEME.textDark,
+                fontSize: 12,
+                fontWeight: 500,
+                color: '#1E2038',
                 outline: 'none',
                 cursor: 'pointer'
               }}>
@@ -3354,74 +3231,56 @@ function AttendanceMatrixSection({
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
-          gap: 16, 
-          padding: '10px 16px', 
+          gap: 14, 
+          padding: '8px 12px', 
           backgroundColor: '#F8F9FE', 
-          borderRadius: 12, 
-          marginBottom: 16,
-          flexWrap: 'wrap'
+          borderRadius: 6, 
+          marginBottom: 12,
+          flexWrap: 'wrap',
+          border: '1px solid #E2E8F0'
         }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: THEME.textMuted }}>Belgilar:</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: THEME.green }}></span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>1, 2, 3: Darsda bor</span>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8A90A2' }}>Belgilar:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10AC84' }}></span>
+            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>1, 2, 3: Darsda bor</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: THEME.orange }}></span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>Kechikkan</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#FF9F43' }}></span>
+            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>Kechikkan</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#EF4444' }}></span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>NB (Qoldirgan)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#EF4444' }}></span>
+            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>NB (Qoldirgan)</span>
           </div>
         </div>
 
         {/* Matritsa Jadvali */}
         <div style={{ overflowX: 'auto' }}>
           {filteredStudents.length === 0 ? (
-            <div style={{ padding: 48, textAlign: 'center', color: THEME.textMuted }}>
-              <Users size={42} color={THEME.primary} style={{ opacity: 0.35, marginBottom: 10 }} />
-              <div style={{ fontWeight: 800, fontSize: 16, color: THEME.textDark }}>
+            <div style={{ padding: 36, textAlign: 'center', color: '#8A90A2' }}>
+              <Users size={32} color="#6C5CE7" style={{ opacity: 0.35, marginBottom: 8 }} />
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#1E2038' }}>
                 {realStudents.length === 0 
-                  ? `Ushbu maktab bazasida hozircha ${terms.studentPluralLower} yaratilmagan`
+                  ? `Ushbu maktab bazasida hozircha ${terms.studentPluralLower} mavjud emas`
                   : `Filtr bo'yicha hech qanday ${terms.studentSingularLower} topilmadi`}
               </div>
-              <div style={{ fontSize: 12.5, marginTop: 6, marginBottom: 16 }}>
-                Yangi {terms.studentSingularLower} qo'shish uchun quyidagi tugmani bosing.
-              </div>
-              {onAddStudent && (
-                <button
-                  onClick={onAddStudent}
-                  style={{ 
-                    padding: '10px 20px', 
-                    borderRadius: 14, 
-                    border: 'none', 
-                    background: THEME.gradient, 
-                    color: '#FFF', 
-                    fontWeight: 800, 
-                    fontSize: 13, 
-                    cursor: 'pointer' 
-                  }}>
-                  + Yangi {terms.studentSingular}ni Qo'shish
-                </button>
-              )}
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: 12.5 }}>
               <thead>
-                <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}` }}>
-                  <th style={{ padding: '14px 16px', textAlign: 'left', color: THEME.textMuted, width: 250 }}>
+                <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: '#8A90A2', fontWeight: 600, width: 240 }}>
                     {terms.studentSingular} & {terms.groupSingular}
                   </th>
                   {days.map((day, i) => (
-                    <th key={i} style={{ padding: '14px 10px', color: THEME.textDark, fontWeight: 800 }}>
+                    <th key={i} style={{ padding: '10px 8px', color: '#1E2038', fontWeight: 600 }}>
                       <div>{day}</div>
-                      <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 500 }}>
+                      <div style={{ fontSize: 10.5, color: '#8A90A2', fontWeight: 400 }}>
                         {16 + i} okt
                       </div>
                     </th>
                   ))}
-                  <th style={{ padding: '14px 10px', color: THEME.primary, fontWeight: 800 }}>Oylik %</th>
+                  <th style={{ padding: '10px 8px', color: '#6C5CE7', fontWeight: 600 }}>Oylik %</th>
                 </tr>
               </thead>
               <tbody>
@@ -3430,30 +3289,30 @@ function AttendanceMatrixSection({
                   return (
                     <tr 
                       key={st.id || idx} 
-                      style={{ borderBottom: `1px solid ${THEME.bgSoft}`, transition: 'background 0.2s' }}>
-                      <td style={{ padding: '14px 16px', textAlign: 'left' }}>
+                      style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '10px 12px', textAlign: 'left' }}>
                         <div 
                           onClick={() => onSelectStudent && onSelectStudent(st)}
-                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{ 
-                            width: 34, 
-                            height: 34, 
-                            borderRadius: 10, 
-                            background: THEME.primaryLight, 
-                            color: THEME.primary, 
+                            width: 28, 
+                            height: 28, 
+                            borderRadius: 6, 
+                            background: '#F1F0FF', 
+                            color: '#6C5CE7', 
                             display: 'flex', 
                             alignItems: 'center', 
                             justifyContent: 'center', 
-                            fontWeight: 'bold', 
-                            fontSize: 12 
+                            fontWeight: 600, 
+                            fontSize: 11 
                           }}>
                             {st.first_name ? st.first_name[0] : 'O'}
                           </div>
                           <div>
-                            <div style={{ fontWeight: 800, color: THEME.textDark, fontSize: 13.5 }}>
+                            <div style={{ fontWeight: 600, color: '#1E2038', fontSize: 13 }}>
                               {st.last_name} {st.first_name}
                             </div>
-                            <div style={{ fontSize: 11, color: THEME.primary, fontWeight: 700 }}>
+                            <div style={{ fontSize: 11, color: '#6C5CE7', fontWeight: 500 }}>
                               {terms.formatGroupBadge(st.class_name)} • ID: {st.student_id || st.id}
                             </div>
                           </div>
@@ -3462,29 +3321,29 @@ function AttendanceMatrixSection({
 
                       {/* 6 Kun uchun 3 parali darsli matritsa bloklari */}
                       {days.map((d, dIdx) => (
-                        <td key={dIdx} style={{ padding: '10px 6px' }}>
-                          <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                        <td key={dIdx} style={{ padding: '8px 4px' }}>
+                          <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
                             {[1, 2, 3].map((pairNum) => {
                               const isAttend = (idx + pairNum + dIdx) % 7 === 0 
-                                ? THEME.orange 
+                                ? '#FF9F43' 
                                 : (idx + pairNum + dIdx) % 11 === 0 
                                   ? '#EF4444' 
-                                  : THEME.green;
+                                  : '#10AC84';
                               return (
                                 <div 
                                   key={pairNum}
                                   title={`${pairNum}-${terms.lessonSingularLower}`}
                                   style={{ 
-                                    width: 18, 
-                                    height: 26, 
-                                    borderRadius: 6, 
+                                    width: 16, 
+                                    height: 22, 
+                                    borderRadius: 4, 
                                     backgroundColor: isAttend, 
                                     display: 'flex', 
                                     alignItems: 'center', 
                                     justifyContent: 'center', 
                                     color: 'white', 
-                                    fontSize: 9.5, 
-                                    fontWeight: 'bold' 
+                                    fontSize: 9, 
+                                    fontWeight: 600 
                                   }}>
                                   {pairNum}
                                 </div>
@@ -3494,14 +3353,14 @@ function AttendanceMatrixSection({
                         </td>
                       ))}
 
-                      <td style={{ padding: '14px 10px' }}>
+                      <td style={{ padding: '10px 8px' }}>
                         <span style={{ 
-                          padding: '4px 10px', 
-                          borderRadius: 10, 
-                          backgroundColor: monthlyRate >= 90 ? THEME.primaryLight : '#FEE2E2', 
-                          color: monthlyRate >= 90 ? THEME.primary : '#EF4444', 
-                          fontWeight: 900, 
-                          fontSize: 12 
+                          padding: '2px 8px', 
+                          borderRadius: 4, 
+                          backgroundColor: monthlyRate >= 90 ? '#F1F0FF' : '#FEE2E2', 
+                          color: monthlyRate >= 90 ? '#6C5CE7' : '#EF4444', 
+                          fontWeight: 600, 
+                          fontSize: 11.5 
                         }}>
                           {monthlyRate}%
                         </span>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 * {
   margin: 0;
@@ -6,6 +6,7 @@
   box-sizing: border-box;
 }
 
+/* Enterprise B2B Color & Geometry System */
 :root {
   --primary: #6C5CE7;
   --primary-dark: #5845D8;
@@ -17,7 +18,11 @@
   --bg-soft: #F8F9FE;
   --text-dark: #1E2038;
   --text-muted: #8A90A2;
-  --card-border: rgba(0, 0, 0, 0.04);
+  --border-color: #E2E8F0;
+  --card-border: #E2E8F0;
+  --radius-card: 10px;
+  --radius-btn: 6px;
+  --radius-badge: 6px;
 }
 
 html, body, #root {
@@ -41,102 +46,76 @@ html, body, #root {
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #E2E8F0;
+  background: #CBD5E1;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #CBD5E1;
+  background: #94A3B8;
 }
 
-/* Animations & Soft UI Transitions */
+/* Minimalist Enterprise Transitions (No Bouncy Jumps) */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes saSlideUpFade {
-  0% { opacity: 0; transform: translateY(14px) scale(0.992); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes saModalPop {
-  0% { opacity: 0; transform: translateY(16px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes saPulseGlow {
-  0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 172, 132, 0.45); }
-  50% { transform: scale(1.08); opacity: 0.85; box-shadow: 0 0 0 7px rgba(16, 172, 132, 0); }
-}
-
-@keyframes saChartDraw {
-  0% { stroke-dashoffset: 1400; opacity: 0.3; }
-  100% { stroke-dashoffset: 0; opacity: 1; }
+@keyframes pingPulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: fadeIn 0.18s ease-out forwards;
 }
 
-.sa-tab-content {
-  animation: saSlideUpFade 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
+/* Enterprise Card & Hover Styles */
 .sa-card {
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s ease;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  background-color: #FFFFFF;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .sa-card:hover {
-  box-shadow: 0 18px 40px -12px rgba(108, 92, 231, 0.09), 0 6px 18px -4px rgba(15, 23, 42, 0.04) !important;
-}
-
-.sa-metric-card {
-  transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.26s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.26s ease;
-}
-
-.sa-metric-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 36px -10px rgba(108, 92, 231, 0.14), 0 4px 12px -2px rgba(15, 23, 42, 0.04) !important;
+  border-color: #CBD5E1;
+  box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.06);
 }
 
 .sa-btn {
-  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
-}
-
-.sa-btn:hover {
-  transform: translateY(-1.5px);
+  border-radius: 6px;
+  transition: border-color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
 }
 
 .sa-btn:active {
-  transform: translateY(0) scale(0.98);
+  opacity: 0.9;
 }
 
-.sa-nav-btn {
-  transition: all 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+.sa-ping-dot {
+  position: relative;
+  display: inline-flex;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10AC84;
 }
 
-.sa-nav-btn:hover {
-  transform: translateX(3px);
+.sa-ping-dot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #10AC84;
+  animation: pingPulse 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
-
-.sa-chart-line {
-  stroke-dasharray: 1400;
-  stroke-dashoffset: 0;
-  animation: saChartDraw 1.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.sa-pulse-dot {
-  animation: saPulseGlow 2.2s infinite ease-in-out;
-}
-
-.sa-modal-box {
-  animation: saModalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
