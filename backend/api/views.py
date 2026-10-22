@@ -3128,7 +3128,7 @@ class SchoolDashboardAnalyticsView(views.APIView):
             l = item['late']
             a = item['absent']
             tot = item['total']
-            rate = round((p + l) / max(1, tot) * 100, 1) if tot > 0 else 100.0
+            rate = round((p + l) / max(1, tot) * 100, 1) if tot > 0 else 0.0
 
             chart_days.append({
                 'dateLabel': f"{d.day}-{month_names_uz[d.month - 1]}",
@@ -3143,17 +3143,47 @@ class SchoolDashboardAnalyticsView(views.APIView):
                 'diff': 0
             })
 
-        # Agar bugungi kun chart_days ro'yxatida bo'lmasa, bugungi DeviceEventLog lardan yig'ish
-        today_in_chart = any(cd['isToday'] for cd in chart_days)
-        if not today_in_chart:
-            today_logs = DeviceEventLog.objects.filter(school_id=school_id, timestamp__date=today)
-            if class_filter != 'ALL':
-                today_logs = today_logs.filter(class_name=class_filter)
+        # Agar bazada ushbu maktab uchun o'tgan kunlar mavjud bo'lmasa, limit_days kunlik toza skelet yaratish
+        if len(chart_days) == 0:
+            for offset in range(limit_days - 1, -1, -1):
+                past_d = today - datetime.timedelta(days=offset)
+                day_of_week = past_d.isoweekday() % 7
+                is_today = (offset == 0)
+                chart_days.append({
+                    'dateLabel': f"{past_d.day}-{month_names_uz[past_d.month - 1]}",
+                    'weekday': "Bugun" if is_today else day_names_uz[day_of_week],
+                    'fullDate': past_d.strftime("%d.%m.%Y"),
+                    'isToday': is_today,
+                    'percent': 0.0,
+                    'presentCount': 0,
+                    'lateCount': 0,
+                    'absentCount': 0,
+                    'total': total_enrolled,
+                    'diff': 0
+                })
 
-            today_in_count = today_logs.filter(direction='IN', status='SUCCESS').values('student').distinct().count()
-            today_late_count = today_logs.filter(direction='IN', status='SUCCESS', details__icontains='Kechikdi').count()
+        # Bugungi DeviceEventLog lardan jonli tekshirish
+        today_entry = next((cd for cd in chart_days if cd['isToday']), None)
+        today_logs = DeviceEventLog.objects.filter(school_id=school_id, timestamp__date=today)
+        if class_filter != 'ALL':
+            today_logs = today_logs.filter(class_name=class_filter)
 
-            if today_in_count == 0 and len(chart_days) > 0:
+        today_in_count = today_logs.filter(direction='IN', status='SUCCESS').values('student').distinct().count()
+        today_late_count = today_logs.filter(direction='IN', status='SUCCESS', details__icontains='Kechikdi').count()
+
+        if today_in_count > 0 and total_enrolled > 0:
+            p = today_in_count
+            l = today_late_count
+            a = max(0, total_enrolled - p - l)
+            today_rate = round((p + l) / max(1, total_enrolled) * 100, 1)
+            if today_entry:
+                today_entry['percent'] = today_rate
+                today_entry['presentCount'] = p
+                today_entry['lateCount'] = l
+                today_entry['absentCount'] = a
+                today_entry['total'] = total_enrolled
+        elif not today_entry:
+            if today_in_count == 0 and len(chart_days) > 0 and total_enrolled > 0:
                 last_day = chart_days[-1]
                 p = last_day['presentCount']
                 l = last_day['lateCount']
@@ -3162,8 +3192,8 @@ class SchoolDashboardAnalyticsView(views.APIView):
             else:
                 p = today_in_count
                 l = today_late_count
-                a = max(0, total_enrolled - p - l)
-                today_rate = round((p + l) / max(1, total_enrolled) * 100, 1) if total_enrolled > 0 else 96.0
+                a = max(0, total_enrolled - p - l) if total_enrolled > 0 else 0
+                today_rate = round((p + l) / max(1, total_enrolled) * 100, 1) if total_enrolled > 0 else 0.0
 
             chart_days.append({
                 'dateLabel': f"{today.day}-{month_names_uz[today.month - 1]}",
@@ -3174,7 +3204,7 @@ class SchoolDashboardAnalyticsView(views.APIView):
                 'presentCount': p,
                 'lateCount': l,
                 'absentCount': a,
-                'total': total_enrolled or 11,
+                'total': total_enrolled,
                 'diff': 0
             })
 
@@ -3186,9 +3216,9 @@ class SchoolDashboardAnalyticsView(views.APIView):
             chart_days[i]['diff'] = round(chart_days[i]['percent'] - chart_days[i-1]['percent'], 1)
 
         today_stats = chart_days[-1] if chart_days else {
-            'percent': 95.0,
+            'percent': 0.0,
             'diff': 0.0,
-            'presentCount': total_enrolled,
+            'presentCount': 0,
             'lateCount': 0,
             'absentCount': 0,
             'total': total_enrolled,
@@ -3201,7 +3231,7 @@ class SchoolDashboardAnalyticsView(views.APIView):
         absent_spark = [cd['absentCount'] for cd in chart_days]
 
         # O'rtacha davomat
-        avg_rate = round(sum(cd['percent'] for cd in chart_days) / max(1, len(chart_days)), 1) if chart_days else 95.0
+        avg_rate = round(sum(cd['percent'] for cd in chart_days) / max(1, len(chart_days)), 1) if (chart_days and total_enrolled > 0) else 0.0
 
         # 3. Sinflar davomat reytingi (Real bazadagi SchoolClass va Attendance)
         classes_qs = SchoolClass.objects.filter(school_id=school_id)
@@ -3213,7 +3243,7 @@ class SchoolDashboardAnalyticsView(views.APIView):
             l_c = c_att.filter(status='LATE').count()
             a_c = c_att.filter(status='ABSENT').count()
             tot_c = p_c + l_c + a_c
-            rate_c = round((p_c + l_c) / max(1, tot_c) * 100, 1) if tot_c > 0 else 98.0
+            rate_c = round((p_c + l_c) / max(1, tot_c) * 100, 1) if tot_c > 0 else 0.0
             class_rankings.append({
                 'id': c.id,
                 'name': c.name,
@@ -3278,7 +3308,7 @@ class SchoolDashboardAnalyticsView(views.APIView):
             total_att = Attendance.objects.filter(student=st).count()
             abs_att = Attendance.objects.filter(student=st, status='ABSENT').count()
             late_att = Attendance.objects.filter(student=st, status='LATE').count()
-            st_rate = round((total_att - abs_att) / max(1, total_att) * 100, 1) if total_att > 0 else 100.0
+            st_rate = round((total_att - abs_att) / max(1, total_att) * 100, 1) if total_att > 0 else 0.0
 
             student_matrix_list.append({
                 'id': st.id,

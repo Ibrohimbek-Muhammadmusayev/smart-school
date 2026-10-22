@@ -2837,6 +2837,7 @@ function AttendanceMatrixSection({
   };
 
   useEffect(() => {
+    setAnalyticsData(null);
     fetchAnalytics(false);
   }, [schoolId, chartRange, selectedClassFilter]);
 
@@ -2889,20 +2890,20 @@ function AttendanceMatrixSection({
   );
 
   // Sinflar davomat reytingi (Real baza)
-  const classRankings = (analyticsData?.class_rankings && analyticsData.class_rankings.length > 0)
+  const classRankings = (analyticsData?.class_rankings !== undefined)
     ? analyticsData.class_rankings
     : classesList.map(c => ({
         id: c.id,
         name: c.name,
         studentCount: realStudents.filter(s => s.class_name === c.name).length,
-        attendanceRate: 100.0,
+        attendanceRate: 0.0,
       }));
 
   // Diqqat talab o'quvchilar (Davomat xavfi — Real baza)
   const dangerStudents = analyticsData?.danger_students || [];
 
   // Matritsa jadvali uchun o'quvchilar ro'yxati (Real baza)
-  const rawMatrixStudents = (analyticsData?.students_matrix && analyticsData.students_matrix.length > 0)
+  const rawMatrixStudents = (analyticsData?.students_matrix !== undefined)
     ? analyticsData.students_matrix
     : realStudents.map(st => ({
         id: st.id,
@@ -2913,7 +2914,7 @@ function AttendanceMatrixSection({
         class_name: st.class_name || 'Guruhsiz',
         photo_3x4: st.photo_3x4,
         parent_phone: st.parent_phone || st.phone || '',
-        attendance_rate: 100.0,
+        attendance_rate: 0.0,
         absent_count: 0,
         late_count: 0,
         nb_hours: 0,
