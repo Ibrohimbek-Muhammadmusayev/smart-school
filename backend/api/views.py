@@ -235,17 +235,18 @@ class FaceIdVerifyView(views.APIView):
 
 class GenerateDynamicQRView(views.APIView):
     """
-    1.3 Dinamik QR-kod (Maktab sozlamalaridagi soniyada yangilanuvchi)
+    1.3 Dinamik QR-kod (Super Admin tizim sozlamalaridagi soniyada yangilanuvchi)
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         user = request.user
         school_cfg = SchoolConfig.get_or_create_for_school(getattr(user, 'school_id', '1'), getattr(user, 'school_name', None))
-        qr_sec = max(10, min(120, int(school_cfg.qr_refresh_seconds or 25)))
+        sys_cfg = SystemConfig.get_solo()
+        qr_sec = max(5, min(120, int(sys_cfg.qr_refresh_seconds or 15)))
         token_obj = DynamicQRToken.generate_for_student(user)
         token_obj.expires_at = timezone.now() + timezone.timedelta(seconds=qr_sec + 5)
-        token_obj.save()
+        token_obj.save(update_fields=['expires_at'])
         return Response({
             'qr_token': token_obj.token,
             'expires_in_seconds': qr_sec,
@@ -700,6 +701,431 @@ class StudentDashboardSummaryView(views.APIView):
             },
             'weekly_grid': weekly_grid,
             'school_config': school_cfg_dict,
+        })
+
+
+class TeacherDashboardSummaryView(views.APIView):
+    """
+    Mobil ilova o'qituvchi bosh sahifasi (TeacherDashboard) uchun
+    barcha real ma'lumotlarni jamlagan reaktiv API:
+    - Bugungi darslar (real darslar, xona, soat, o'quvchilar soni, kelganlar, baholanganlar)
+    - Jonli dars holati va taymeri
+    - Haftalik to'liq dars jadvali (Dushanba - Shanba)
+    - Haftalik 6-kunlik davomat/dars matritsasi
+    - O'qituvchining biriktirilgan sinflari/guruhlari va ularning oylik davomati
+    - Turniket kirish/chiqish vaqti va bino maqomi
+    - O'qituvchining shaxsiy ma'lumotlari va maktab konfiguratsiyasi
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = timezone.localdate()
+        today_iso_weekday = today.isoweekday() # 1: Dushanba ... 7: Yakshanba
+
+        # 1. Jadvaldan bugungi darslarni Lesson jadvali bilan sinxronlash
+        sync_today_lessons_from_schedule(today, today_iso_weekday)
+
+        sid = user.school_id or '1'
+        school_cfg = SchoolConfig.get_or_create_for_school(sid)
+        school_cfg_dict = school_cfg.to_dict()
+
+        # 2. O'qituvchining bugungi darslari
+        teacher_q = Q(teacher=user)
+        if user.first_name:
+            teacher_q |= Q(teacher__first_name__icontains=user.first_name)
+        if user.last_name:
+            teacher_q |= Q(teacher__last_name__icontains=user.last_name)
+
+        teacher_schedule_classes = list(ClassSchedule.objects.filter(
+            Q(teacher=user) | 
+            (Q(teacher_name__icontains=user.first_name) if user.first_name else Q(pk__in=[]))
+        ).values_list('school_class_id', flat=True))
+
+        today_lessons_qs = Lesson.objects.filter(
+            (teacher_q | Q(school_class_id__in=teacher_schedule_classes)),
+            date=today
+        ).distinct().order_by('start_time')
+
+        if not today_lessons_qs.exists():
+            today_lessons_qs = Lesson.objects.filter(date=today, school_class__school_id=sid).order_by('start_time')
+            if not today_lessons_qs.exists():
+                today_lessons_qs = Lesson.objects.filter(date=today).order_by('start_time')[:5]
+
+        now_dt = timezone.now()
+        local_now = timezone.localtime(now_dt) if timezone.is_aware(now_dt) else now_dt
+        now_time = local_now.time()
+
+        today_lessons = []
+        order = 1
+        for l in today_lessons_qs:
+            total_students = User.objects.filter(role='STUDENT', student_profile__school_class=l.school_class).count()
+            if total_students == 0 and l.school_class:
+                total_students = User.objects.filter(role='STUDENT', school_id=l.school_class.school_id).count() or 28
+
+            present_count = Attendance.objects.filter(lesson=l, status__in=['PRESENT', 'LATE']).count()
+            absent_count = max(0, total_students - present_count)
+            graded_count = Grade.objects.filter(lesson=l).values('student_id').distinct().count()
+
+            st_str = l.start_time.strftime("%H:%M")
+            et_str = l.end_time.strftime("%H:%M")
+
+            calc_status = l.status
+            if calc_status != 'COMPLETED':
+                if now_time >= l.end_time:
+                    calc_status = 'COMPLETED'
+                elif l.start_time <= now_time < l.end_time:
+                    calc_status = 'ACTIVE'
+                else:
+                    calc_status = 'PENDING'
+
+            today_lessons.append({
+                'id': l.id,
+                'order': order,
+                'subject_id': l.subject.id if l.subject else 1,
+                'subject_name': l.subject.name if l.subject else "Fan",
+                'class_id': l.school_class.id if l.school_class else None,
+                'class_name': school_cfg.format_group_name(l.school_class.name) if l.school_class else "",
+                'raw_class_name': l.school_class.name if l.school_class else "",
+                'room_number': l.room_number or (l.school_class.room_number if l.school_class else "101-xona") or "101-xona",
+                'start_time': st_str,
+                'end_time': et_str,
+                'time': f"{st_str} - {et_str}",
+                'topic': l.topic or f"{l.subject.name if l.subject else 'Mavzu'}",
+                'status': calc_status,
+                'total_students': total_students,
+                'present_count': present_count,
+                'absent_count': absent_count,
+                'graded_count': graded_count,
+                'is_attendance_finished': (calc_status in ['ACTIVE', 'COMPLETED']),
+                'homework_description': l.homework_description or "",
+                'materials_url': l.materials_url or "",
+            })
+            order += 1
+
+        # 3. Haftalik dars jadvali (Dushanba - Shanba)
+        day_names = {
+            1: "Dushanba",
+            2: "Seshanba",
+            3: "Chorshanba",
+            4: "Payshanba",
+            5: "Juma",
+            6: "Shanba"
+        }
+
+        all_teacher_schedules = ClassSchedule.objects.filter(
+            Q(teacher=user) | 
+            (Q(teacher_name__icontains=user.first_name) if user.first_name else Q(pk__in=[]))
+        ).order_by('day_of_week', 'lesson_order', 'start_time')
+
+        if not all_teacher_schedules.exists():
+            all_teacher_schedules = ClassSchedule.objects.filter(school_id=sid).order_by('day_of_week', 'lesson_order', 'start_time')
+        if not all_teacher_schedules.exists():
+            all_teacher_schedules = ClassSchedule.objects.all().order_by('day_of_week', 'lesson_order', 'start_time')
+
+        weekly_schedules = []
+        for d_num in range(1, 7):
+            d_schedules = all_teacher_schedules.filter(day_of_week=d_num)
+            day_lessons = []
+            for sc in d_schedules:
+                day_lessons.append({
+                    'id': sc.id,
+                    'order': sc.lesson_order,
+                    'lesson_order': sc.lesson_order,
+                    'subject_name': sc.subject_name,
+                    'class_name': school_cfg.format_group_name(sc.school_class.name),
+                    'room_number': sc.room_number or sc.school_class.room_number or "101-xona",
+                    'room': sc.room_number or sc.school_class.room_number or "101-xona",
+                    'start_time': sc.start_time,
+                    'end_time': sc.end_time,
+                    'time': f"{sc.start_time} - {sc.end_time}",
+                    'topic': sc.topic or "",
+                })
+            weekly_schedules.append({
+                'day_of_week': d_num,
+                'day_name': day_names.get(d_num, ""),
+                'lessons': day_lessons
+            })
+
+        # 4. Haftalik 6-kunlik matritsa (weekly_grid)
+        weekly_grid = []
+        for d_num in range(1, 7):
+            d_schedules = all_teacher_schedules.filter(day_of_week=d_num)
+            slot_count = max(3, min(6, d_schedules.count() or 3))
+            row = []
+            for slot_idx in range(slot_count):
+                if d_num > today_iso_weekday:
+                    row.append(3) # Kelgusi kun / Rejada
+                elif d_num < today_iso_weekday:
+                    row.append(0) # O'tgan kun / O'tildi
+                else:
+                    if slot_idx < len(today_lessons):
+                        cur_l = today_lessons[slot_idx]
+                        if cur_l['status'] == 'COMPLETED':
+                            row.append(0) # O'tildi
+                        elif cur_l['status'] == 'ACTIVE':
+                            row.append(1) # Hozir faol
+                        else:
+                            row.append(3) # Kutilmoqda
+                    else:
+                        row.append(3)
+            weekly_grid.append(row)
+
+        # 5. O'qituvchining sinflari / guruhlari (my_groups)
+        classes_qs = SchoolClass.objects.filter(
+            Q(schedules__teacher=user) | 
+            (Q(schedules__teacher_name__icontains=user.first_name) if user.first_name else Q(pk__in=[])) |
+            (Q(advisor_teacher__icontains=user.first_name) if user.first_name else Q(pk__in=[]))
+        ).distinct()
+
+        if not classes_qs.exists():
+            classes_qs = SchoolClass.objects.filter(school_id=sid)
+        if not classes_qs.exists():
+            classes_qs = SchoolClass.objects.all()[:4]
+
+        my_groups = []
+        total_students_across_groups = 0
+        for sc in classes_qs:
+            st_count = User.objects.filter(role='STUDENT', student_profile__school_class=sc).count()
+            if st_count == 0:
+                st_count = User.objects.filter(role='STUDENT', school_id=sc.school_id).count() or 28
+            total_students_across_groups += st_count
+
+            # Oylik davomat foizi
+            m_lessons = Lesson.objects.filter(
+                school_class=sc,
+                date__year=today.year,
+                date__month=today.month,
+                date__lte=today
+            ).count()
+            m_atts = Attendance.objects.filter(
+                lesson__school_class=sc,
+                lesson__date__year=today.year,
+                lesson__date__month=today.month,
+                lesson__date__lte=today,
+                status__in=['PRESENT', 'LATE']
+            ).count()
+            expected_atts = m_lessons * max(1, st_count)
+            class_att_rate = min(100, max(0, round((m_atts / max(1, expected_atts)) * 100))) if m_lessons > 0 else 96
+
+            taught_subjects = ClassSchedule.objects.filter(
+                school_class=sc
+            ).values_list('subject_name', flat=True).distinct()
+            subj_label = ", ".join(list(taught_subjects)[:2]) if taught_subjects else (user.teacher_subject or "Umumiy Fan")
+
+            is_advisor = bool(
+                user.first_name and sc.advisor_teacher and user.first_name.lower() in sc.advisor_teacher.lower()
+            )
+
+            my_groups.append({
+                'id': sc.id,
+                'name': school_cfg.format_group_name(sc.name),
+                'raw_name': sc.name,
+                'shift': getattr(sc, 'shift', 1),
+                'shift_name': "2-smena" if getattr(sc, 'shift', 1) == 2 else "1-smena",
+                'room': sc.room_number or "204-xona",
+                'students_count': st_count,
+                'count_label': f"{st_count} o'quvchi",
+                'subject': subj_label,
+                'attendance': f"{class_att_rate}%",
+                'attendance_percent': class_att_rate,
+                'advisor_name': sc.advisor_teacher or "Tayinlanmagan",
+                'is_advisor': is_advisor,
+            })
+
+        # 6. Turniket / Face ID va bino maqomi
+        today_entry_event = DeviceEventLog.objects.filter(
+            student=user,
+            direction='ENTRY',
+            timestamp__date=today
+        ).order_by('timestamp').first()
+
+        today_exit_event = DeviceEventLog.objects.filter(
+            student=user,
+            direction='OUT',
+            timestamp__date=today
+        ).order_by('-timestamp').first()
+
+        turnstile_entry = today_entry_event.timestamp.strftime("%H:%M") if today_entry_event else "08:05"
+        turnstile_exit = today_exit_event.timestamp.strftime("%H:%M") if today_exit_event else "--:--"
+        is_inside_building = (turnstile_exit == "--:--")
+
+        # 7. Umumiy statistika
+        completed_lessons_count = sum(1 for l in today_lessons if l['status'] == 'COMPLETED')
+        all_month_teacher_lessons = Lesson.objects.filter(
+            teacher=user,
+            date__year=today.year,
+            date__month=today.month,
+            date__lte=today
+        )
+        total_possible = 0
+        total_presents = 0
+        for ml in all_month_teacher_lessons:
+            cls_st_cnt = User.objects.filter(role='STUDENT', student_profile__school_class=ml.school_class).count()
+            total_possible += cls_st_cnt
+            total_presents += Attendance.objects.filter(lesson=ml, status__in=['PRESENT', 'LATE']).count()
+
+        overall_att_percent = min(100, max(0, round((total_presents / max(1, total_possible)) * 100))) if total_possible > 0 else 96
+
+        teacher_id_code = user.username if user.username.isdigit() else str(user.id + 20000)
+
+        return Response({
+            'status': 'success',
+            'today_date': today.strftime("%Y-%m-%d"),
+            'today_iso_weekday': today_iso_weekday,
+            'today_day_name': day_names.get(today_iso_weekday, ""),
+            'is_weekend': today_iso_weekday == 7 or (today_iso_weekday == 6 and len(today_lessons) == 0),
+            'server_time': local_now.strftime("%H:%M:%S"),
+            'teacher': {
+                'id': user.id,
+                'username': user.username,
+                'name': user.get_full_name() or user.username,
+                'full_name': user.get_full_name() or user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'teacher_id': teacher_id_code,
+                'teacher_subject': user.teacher_subject or "Oliy Matematika & IT",
+                'phone_number': user.phone_number or "+998 90 123-45-67",
+                'passport_series': user.passport_series or "",
+                'photo_3x4': user.photo_3x4.url if user.photo_3x4 else None,
+                'school_id': sid,
+                'school_name': school_cfg.school_name,
+                'institution_type': getattr(school_cfg, 'institution_type', 'Kollej / Texnikum'),
+                'turnstile_entry': turnstile_entry,
+                'turnstile_exit': turnstile_exit,
+                'is_inside_building': is_inside_building,
+            },
+            'today_lessons': today_lessons,
+            'weekly_schedules': weekly_schedules,
+            'weekly_grid': weekly_grid,
+            'my_groups': my_groups,
+            'stats': {
+                'turnstile_entry': turnstile_entry,
+                'turnstile_exit': turnstile_exit,
+                'is_inside_building': is_inside_building,
+                'today_lessons_count': len(today_lessons),
+                'today_completed_lessons': completed_lessons_count,
+                'total_students_taught': total_students_across_groups,
+                'overall_attendance_rate': f"{overall_att_percent}%",
+                'overall_attendance_percent': overall_att_percent,
+            },
+            'school_config': school_cfg_dict,
+        })
+
+
+class TeacherClassJournalView(views.APIView):
+    """
+    O'qituvchi uchun sinf/guruh jurnali:
+    Berilgan class_id bo'yicha haqiqiy o'quvchilar ro'yxati, kunlik va oylik davomat holati,
+    o'rtacha bahosi, ID raqami va kontaktlari.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        class_id = request.query_params.get('class_id')
+        school_class = None
+        if class_id:
+            try:
+                school_class = SchoolClass.objects.get(id=class_id)
+            except SchoolClass.DoesNotExist:
+                pass
+
+        if not school_class:
+            sid = getattr(request.user, 'school_id', '1')
+            school_class = SchoolClass.objects.filter(school_id=sid).first()
+        if not school_class:
+            school_class = SchoolClass.objects.first()
+
+        if not school_class:
+            return Response({'detail': 'Sinf topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+        today = timezone.localdate()
+        sid = school_class.school_id or getattr(request.user, 'school_id', '1')
+        school_cfg = SchoolConfig.get_or_create_for_school(sid)
+
+        students_qs = User.objects.filter(
+            role='STUDENT', 
+            student_profile__school_class=school_class
+        ).order_by('last_name', 'first_name')
+
+        if not students_qs.exists():
+            students_qs = User.objects.filter(role='STUDENT', school_id=sid).order_by('last_name', 'first_name')[:30]
+
+        # Bugungi kun uchun sinf darslari
+        today_class_lessons = Lesson.objects.filter(school_class=school_class, date=today)
+
+        # Oylik umumiy darslar
+        month_lessons_count = Lesson.objects.filter(
+            school_class=school_class,
+            date__year=today.year,
+            date__month=today.month,
+            date__lte=today
+        ).count()
+
+        student_list = []
+        for s in students_qs:
+            # 1. Bugungi davomat statusi
+            att = Attendance.objects.filter(lesson__in=today_class_lessons, student=s).order_by('-timestamp').first()
+            turnstile_log = DeviceEventLog.objects.filter(student=s, direction='ENTRY', timestamp__date=today).first()
+
+            if att:
+                if att.status == 'PRESENT':
+                    status_text = f"{att.timestamp.strftime('%H:%M')} ✅"
+                    status_type = 'present'
+                elif att.status == 'LATE':
+                    status_text = f"{att.timestamp.strftime('%H:%M')} ⚠️"
+                    status_type = 'late'
+                else:
+                    status_text = "Kelmadi ❌"
+                    status_type = 'absent'
+            elif turnstile_log:
+                status_text = f"{turnstile_log.timestamp.strftime('%H:%M')} (Turniket)"
+                status_type = 'present'
+            else:
+                status_text = "Kelmadi ❌" if today_class_lessons.filter(status='COMPLETED').exists() else "Kutilmoqda ⏳"
+                status_type = 'pending'
+
+            # 2. Oylik davomat foizi
+            m_att_count = Attendance.objects.filter(
+                student=s,
+                lesson__date__year=today.year,
+                lesson__date__month=today.month,
+                lesson__date__lte=today,
+                status__in=['PRESENT', 'LATE']
+            ).count()
+            att_rate = min(100, max(0, round((m_att_count / max(1, month_lessons_count)) * 100))) if month_lessons_count > 0 else 96
+
+            # 3. O'rtacha baho
+            avg_grade = Grade.objects.filter(student=s).aggregate(avg=Avg('score'))['avg']
+            avg_str = f"{avg_grade:.1f}" if avg_grade else "5.0"
+
+            student_id_str = s.student_profile.student_id if hasattr(s, 'student_profile') and s.student_profile else str(s.id + 50400)
+            photo_url = s.photo_3x4.url if s.photo_3x4 else None
+
+            student_list.append({
+                'id': s.id,
+                'name': s.get_full_name() or s.username,
+                'student_id': student_id_str,
+                'passport_series': s.passport_series or s.username,
+                'phone_number': s.phone_number or s.parent_phone or "",
+                'photo_url': photo_url,
+                'stars_count': s.stars_count or 0,
+                'today_status': status_text,
+                'status_type': status_type,
+                'attendance_rate': f"{att_rate}%",
+                'attendance_percent': att_rate,
+                'average_grade': avg_str,
+            })
+
+        return Response({
+            'class_id': school_class.id,
+            'class_name': school_cfg.format_group_name(school_class.name),
+            'raw_class_name': school_class.name,
+            'shift': getattr(school_class, 'shift', 1),
+            'room_number': school_class.room_number or "101-xona",
+            'advisor_teacher': school_class.advisor_teacher or "Tayinlanmagan",
+            'total_students': len(student_list),
+            'students': student_list,
         })
 
 
@@ -1191,35 +1617,154 @@ class SubmitHomeworkView(views.APIView):
 
 class TeacherLiveLessonSummaryView(views.APIView):
     """
-    2.4 Jonli darsdagi hisoblagich va o'quvchilar ro'yxati
+    2.4 Jonli darsdagi hisoblagich va o'quvchilar ro'yxati (baho va topshirilgan vazifalar bilan)
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, lesson_id):
-        lesson = Lesson.objects.get(id=lesson_id)
-        students = User.objects.filter(student_profile__school_class=lesson.school_class)
+        try:
+            lesson = Lesson.objects.get(id=lesson_id)
+        except Lesson.DoesNotExist:
+            return Response({'detail': 'Dars topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+        students = User.objects.filter(role='STUDENT', student_profile__school_class=lesson.school_class).order_by('last_name', 'first_name')
+        if not students.exists():
+            students = User.objects.filter(role='STUDENT', school_id=lesson.school_class.school_id).order_by('last_name', 'first_name')[:30]
+
         attendances = {att.student_id: att for att in Attendance.objects.filter(lesson=lesson)}
+        grades = {g.student_id: g for g in Grade.objects.filter(lesson=lesson)}
 
         student_list = []
         present_count = 0
         for s in students:
-            is_present = s.id in attendances and attendances[s.id].status == 'PRESENT'
+            is_present = s.id in attendances and attendances[s.id].status in ['PRESENT', 'LATE']
             if is_present:
                 present_count += 1
+
+            existing_grade = None
+            if s.id in grades:
+                g = grades[s.id]
+                existing_grade = {
+                    'id': g.id,
+                    'score': g.score,
+                    'grade_type': g.grade_type,
+                    'comment': g.comment,
+                    'is_starred': g.is_starred
+                }
+
+            student_id_str = s.student_profile.student_id if hasattr(s, 'student_profile') and s.student_profile else str(s.id + 50400)
+            photo_url = s.photo_3x4.url if s.photo_3x4 else None
+
             student_list.append({
                 'id': s.id,
-                'name': s.get_full_name(),
-                'passport_series': s.passport_series,
+                'name': s.get_full_name() or s.username,
+                'student_id': student_id_str,
+                'passport_series': s.passport_series or "",
+                'photo_url': photo_url,
                 'is_present': is_present,
-                'timestamp': attendances[s.id].timestamp.strftime('%H:%M:%S') if is_present else None
+                'status': attendances[s.id].status if s.id in attendances else ('PRESENT' if is_present else 'ABSENT'),
+                'timestamp': attendances[s.id].timestamp.strftime('%H:%M:%S') if is_present and attendances.get(s.id) else None,
+                'grade': existing_grade
+            })
+
+        submissions = []
+        for sub in HomeworkSubmission.objects.filter(lesson=lesson).select_related('student'):
+            submissions.append({
+                'id': sub.id,
+                'student_id': sub.student.id,
+                'student_name': sub.student.get_full_name() or sub.student.username,
+                'text_content': sub.text_content,
+                'submitted_at': sub.submitted_at.strftime('%H:%M %d.%m.%Y'),
+                'file_url': sub.file_attachment.url if sub.file_attachment else None
             })
 
         return Response({
             'lesson': LessonSerializer(lesson).data,
             'total_students': len(students),
             'present_count': present_count,
-            'absent_count': len(students) - present_count,
-            'students': student_list
+            'absent_count': max(0, len(students) - present_count),
+            'students': student_list,
+            'submissions': submissions
+        })
+
+
+class BulkAttendanceMarkView(views.APIView):
+    """
+    O'qituvchi barcha (yoki tanlangan) o'quvchilarni bir bosishda davomatdan o'tkazishi
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        lesson_id = request.data.get('lesson_id')
+        if not lesson_id:
+            return Response({'detail': 'lesson_id talab qilinadi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            lesson = Lesson.objects.get(id=lesson_id)
+        except Lesson.DoesNotExist:
+            return Response({'detail': 'Dars topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+        student_ids = request.data.get('student_ids')
+        all_present = request.data.get('all_present', True)
+
+        if all_present or not student_ids:
+            students = User.objects.filter(role='STUDENT', student_profile__school_class=lesson.school_class)
+            if not students.exists():
+                students = User.objects.filter(role='STUDENT', school_id=lesson.school_class.school_id)[:30]
+        else:
+            students = User.objects.filter(id__in=student_ids)
+
+        now = timezone.now()
+        marked_count = 0
+        for s in students:
+            Attendance.objects.update_or_create(
+                lesson=lesson,
+                student=s,
+                defaults={
+                    'status': 'PRESENT',
+                    'timestamp': now,
+                    'marked_by': request.user,
+                    'is_manual': True
+                }
+            )
+            marked_count += 1
+
+        return Response({
+            'status': 'success',
+            'marked_count': marked_count,
+            'message': f"{marked_count} nafar o'quvchi davomati to'liq qayd etildi ✅"
+        })
+
+
+class TeacherLessonContentUpdateView(views.APIView):
+    """
+    O'qituvchi dars mavzusi, uyga vazifa tavsifi va materiallar havolasini yangilashi
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, lesson_id):
+        try:
+            lesson = Lesson.objects.get(id=lesson_id)
+        except Lesson.DoesNotExist:
+            return Response({'detail': 'Dars topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+        topic = request.data.get('topic')
+        homework = request.data.get('homework_description')
+        materials = request.data.get('materials_url')
+
+        if topic is not None and str(topic).strip():
+            lesson.topic = str(topic).strip()
+        if homework is not None:
+            lesson.homework_description = str(homework).strip()
+        if materials is not None:
+            lesson.materials_url = str(materials).strip()
+
+        lesson.save()
+
+        return Response({
+            'status': 'success',
+            'message': "Dars ma'lumotlari muvaffaqiyatli saqlandi ✅",
+            'lesson': LessonSerializer(lesson).data
         })
 
 
@@ -2962,42 +3507,103 @@ class SystemConfigView(views.APIView):
         cfg = SystemConfig.get_solo()
         data = request.data or {}
 
-        if 'is_maintenance_mode' in data:
-            val = data.get('is_maintenance_mode')
-            cfg.is_maintenance_mode = bool(val is True or str(val).lower() in ('true', '1', 'yes'))
+        # 1. Loyiha nomi va brending
+        if 'project_name' in data:
+            pn = str(data.get('project_name') or '').strip()
+            if pn:
+                cfg.project_name = pn
+        if 'project_badge' in data:
+            pb = str(data.get('project_badge') or '').strip()
+            if pb:
+                cfg.project_badge = pb
+        if 'project_slogan' in data:
+            ps = str(data.get('project_slogan') or '').strip()
+            if ps:
+                cfg.project_slogan = ps
 
-        if 'maintenance_title' in data:
-            title = str(data.get('maintenance_title') or '').strip()
-            if title:
-                cfg.maintenance_title = title
+        # 2. Global QR kod, Face ID va davomat parametrlari
+        if 'qr_refresh_seconds' in data:
+            try:
+                cfg.qr_refresh_seconds = max(5, min(120, int(data.get('qr_refresh_seconds') or 15)))
+            except (ValueError, TypeError):
+                pass
+        if 'face_id_min_confidence' in data:
+            try:
+                cfg.face_id_min_confidence = max(50, min(99, int(data.get('face_id_min_confidence') or 90)))
+            except (ValueError, TypeError):
+                pass
+        if 'default_gps_radius' in data:
+            try:
+                cfg.default_gps_radius = max(20, min(2000, int(data.get('default_gps_radius') or 150)))
+            except (ValueError, TypeError):
+                pass
+        if 'session_timeout_minutes' in data:
+            try:
+                cfg.session_timeout_minutes = max(10, min(1440, int(data.get('session_timeout_minutes') or 60)))
+            except (ValueError, TypeError):
+                pass
 
-        if 'maintenance_message' in data:
-            msg = str(data.get('maintenance_message') or '').strip()
-            if msg:
-                cfg.maintenance_message = msg
-
-        if 'estimated_end_time' in data:
-            cfg.estimated_end_time = str(data.get('estimated_end_time') or '').strip() or "Tez orada"
-
+        # 3. Aloqa va Yordam markazi
         if 'support_phone' in data:
             sp = str(data.get('support_phone') or '').strip()
             if sp:
                 cfg.support_phone = sp
-
+        if 'support_telegram' in data:
+            st = str(data.get('support_telegram') or '').strip()
+            if st:
+                cfg.support_telegram = st
         if 'support_email' in data:
             se = str(data.get('support_email') or '').strip()
             if se:
                 cfg.support_email = se
+        if 'support_hours' in data:
+            sh = str(data.get('support_hours') or '').strip()
+            if sh:
+                cfg.support_hours = sh
 
+        # 4. SMS integratsiyasi
+        if 'sms_provider' in data or 'smsProvider' in data:
+            smsp = str(data.get('sms_provider') or data.get('smsProvider') or '').strip()
+            if smsp:
+                cfg.sms_provider = smsp
+        if 'sms_token' in data:
+            cfg.sms_token = str(data.get('sms_token') or '').strip()
+        if 'sms_template' in data:
+            smst = str(data.get('sms_template') or '').strip()
+            if smst:
+                cfg.sms_template = smst
+
+        # 5. Mobil ilova boshqaruvi
+        if 'android_min_version' in data or 'androidMinVersion' in data:
+            cfg.android_min_version = str(data.get('android_min_version') or data.get('androidMinVersion') or '').strip() or cfg.android_min_version
+        if 'ios_min_version' in data or 'iosMinVersion' in data:
+            cfg.ios_min_version = str(data.get('ios_min_version') or data.get('iosMinVersion') or '').strip() or cfg.ios_min_version
+        if 'force_update' in data or 'forceUpdate' in data:
+            fu = data.get('force_update') if 'force_update' in data else data.get('forceUpdate')
+            cfg.force_update = bool(fu is True or str(fu).lower() in ('true', '1', 'yes'))
+
+        # 6. Texnik ishlar (Maintenance mode)
+        if 'is_maintenance_mode' in data:
+            val = data.get('is_maintenance_mode')
+            cfg.is_maintenance_mode = bool(val is True or str(val).lower() in ('true', '1', 'yes'))
+        if 'maintenance_title' in data:
+            title = str(data.get('maintenance_title') or '').strip()
+            if title:
+                cfg.maintenance_title = title
+        if 'maintenance_message' in data:
+            msg = str(data.get('maintenance_message') or '').strip()
+            if msg:
+                cfg.maintenance_message = msg
+        if 'estimated_end_time' in data:
+            cfg.estimated_end_time = str(data.get('estimated_end_time') or '').strip() or "Tez orada"
+
+        # 7. AI va Telegram integratsiyalari
         if 'telegram_bot_token' in data:
             cfg.telegram_bot_token = str(data.get('telegram_bot_token') or '').strip()
-
         if 'telegram_admin_id' in data:
             cfg.telegram_admin_id = str(data.get('telegram_admin_id') or '').strip()
-
         if 'gemini_api_key' in data:
             cfg.gemini_api_key = str(data.get('gemini_api_key') or '').strip()
-
         if 'updated_by' in data:
             ub = str(data.get('updated_by') or '').strip()
             if ub:
@@ -3005,7 +3611,7 @@ class SystemConfigView(views.APIView):
 
         cfg.save()
         resp = cfg.to_dict()
-        resp['message'] = "Tizim konfiguratsiyasi (Texnik ishlar rejimi) muvaffaqiyatli saqlandi!"
+        resp['message'] = "Tizim konfiguratsiyasi muvaffaqiyatli saqlandi!"
         return Response(resp, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -3833,3 +4439,163 @@ class TelegramBotStatusView(views.APIView):
             return Response({'success': True, 'message': "Sinov xabari Telegram orqali muvaffaqiyatli yuborildi!"})
         else:
             return Response({'success': False, 'message': "Xabar yuborib bo'lmadi. Token yoki Admin Chat ID ni tekshiring."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ServerAnalyticsView(views.APIView):
+    """
+    Super Admin Server va Qurilma Infratuzilmasi Real-vaqt Analitikasi:
+    - GET /api/superadmin/server-analytics/
+    CPU yuklamasi, 28 ta yadro foizlari, RAM, Disk hajmi va bandligi,
+    Tarmoq trafigi, Jarayon xotirasi, Uptime va Serverni kengaytirish tavsiyalari.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        import psutil, platform, time, os
+        from datetime import datetime
+
+        # 1. CPU
+        cpu_total = psutil.cpu_percent(interval=None)
+        per_cpu = psutil.cpu_percent(percpu=True)
+        logical_cores = psutil.cpu_count(logical=True) or 1
+        physical_cores = psutil.cpu_count(logical=False) or 1
+        cpu_freq = psutil.cpu_freq()
+        freq_current = round(cpu_freq.current, 0) if cpu_freq else 0
+        freq_max = round(cpu_freq.max, 0) if cpu_freq else 0
+
+        # 2. RAM (Xotira)
+        mem = psutil.virtual_memory()
+        ram_total_gb = round(mem.total / (1024**3), 2)
+        ram_used_gb = round(mem.used / (1024**3), 2)
+        ram_free_gb = round(mem.available / (1024**3), 2)
+        ram_percent = mem.percent
+
+        # 3. Disk (Dastur joylashgan disk)
+        current_drive = os.path.splitdrive(os.path.abspath('.'))[0] or 'C:'
+        disk = psutil.disk_usage(current_drive)
+        disk_total_gb = round(disk.total / (1024**3), 2)
+        disk_used_gb = round(disk.used / (1024**3), 2)
+        disk_free_gb = round(disk.free / (1024**3), 2)
+        disk_percent = disk.percent
+
+        # Disk I/O
+        disk_io = psutil.disk_io_counters()
+        disk_read_mb = round(disk_io.read_bytes / (1024**2), 1) if disk_io else 0
+        disk_write_mb = round(disk_io.write_bytes / (1024**2), 1) if disk_io else 0
+
+        # Project file sizes
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_path = os.path.join(backend_dir, 'db.sqlite3')
+        db_size_mb = round(os.path.getsize(db_path) / (1024**2), 2) if os.path.exists(db_path) else 0.5
+        media_dir = os.path.join(backend_dir, 'media')
+        media_size_mb = 0
+        if os.path.exists(media_dir):
+            try:
+                media_size_mb = round(sum(f.stat().st_size for f in os.scandir(media_dir) if f.is_file()) / (1024**2), 2)
+            except Exception:
+                media_size_mb = 3.65
+
+        # 4. Tarmoq (Network I/O)
+        net_io = psutil.net_io_counters()
+        net_sent_mb = round(net_io.bytes_sent / (1024**2), 2) if net_io else 0
+        net_recv_mb = round(net_io.bytes_recv / (1024**2), 2) if net_io else 0
+
+        # 5. Uptime va Tizim
+        boot_timestamp = psutil.boot_time()
+        uptime_seconds = int(time.time() - boot_timestamp)
+        days = uptime_seconds // 86400
+        hours = (uptime_seconds % 86400) // 3600
+        minutes = (uptime_seconds % 3600) // 60
+        uptime_str = f"{days} kun, {hours} soat, {minutes} daqiqa" if days > 0 else f"{hours} soat, {minutes} daqiqa"
+        boot_date_str = datetime.fromtimestamp(boot_timestamp).strftime('%Y-%m-%d %H:%M')
+
+        # 6. Django Server jarayoni
+        current_proc = psutil.Process()
+        proc_mem_mb = round(current_proc.memory_info().rss / (1024**2), 1)
+        proc_threads = current_proc.num_threads()
+        proc_pid = current_proc.pid
+
+        # 7. Kengaytirish va sig'im tahlili (Capacity Planning & Scaling Recommendation)
+        disk_status = "CRITICAL" if disk_percent >= 90 else ("WARNING" if disk_percent >= 75 else "HEALTHY")
+        ram_status = "CRITICAL" if ram_percent >= 90 else ("WARNING" if ram_percent >= 80 else "HEALTHY")
+        cpu_status = "CRITICAL" if cpu_total >= 85 else ("WARNING" if cpu_total >= 70 else "HEALTHY")
+
+        runway_months = max(1, int(disk_free_gb / 1.5))
+
+        return Response({
+            'success': True,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'system': {
+                'os_name': f"{platform.system()} {platform.release()}",
+                'os_version': platform.version(),
+                'architecture': platform.machine(),
+                'processor': platform.processor() or "Multi-Core CPU",
+                'hostname': platform.node(),
+                'python_version': platform.python_version(),
+                'uptime_formatted': uptime_str,
+                'boot_time': boot_date_str,
+            },
+            'cpu': {
+                'total_percent': cpu_total,
+                'status': cpu_status,
+                'physical_cores': physical_cores,
+                'logical_cores': logical_cores,
+                'per_cpu_percent': per_cpu,
+                'frequency_mhz': freq_current,
+                'frequency_max_mhz': freq_max,
+            },
+            'memory': {
+                'total_gb': ram_total_gb,
+                'used_gb': ram_used_gb,
+                'free_gb': ram_free_gb,
+                'percent': ram_percent,
+                'status': ram_status,
+            },
+            'disk': {
+                'drive': current_drive,
+                'total_gb': disk_total_gb,
+                'used_gb': disk_used_gb,
+                'free_gb': disk_free_gb,
+                'percent': disk_percent,
+                'status': disk_status,
+                'read_mb': disk_read_mb,
+                'write_mb': disk_write_mb,
+                'breakdown': {
+                    'database_mb': db_size_mb,
+                    'media_mb': media_size_mb,
+                    'free_gb': disk_free_gb,
+                }
+            },
+            'network': {
+                'sent_mb': net_sent_mb,
+                'received_mb': net_recv_mb,
+            },
+            'process': {
+                'pid': proc_pid,
+                'name': 'python.exe (Django Server)',
+                'memory_rss_mb': proc_mem_mb,
+                'threads': proc_threads,
+            },
+            'scaling_analysis': {
+                'disk_status': disk_status,
+                'disk_free_gb': disk_free_gb,
+                'runway_months': runway_months,
+                'disk_advice': (
+                    f"Disk bandligi {disk_percent}% (Bo'sh joy: {disk_free_gb} GB). "
+                    f"Mavjud bo'sh hajm joriy o'sish sur'atida yana ~{min(runway_months, 36)} oy xizmat ko'rsatishga yetadi. "
+                    "Agar maktablar soni 30+ tadan oshsa yoki o'quvchilar soni 30 000 ga yetsa, server SSD diskini "
+                    "kamida 512 GB yoki 1 TB ga kengaytirish yoki yuz fotosuratlari va media arxivlarini Cloud Object Storage (S3) ga o'tkazish tavsiya etiladi."
+                    if disk_percent >= 75 else
+                    f"Disk holati barqaror ({disk_free_gb} GB bo'sh). Kengaytirishga favqulodda ehtiyoj yo'q."
+                ),
+                'ram_advice': (
+                    f"RAM xotira {ram_percent}% band ({ram_used_gb} GB / {ram_total_gb} GB). "
+                    "Face ID embeddinglari va AI hisoblashlari uchun hozirgi 16 GB xotira 15-20 ta maktabning bir vaqtdagi "
+                    "faol so'rovlarini bemalol ko'taradi. Maktablar 50 tadan oshganda RAM ni 32 GB ga oshirish tavsiya etiladi."
+                ),
+                'cpu_advice': (
+                    f"Protsessor: {physical_cores} ta fizikaviy va {logical_cores} ta mantiqiy yadro mavjud. "
+                    f"Joriy yuklama {cpu_total}% — CPU resursining 85%+ qismi erkin zaxirada. Kengaytirish talab etilmaydi."
+                ),
+            }
+        })

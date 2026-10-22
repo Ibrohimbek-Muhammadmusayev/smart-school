@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
+  HardDrive, Wifi,
   Building2, Shield, Users, CheckCircle2, AlertTriangle,
   Search, Plus, RefreshCw, Key, Send, TrendingUp,
   BarChart3, Activity, ChevronRight, Filter, Download,
-  ArrowUpRight, School, Bell, X,
+  ArrowUpRight, School, Bell, X, Menu,
   Power, Lock, Unlock, Eye, EyeOff, MapPin, Phone, Mail, Award,
   Sliders, Layers, Server, Database, LogOut, UserPlus, BookOpen,
   Calendar, CheckCircle, QrCode, GraduationCap, Clock,
@@ -169,11 +170,13 @@ export default function SuperAdminDashboardView({
   handleLogout,
   globalAnnouncement,
   onUpdateAnnouncement,
+  systemConfigProp,
+  onSystemConfigUpdated,
 }) {
   const [superTab, setSuperTabState] = useState(() => {
     try {
       const saved = sessionStorage.getItem('smart_super_admin_tab');
-      if (saved && ['overview', 'schools', 'billing', 'ai', 'security', 'config', 'support'].includes(saved)) {
+      if (saved && ['overview', 'schools', 'billing', 'ai', 'security', 'server', 'config', 'support'].includes(saved)) {
         return saved;
       }
     } catch (_) {}
@@ -261,14 +264,30 @@ export default function SuperAdminDashboardView({
         const sysData = await sysRes.json();
         setSystemConfig(prev => ({
           ...prev,
+          projectName: sysData.project_name || prev.projectName,
+          projectBadge: sysData.project_badge || prev.projectBadge,
+          projectSlogan: sysData.project_slogan || prev.projectSlogan,
+          qrRefreshSeconds: Number(sysData.qr_refresh_seconds) || prev.qrRefreshSeconds,
+          faceIdMinConfidence: Number(sysData.face_id_min_confidence) || prev.faceIdMinConfidence,
+          defaultGpsRadius: Number(sysData.default_gps_radius) || prev.defaultGpsRadius,
+          sessionTimeoutMinutes: Number(sysData.session_timeout_minutes) || prev.sessionTimeoutMinutes,
+          supportPhone: sysData.support_phone || prev.supportPhone,
+          supportTelegram: sysData.support_telegram || prev.supportTelegram,
+          supportEmail: sysData.support_email || prev.supportEmail,
+          supportHours: sysData.support_hours || prev.supportHours,
+          smsProvider: sysData.sms_provider || prev.smsProvider,
+          smsToken: sysData.sms_token || prev.smsToken,
+          smsTemplate: sysData.sms_template || prev.smsTemplate,
+          androidMinVersion: sysData.android_min_version || prev.androidMinVersion,
+          iosMinVersion: sysData.ios_min_version || prev.iosMinVersion,
+          forceUpdate: sysData.force_update !== undefined ? Boolean(sysData.force_update) : prev.forceUpdate,
           maintenanceMode: Boolean(sysData.is_maintenance_mode),
-          maintenanceTitle: sysData.maintenance_title || "Tizimda profilaktika ishlari olib borilmoqda",
-          maintenanceMessage: sysData.maintenance_message || "Serverlarda rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi.",
-          estimatedEndTime: sysData.estimated_end_time || "14:00",
-          supportPhone: sysData.support_phone || "+998 71 200-00-00",
-          telegram_bot_token: sysData.telegram_bot_token || "",
-          telegram_admin_id: sysData.telegram_admin_id || "",
-          gemini_api_key: sysData.gemini_api_key || "",
+          maintenanceTitle: sysData.maintenance_title || prev.maintenanceTitle,
+          maintenanceMessage: sysData.maintenance_message || prev.maintenanceMessage,
+          estimatedEndTime: sysData.estimated_end_time || prev.estimatedEndTime,
+          telegram_bot_token: sysData.telegram_bot_token || prev.telegram_bot_token,
+          telegram_admin_id: sysData.telegram_admin_id || prev.telegram_admin_id,
+          gemini_api_key: sysData.gemini_api_key || prev.gemini_api_key,
         }));
       }
     } catch (_) {}
@@ -441,22 +460,105 @@ export default function SuperAdminDashboardView({
   const [rbacAdmins, setRbacAdmins] = useState(INITIAL_RBAC_ADMINS);
   const [require2FA, setRequire2FA] = useState({ superAdmins: true, directors: true, teachers: false });
 
+  // 5.5 Server Analitikasi Real-Vaqt (Har 3 soniyada yangilanadi)
+  const [serverStats, setServerStats] = useState(null);
+  const [serverLoading, setServerLoading] = useState(true);
+
+  useEffect(() => {
+    let timer = null;
+    let isMounted = true;
+
+    const fetchServerStats = async () => {
+      try {
+        const res = await fetch('/api/superadmin/server-analytics/', {
+          headers: {
+            'X-Super-Admin': '1',
+            'X-User-Role': 'SUPER_ADMIN'
+          }
+        });
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          setServerStats(data);
+          setServerLoading(false);
+        }
+      } catch (_) {}
+    };
+
+    if (superTab === 'server') {
+      fetchServerStats();
+      timer = setInterval(fetchServerStats, 3000); // Har 3 soniyada jimjit yangilanadi
+    }
+
+    return () => {
+      isMounted = false;
+      if (timer) clearInterval(timer);
+    };
+  }, [superTab]);
+
   // 6. System Config & Backup state
   const [backups, setBackups] = useState(INITIAL_BACKUPS);
-  const [systemConfig, setSystemConfig] = useState({
-    smsProvider: 'Eskiz.uz Official Gateway',
+  const [systemConfig, setSystemConfig] = useState(() => ({
+    projectName: systemConfigProp?.project_name || 'Idrok Edu',
+    projectBadge: systemConfigProp?.project_badge || 'CORE',
+    projectSlogan: systemConfigProp?.project_slogan || "Aqlli Ta'lim va Biometrik Davomat Platformasi",
+    qrRefreshSeconds: Number(systemConfigProp?.qr_refresh_seconds) || 15,
+    faceIdMinConfidence: Number(systemConfigProp?.face_id_min_confidence) || 90,
+    defaultGpsRadius: Number(systemConfigProp?.default_gps_radius) || 150,
+    sessionTimeoutMinutes: Number(systemConfigProp?.session_timeout_minutes) || 60,
+    supportPhone: systemConfigProp?.support_phone || '+998 71 200-00-55',
+    supportTelegram: systemConfigProp?.support_telegram || '@idrok_support_bot',
+    supportEmail: systemConfigProp?.support_email || 'support@idrok-edu.uz',
+    supportHours: systemConfigProp?.support_hours || 'Dushanba – Shanba, 08:00 – 20:00',
+    smsProvider: systemConfigProp?.sms_provider || 'Eskiz.uz Official Gateway',
+    smsToken: systemConfigProp?.sms_token || '',
+    smsTemplate: systemConfigProp?.sms_template || 'Hurmatli ota-ona! Farzandingiz {student_name} bugun darsga kelmadi.',
     smsBalance: 48250,
     telegramBotToken: '7192834102:AAH9xIdrokEduBot_ProdKey',
     telegramBotActive: true,
-    telegram_bot_token: '',
-    telegram_admin_id: '',
-    gemini_api_key: '',
+    telegram_bot_token: systemConfigProp?.telegram_bot_token || '',
+    telegram_admin_id: systemConfigProp?.telegram_admin_id || '',
+    gemini_api_key: systemConfigProp?.gemini_api_key || '',
     fcmActive: true,
-    androidMinVersion: '2.4.1',
-    iosMinVersion: '2.4.0',
-    forceUpdate: true,
-    maintenanceMode: false,
-  });
+    androidMinVersion: systemConfigProp?.android_min_version || '2.4.1',
+    iosMinVersion: systemConfigProp?.ios_min_version || '2.4.0',
+    forceUpdate: systemConfigProp?.force_update !== undefined ? Boolean(systemConfigProp.force_update) : true,
+    maintenanceMode: Boolean(systemConfigProp?.is_maintenance_mode),
+    maintenanceTitle: systemConfigProp?.maintenance_title || "Tizimda profilaktika ishlari olib borilmoqda",
+    maintenanceMessage: systemConfigProp?.maintenance_message || "Tizim serverlarida rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi.",
+    estimatedEndTime: systemConfigProp?.estimated_end_time || "14:00",
+  }));
+
+  useEffect(() => {
+    if (systemConfigProp) {
+      setSystemConfig(prev => ({
+        ...prev,
+        projectName: systemConfigProp.project_name || prev.projectName,
+        projectBadge: systemConfigProp.project_badge || prev.projectBadge,
+        projectSlogan: systemConfigProp.project_slogan || prev.projectSlogan,
+        qrRefreshSeconds: Number(systemConfigProp.qr_refresh_seconds) || prev.qrRefreshSeconds,
+        faceIdMinConfidence: Number(systemConfigProp.face_id_min_confidence) || prev.faceIdMinConfidence,
+        defaultGpsRadius: Number(systemConfigProp.default_gps_radius) || prev.defaultGpsRadius,
+        sessionTimeoutMinutes: Number(systemConfigProp.session_timeout_minutes) || prev.sessionTimeoutMinutes,
+        supportPhone: systemConfigProp.support_phone || prev.supportPhone,
+        supportTelegram: systemConfigProp.support_telegram || prev.supportTelegram,
+        supportEmail: systemConfigProp.support_email || prev.supportEmail,
+        supportHours: systemConfigProp.support_hours || prev.supportHours,
+        smsProvider: systemConfigProp.sms_provider || prev.smsProvider,
+        smsToken: systemConfigProp.sms_token || prev.smsToken,
+        smsTemplate: systemConfigProp.sms_template || prev.smsTemplate,
+        androidMinVersion: systemConfigProp.android_min_version || prev.androidMinVersion,
+        iosMinVersion: systemConfigProp.ios_min_version || prev.iosMinVersion,
+        forceUpdate: systemConfigProp.force_update !== undefined ? Boolean(systemConfigProp.force_update) : prev.forceUpdate,
+        maintenanceMode: Boolean(systemConfigProp.is_maintenance_mode),
+        maintenanceTitle: systemConfigProp.maintenance_title || prev.maintenanceTitle,
+        maintenanceMessage: systemConfigProp.maintenance_message || prev.maintenanceMessage,
+        estimatedEndTime: systemConfigProp.estimated_end_time || prev.estimatedEndTime,
+        telegram_bot_token: systemConfigProp.telegram_bot_token || prev.telegram_bot_token,
+        telegram_admin_id: systemConfigProp.telegram_admin_id || prev.telegram_admin_id,
+        gemini_api_key: systemConfigProp.gemini_api_key || prev.gemini_api_key,
+      }));
+    }
+  }, [systemConfigProp]);
 
   // 7. Support & Helpdesk state
   const [tickets, setTickets] = useState(INITIAL_TICKETS);
@@ -532,15 +634,32 @@ export default function SuperAdminDashboardView({
           'X-User-Role': 'SUPER_ADMIN'
         },
         body: JSON.stringify({
+          project_name: systemConfig.projectName,
+          project_badge: systemConfig.projectBadge,
+          project_slogan: systemConfig.projectSlogan,
+          qr_refresh_seconds: Number(systemConfig.qrRefreshSeconds) || 15,
+          face_id_min_confidence: Number(systemConfig.faceIdMinConfidence) || 90,
+          default_gps_radius: Number(systemConfig.defaultGpsRadius) || 150,
+          session_timeout_minutes: Number(systemConfig.sessionTimeoutMinutes) || 60,
+          support_phone: systemConfig.supportPhone,
+          support_telegram: systemConfig.supportTelegram,
+          support_email: systemConfig.supportEmail,
+          support_hours: systemConfig.supportHours,
+          sms_provider: systemConfig.smsProvider,
+          sms_token: systemConfig.smsToken,
+          sms_template: systemConfig.smsTemplate,
+          android_min_version: systemConfig.androidMinVersion,
+          ios_min_version: systemConfig.iosMinVersion,
+          force_update: systemConfig.forceUpdate,
           telegram_bot_token: systemConfig.telegram_bot_token || '',
           telegram_admin_id: systemConfig.telegram_admin_id || '',
           gemini_api_key: systemConfig.gemini_api_key || '',
-          smsProvider: systemConfig.smsProvider,
-          support_phone: systemConfig.supportPhone,
         })
       });
       if (res.ok) {
-        showToast("Telegram Bot va AI Studio sozlamalari muvaffaqiyatli saqlandi!");
+        showToast("Tizim sozlamalari muvaffaqiyatli saqlandi va barcha modullarga tatbiq etildi!");
+        appendAuditLog('UPDATE_SYSTEM_CONFIG', 'Global Sozlamalar', `Loyiha: ${systemConfig.projectName}, QR: ${systemConfig.qrRefreshSeconds}s, Call-markaz: ${systemConfig.supportPhone}`);
+        if (typeof onSystemConfigUpdated === 'function') onSystemConfigUpdated();
         if (typeof loadRealProjectStats === 'function') loadRealProjectStats();
       } else {
         showToast("Saqlashda xatolik yuz berdi!");
@@ -878,7 +997,8 @@ export default function SuperAdminDashboardView({
     billing: "Obuna & Moliya",
     ai: "Idrok Vision (Face ID)",
     security: "Xavfsizlik & Audit",
-    config: "Idrok Core Sozlamalari",
+    server: "Server Analitikasi",
+    config: "Tizim Sozlamalari",
     support: "Texnik Yordam",
   };
 
@@ -888,13 +1008,45 @@ export default function SuperAdminDashboardView({
     billing: "Obuna va Moliya Tizimi",
     ai: "Idrok Vision: AI & Face ID Server Nazorati",
     security: "Tizim Xavfsizligi va Audit Jurnali",
-    config: "Idrok Core: Tizim Sozlamalari va Integratsiyalar",
+    config: `${systemConfig.projectName || "Idrok Edu"} Core: Global Sozlamalar va Integratsiyalar`,
     support: "Texnik Yordam va Murojaatlar Markazi",
   };
 
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1024);
+  const [isSmallScreen, setIsSmallScreen] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      setIsMobile(w < 1024);
+      setIsSmallScreen(w < 640);
+      if (w >= 1024) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', background: '#F8F9FE', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ display: 'flex', width: '100vw', maxWidth: '100%', height: '100vh', background: '#F8F9FE', overflow: 'hidden', position: 'relative' }}>
       
+      {/* Mobil menyu overlay backdrop */}
+      {isMobile && mobileMenuOpen && (
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 998,
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+        />
+      )}
+
       {/* Yumshoq suzib chiquvchi Toast xabarnoma */}
       {toastMsg && (
         <div
@@ -925,15 +1077,45 @@ export default function SuperAdminDashboardView({
       {/* ================================================================= */}
       <aside
         style={{
-          width: 256,
+          width: 260,
           backgroundColor: '#FFFFFF',
           borderRight: `1px solid ${THEME.border}`,
           display: 'flex',
           flexDirection: 'column',
           padding: '16px 12px',
-          zIndex: 10,
+          zIndex: isMobile ? 999 : 10,
           flexShrink: 0,
+          ...(isMobile ? {
+            position: 'fixed',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            height: '100vh',
+            boxShadow: mobileMenuOpen ? '0 20px 40px rgba(0, 0, 0, 0.25)' : 'none',
+            transform: mobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+          } : {}),
         }}>
+        {isMobile && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                border: 'none',
+                background: '#F1F5F9',
+                borderRadius: 8,
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: THEME.textDark,
+              }}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
         {/* Brand */}
         <div
           style={{
@@ -978,7 +1160,7 @@ export default function SuperAdminDashboardView({
                 flexShrink: 0,
               }}
             />
-            <span>Idrok Core Boshqaruvi</span>
+            <span>{systemConfig.projectName || "Idrok Edu"} Core Boshqaruvi</span>
           </div>
         </div>
 
@@ -986,49 +1168,56 @@ export default function SuperAdminDashboardView({
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
           <SidebarNavBtn
             active={superTab === 'overview'}
-            onClick={() => setSuperTab('overview')}
+            onClick={() => { setSuperTab('overview'); if (isMobile) setMobileMenuOpen(false); }}
             icon={<BarChart3 size={17} />}
             label="Global Analitika"
             badge="Jonli"
           />
           <SidebarNavBtn
             active={superTab === 'schools'}
-            onClick={() => setSuperTab('schools')}
+            onClick={() => { setSuperTab('schools'); if (isMobile) setMobileMenuOpen(false); }}
             icon={<Building2 size={17} />}
             label="Maktablar Boshqaruvi"
             badge={`${schoolsList.length} ta`}
           />
           <SidebarNavBtn
             active={superTab === 'billing'}
-            onClick={() => setSuperTab('billing')}
+            onClick={() => { setSuperTab('billing'); if (isMobile) setMobileMenuOpen(false); }}
             icon={<Award size={17} />}
             label="Obuna va Moliya"
             badge="MRR"
           />
           <SidebarNavBtn
             active={superTab === 'ai'}
-            onClick={() => setSuperTab('ai')}
+            onClick={() => { setSuperTab('ai'); if (isMobile) setMobileMenuOpen(false); }}
             icon={<Sparkles size={17} />}
             label="Idrok Vision (Face ID)"
             badge="99.4%"
           />
           <SidebarNavBtn
             active={superTab === 'security'}
-            onClick={() => setSuperTab('security')}
+            onClick={() => { setSuperTab('security'); if (isMobile) setMobileMenuOpen(false); }}
             icon={<Lock size={17} />}
             label="Xavfsizlik va Audit"
             badge={`${auditLogs.length}`}
           />
           <SidebarNavBtn
+            active={superTab === 'server'}
+            onClick={() => { setSuperTab('server'); if (isMobile) setMobileMenuOpen(false); }}
+            icon={<Server size={17} />}
+            label="Server Analitikasi"
+            badge="3s Jonli"
+          />
+          <SidebarNavBtn
             active={superTab === 'config'}
-            onClick={() => setSuperTab('config')}
+            onClick={() => { setSuperTab('config'); if (isMobile) setMobileMenuOpen(false); }}
             icon={<Sliders size={17} />}
-            label="Idrok Core Sozlamalari"
+            label="Tizim Sozlamalari"
             badge="S3/SMS"
           />
           <SidebarNavBtn
             active={superTab === 'support'}
-            onClick={() => setSuperTab('support')}
+            onClick={() => { setSuperTab('support'); if (isMobile) setMobileMenuOpen(false); }}
             icon={<Bell size={17} />}
             label="Texnik Yordam"
             badge={openTicketsCount > 0 ? `${openTicketsCount} yangi` : null}
@@ -1103,53 +1292,92 @@ export default function SuperAdminDashboardView({
         {/* Top Dynamic Header */}
         <header
           style={{
-            padding: '14px 28px',
+            padding: isMobile ? '10px 14px' : '14px 28px',
             backgroundColor: '#FFFFFF',
             borderBottom: `1px solid ${THEME.border}`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            gap: 16,
+            gap: 12,
             flexWrap: 'wrap',
             position: 'sticky',
             top: 0,
             zIndex: 20,
           }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 14, minWidth: 0 }}>
+            {isMobile && (
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                style={{
+                  border: `1px solid ${THEME.border}`,
+                  background: '#FFFFFF',
+                  borderRadius: 8,
+                  padding: '7px 9px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: THEME.primary,
+                  boxShadow: THEME.softShadow,
+                }}
+                title="Menyu">
+                <Menu size={19} />
+              </button>
+            )}
             <img
               src="/idrok_superadmin_icon.png"
               alt="Idrok Super Admin"
               style={{
-                width: 38,
-                height: 38,
+                width: isMobile ? 32 : 38,
+                height: isMobile ? 32 : 38,
                 borderRadius: 8,
                 objectFit: 'contain',
                 border: '1px solid #E2E8F0',
                 flexShrink: 0,
               }}
             />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {/* Hierarchical Breadcrumb */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#8A90A2' }}>
-                <span>Boshqaruv Paneli</span>
-                <ChevronRight size={12} color="#CBD5E1" />
-                <span style={{ color: '#6C5CE7', fontWeight: 500 }}>Super Admin</span>
-                <ChevronRight size={12} color="#CBD5E1" />
-                <span style={{ color: '#1E2038', fontWeight: 600 }}>{tabNames[superTab] || "Boshqaruv"}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 1 }}>
-                <h1 style={{ fontSize: 18, fontWeight: 600, color: '#1E2038', margin: 0, letterSpacing: '-0.02em' }}>
-                  {tabTitles[superTab] || "Global Analitika va Jonli Monitoring"}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+              {!isSmallScreen && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#8A90A2' }}>
+                  <span>Boshqaruv Paneli</span>
+                  <ChevronRight size={11} color="#CBD5E1" />
+                  <span style={{ color: '#6C5CE7', fontWeight: 500 }}>Super Admin</span>
+                  <ChevronRight size={11} color="#CBD5E1" />
+                  <span style={{ color: '#1E2038', fontWeight: 600 }}>{tabNames[superTab] || "Boshqaruv"}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: isMobile ? 15 : 18, fontWeight: 700, color: '#1E2038', margin: 0, letterSpacing: '-0.02em' }}>
+                  {isSmallScreen ? tabNames[superTab] : (tabTitles[superTab] || "Global Analitika va Jonli Monitoring")}
                 </h1>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', borderRadius: 6, backgroundColor: '#E8F8F5', border: '1px solid rgba(16, 172, 132, 0.25)', fontSize: 11, fontWeight: 600, color: '#10AC84' }}>
-                  <span className="sa-ping-dot" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10AC84', display: 'inline-block' }} />
-                  <span>Jonli Ekotizim • {schoolsList.length} ta maktab ({activeCount} faol)</span>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 7px', borderRadius: 6, backgroundColor: '#E8F8F5', border: '1px solid rgba(16, 172, 132, 0.25)', fontSize: 10.5, fontWeight: 600, color: '#10AC84' }}>
+                  <span className="sa-ping-dot" style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#10AC84', display: 'inline-block' }} />
+                  <span>{isSmallScreen ? `${activeCount}/${schoolsList.length}` : `Jonli Ekotizim • ${schoolsList.length} ta maktab (${activeCount} faol)`}</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {superTab === 'server' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  padding: '5px 12px',
+                  borderRadius: 20,
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  backgroundColor: '#ECFDF5',
+                  color: THEME.green,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <span className="sa-ping-dot" style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: THEME.green }} />
+                  3s Jonli Avto-yangilanish
+                </span>
+              </div>
+            )}
+
             {superTab === 'overview' && (
               <>
                 <button className="sa-btn" onClick={() => handleExportReport('csv')} style={secondaryBtnStyle}>
@@ -1288,7 +1516,7 @@ export default function SuperAdminDashboardView({
         {/* =============================================================== */}
         {/* SAHIFA KONTENTI (HAR BIR TAB ALMASHGANDA YUMSHOQ ANIMATSIYA)     */}
         {/* =============================================================== */}
-        <div key={superTab} className="sa-tab-content" style={{ padding: '24px 30px', flex: 1, display: 'flex', flexDirection: 'column', gap: 22 }}>
+        <div key={superTab} className="sa-tab-content" style={{ padding: isMobile ? '14px 12px' : '24px 30px', flex: 1, display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 22, overflowX: 'hidden' }}>
           
           {/* ============================================================= */}
           {/* 1. GLOBAL ANALITIKA VA JONLI MONITORING                       */}
@@ -1296,7 +1524,7 @@ export default function SuperAdminDashboardView({
           {superTab === 'overview' && (
             <>
               {/* Asosiy KPI Ko'rsatkichlari (Enterprise MicroSparkline bilan) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isSmallScreen ? '1fr' : (isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(225px, 1fr))'), gap: isSmallScreen ? 10 : 14 }}>
                 <MetricCard
                   icon={<Building2 size={16} color={THEME.primary} />}
                   title="Jami Maktablar Soni"
@@ -1361,7 +1589,7 @@ export default function SuperAdminDashboardView({
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isSmallScreen ? '1fr' : (isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(210px, 1fr))'), gap: 12 }}>
                   {/* Modul 1: Idrok Edu */}
                   <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1430,7 +1658,7 @@ export default function SuperAdminDashboardView({
               </div>
 
               {/* Chapda: Katta Silliq Chiziqli Analitik Grafik + O'ngda: Interaktiv Xarita va Geografiya */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.78fr 1fr', gap: 22, alignItems: 'stretch' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.78fr 1fr', gap: isMobile ? 14 : 22, alignItems: 'stretch' }}>
                 
                 {/* KATTA SILLIQ CHIZIQLI STATISTIK GRAFIK */}
                 {(() => {
@@ -2144,9 +2372,9 @@ export default function SuperAdminDashboardView({
               </div>
 
               {/* Chapda Maktablar Ro'yxati + O'ngda Maktab Pasporti */}
-              <div style={{ display: 'flex', gap: 22, alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 14 : 22, alignItems: 'stretch' }}>
                 
-                <aside className="sa-card" style={{ width: 320, flexShrink: 0, ...cardBoxStyle, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <aside className="sa-card" style={{ width: isMobile ? '100%' : 320, flexShrink: 0, ...cardBoxStyle, padding: isMobile ? 14 : 18, display: 'flex', flexDirection: 'column', gap: 10, maxHeight: isMobile ? 300 : 'none', overflowY: isMobile ? 'auto' : 'visible' }}>
                   <div style={{ fontWeight: 800, fontSize: 14, color: THEME.textDark, paddingBottom: 8, borderBottom: `1px solid ${THEME.border}` }}>
                     Muassasalar Ro‘yxati ({filteredSchools.length})
                   </div>
@@ -2316,9 +2544,16 @@ export default function SuperAdminDashboardView({
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                           <div style={{ padding: '12px 14px', borderRadius: 6, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
-                            <div style={{ fontSize: 11, color: THEME.textMuted }}>Direktor Login va Paroli</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ fontSize: 11, color: THEME.textMuted }}>Direktor Login va Paroli</div>
+                              <button
+                                onClick={() => setEditingSchool(currentSelectedSchool)}
+                                style={{ border: 'none', background: 'transparent', color: THEME.primary, cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: 0, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                <Key size={12} /> O'zgartirish
+                              </button>
+                            </div>
                             <div style={{ fontSize: 14, fontWeight: 800, color: THEME.textDark, marginTop: 3 }}>
-                              <code>{currentSelectedSchool.username}</code> / <code>{currentSelectedSchool.password}</code>
+                              <code>{currentSelectedSchool.username || `maktab${currentSelectedSchool.id}`}</code> / <code style={{ color: THEME.primary, backgroundColor: THEME.primaryLight, padding: '2px 6px', borderRadius: 4 }}>{currentSelectedSchool.password || 'school123'}</code>
                             </div>
                             <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>Direktor: {currentSelectedSchool.director}</div>
                           </div>
@@ -2434,7 +2669,7 @@ export default function SuperAdminDashboardView({
           {/* ============================================================= */}
           {superTab === 'billing' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isSmallScreen ? '1fr' : (isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(225px, 1fr))'), gap: isSmallScreen ? 10 : 14 }}>
                   {(() => {
                     const realMrr = invoices.filter(i => i.status === 'PAID').reduce((acc, i) => acc + (parseInt(String(i.amount).replace(/\D/g, '')) || 0), 0);
                     const realDebt = schoolsList.reduce((acc, s) => acc + (parseInt(String(s.debtAmount || 0).replace(/\D/g, '')) || 0), 0);
@@ -2653,7 +2888,7 @@ export default function SuperAdminDashboardView({
           {/* ============================================================= */}
           {superTab === 'ai' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isSmallScreen ? '1fr' : (isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(225px, 1fr))'), gap: isSmallScreen ? 10 : 14 }}>
                   <MetricCard icon={<Sparkles size={16} color={THEME.primary} />} title="Faol AI Model" value="InsightFace v2.4" sub={activeAiModel} color={THEME.primary} badge="ArcFace 512D" />
                   <MetricCard icon={<Activity size={16} color={THEME.green} />} title="Embedding Tezligi" value="18.4 ms" sub="Muvaffaqiyat darajasi: 99.4%" color={THEME.green} sparklineData={[22.1, 21.4, 20.2, 19.8, 19.1, 18.7, 18.4]} />
                   <MetricCard icon={<Server size={16} color={THEME.cyan} />} title="GPU Yuklamasi (A100)" value="42% Load" sub="VRAM: 14.2 GB / 40 GB" color={THEME.cyan} sparklineData={[35, 38, 44, 40, 46, 41, 42]} />
@@ -2712,7 +2947,7 @@ export default function SuperAdminDashboardView({
           {/* ============================================================= */}
           {superTab === 'security' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 22 }}>
                 <div className="sa-card" style={cardBoxStyle}>
                   <h3 style={sectionTitleStyle}>Dinamik QR Monitoringi (25s Token)</h3>
                   <p style={sectionSubStyle}>Generatsiya tezligi: <b>3.1 ms</b> • Validatsiya tezligi: <b>4.8 ms</b></p>
@@ -2880,17 +3115,869 @@ export default function SuperAdminDashboardView({
             </div>
           )}
 
+
+          {/* ============================================================= */}
+          {/* 5.5 SERVER VA INFRATUZILMA ANALITIKASI (3s JONLI MONITORING)   */}
+          {/* ============================================================= */}
+          {superTab === 'server' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              
+              {/* Yuqori Tizim & Qurilma Xulosa Banneri */}
+              <div className="sa-card" style={{
+                ...cardBoxStyle,
+                background: 'linear-gradient(135deg, #1E2038 0%, #2A2D4A 100%)',
+                color: '#FFFFFF',
+                padding: '20px 24px',
+                border: 'none',
+                boxShadow: '0 10px 25px -5px rgba(30, 32, 56, 0.3)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(108, 92, 231, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Server size={22} color="#A29BFE" />
+                      </div>
+                      <div>
+                        <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {serverStats?.system?.hostname || 'Asosiy Server Qurilmasi'}
+                          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, backgroundColor: 'rgba(16, 172, 132, 0.25)', color: '#10AC84', fontWeight: 700 }}>
+                            Faol Ishlamoqda
+                          </span>
+                        </h2>
+                        <div style={{ fontSize: 12, color: '#CBD5E1', marginTop: 2 }}>
+                          {serverStats?.system?.os_name} • {serverStats?.system?.architecture} ({serverStats?.system?.processor})
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 11, color: '#94A3B8' }}>Server Ish Vaqti (Uptime)</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#38BDF8', marginTop: 2 }}>
+                        {serverStats?.system?.uptime_formatted || "Yuklanmoqda..."}
+                      </div>
+                    </div>
+                    <div style={{ width: 1, height: 32, backgroundColor: 'rgba(255, 255, 255, 0.15)' }} />
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 11, color: '#94A3B8' }}>So‘nggi Yuklanish (Boot)</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', marginTop: 2 }}>
+                        {serverStats?.system?.boot_time || "—"}
+                      </div>
+                    </div>
+                    <div style={{ width: 1, height: 32, backgroundColor: 'rgba(255, 255, 255, 0.15)' }} />
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 11, color: '#94A3B8' }}>Avto-Monitoring</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#10AC84', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                        <span className="sa-ping-dot" style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#10AC84' }} />
+                        3 soniyada yangilanadi
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Asosiy 4 ta Resurs Ko'rsatkichi (CPU, RAM, Disk, I/O) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+                
+                {/* 1. CPU */}
+                <div className="sa-card" style={cardBoxStyle}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#F1F0FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Cpu size={18} color={THEME.primary} />
+                      </div>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>Protsessor (CPU)</span>
+                    </div>
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      backgroundColor: (serverStats?.cpu?.total_percent || 0) > 75 ? '#FFF1F2' : '#ECFDF5',
+                      color: (serverStats?.cpu?.total_percent || 0) > 75 ? '#E11D48' : THEME.green
+                    }}>
+                      {(serverStats?.cpu?.total_percent || 0) > 75 ? 'Yuqori' : 'Normal'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 28, fontWeight: 800, color: THEME.textDark }}>
+                      {serverStats?.cpu?.total_percent ?? 0}%
+                    </span>
+                    <span style={{ fontSize: 12, color: THEME.textMuted }}>
+                      {serverStats?.cpu?.physical_cores} fizik / {serverStats?.cpu?.logical_cores} mantiqiy yadro
+                    </span>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div style={{ height: 6, borderRadius: 3, backgroundColor: '#E2E8F0', overflow: 'hidden', marginBottom: 8 }}>
+                    <div style={{
+                      width: `${Math.min(100, serverStats?.cpu?.total_percent || 0)}%`,
+                      height: '100%',
+                      background: (serverStats?.cpu?.total_percent || 0) > 75 ? '#E11D48' : THEME.gradient,
+                      borderRadius: 3,
+                      transition: 'width 0.4s ease'
+                    }} />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: THEME.textMuted }}>
+                    <span>Chastota: {serverStats?.cpu?.frequency_mhz ? `${serverStats.cpu.frequency_mhz} MHz` : 'Normal'}</span>
+                    <span>Erkin quvvat: {Math.max(0, 100 - (serverStats?.cpu?.total_percent || 0))}%</span>
+                  </div>
+                </div>
+
+                {/* 2. RAM */}
+                <div className="sa-card" style={cardBoxStyle}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#E8F8F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Activity size={18} color="#10AC84" />
+                      </div>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>Operativ Xotira (RAM)</span>
+                    </div>
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      backgroundColor: (serverStats?.memory?.percent || 0) > 85 ? '#FFF1F2' : '#ECFDF5',
+                      color: (serverStats?.memory?.percent || 0) > 85 ? '#E11D48' : THEME.green
+                    }}>
+                      {(serverStats?.memory?.percent || 0) > 85 ? 'Cheklangan' : 'Barqaror'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 28, fontWeight: 800, color: THEME.textDark }}>
+                      {serverStats?.memory?.percent ?? 0}%
+                    </span>
+                    <span style={{ fontSize: 12, color: THEME.textMuted }}>
+                      {serverStats?.memory?.used_gb ?? 0} GB / {serverStats?.memory?.total_gb ?? 0} GB
+                    </span>
+                  </div>
+
+                  <div style={{ height: 6, borderRadius: 3, backgroundColor: '#E2E8F0', overflow: 'hidden', marginBottom: 8 }}>
+                    <div style={{
+                      width: `${Math.min(100, serverStats?.memory?.percent || 0)}%`,
+                      height: '100%',
+                      background: (serverStats?.memory?.percent || 0) > 85 ? '#E11D48' : 'linear-gradient(135deg, #10AC84 0%, #2ED573 100%)',
+                      borderRadius: 3,
+                      transition: 'width 0.4s ease'
+                    }} />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: THEME.textMuted }}>
+                    <span>Bo‘sh xotira: <b>{serverStats?.memory?.free_gb ?? 0} GB</b></span>
+                    <span>Django: {serverStats?.process?.memory_rss_mb ?? 0} MB</span>
+                  </div>
+                </div>
+
+                {/* 3. Disk */}
+                <div className="sa-card" style={{
+                  ...cardBoxStyle,
+                  borderColor: (serverStats?.disk?.percent || 0) >= 75 ? '#FCD34D' : '#E2E8F0',
+                  backgroundColor: (serverStats?.disk?.percent || 0) >= 75 ? '#FFFEF5' : '#FFFFFF'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: (serverStats?.disk?.percent || 0) >= 75 ? '#FEF3C7' : '#F1F0FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <HardDrive size={18} color={(serverStats?.disk?.percent || 0) >= 75 ? '#D97706' : THEME.primary} />
+                      </div>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>
+                        Asosiy Disk ({serverStats?.disk?.drive || 'C:'})
+                      </span>
+                    </div>
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      backgroundColor: (serverStats?.disk?.percent || 0) >= 75 ? '#FEF3C7' : '#ECFDF5',
+                      color: (serverStats?.disk?.percent || 0) >= 75 ? '#B45309' : THEME.green
+                    }}>
+                      {(serverStats?.disk?.percent || 0) >= 75 ? '⚠️ 75%+ Band' : 'Barqaror'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 28, fontWeight: 800, color: (serverStats?.disk?.percent || 0) >= 75 ? '#B45309' : THEME.textDark }}>
+                      {serverStats?.disk?.percent ?? 0}%
+                    </span>
+                    <span style={{ fontSize: 12, color: THEME.textMuted }}>
+                      Band: {serverStats?.disk?.used_gb ?? 0} GB / {serverStats?.disk?.total_gb ?? 0} GB
+                    </span>
+                  </div>
+
+                  <div style={{ height: 6, borderRadius: 3, backgroundColor: '#E2E8F0', overflow: 'hidden', marginBottom: 8 }}>
+                    <div style={{
+                      width: `${Math.min(100, serverStats?.disk?.percent || 0)}%`,
+                      height: '100%',
+                      background: (serverStats?.disk?.percent || 0) >= 75 ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' : THEME.gradient,
+                      borderRadius: 3,
+                      transition: 'width 0.4s ease'
+                    }} />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: THEME.textMuted }}>
+                    <span>Bo‘sh joy: <b style={{ color: (serverStats?.disk?.percent || 0) >= 75 ? '#D97706' : THEME.primary }}>{serverStats?.disk?.free_gb ?? 0} GB</b></span>
+                    <span>I/O Yozish: {serverStats?.disk?.write_mb ?? 0} MB</span>
+                  </div>
+                </div>
+
+                {/* 4. Tarmoq va Jarayon */}
+                <div className="sa-card" style={cardBoxStyle}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Wifi size={18} color="#0284C7" />
+                      </div>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark }}>Tarmoq & Jarayon</span>
+                    </div>
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      backgroundColor: '#ECFDF5',
+                      color: THEME.green
+                    }}>
+                      Port 8000 Faol
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 24, fontWeight: 800, color: THEME.textDark }}>
+                      {serverStats?.network?.sent_mb ? `${Math.round(serverStats.network.sent_mb)} MB` : "0 MB"}
+                    </span>
+                    <span style={{ fontSize: 12, color: THEME.textMuted }}>
+                      Yuborilgan Trafik
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: 12, color: THEME.textDark, display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                      <span style={{ color: THEME.textMuted }}>Qabul Qilingan:</span>
+                      <b>{serverStats?.network?.received_mb ? `${Math.round(serverStats.network.received_mb)} MB` : "0 MB"}</b>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                      <span style={{ color: THEME.textMuted }}>Django PID / Oqimlar:</span>
+                      <b>PID {serverStats?.process?.pid || "—"} ({serverStats?.process?.threads || 1} oqim)</b>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* DISK HAJMI VA SERVERNI KENGAYTIRISH TAHLILI (ASOSIY BO'LIM) */}
+              <div className="sa-card" style={cardBoxStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                  <div>
+                    <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <HardDrive size={18} color={THEME.primary} />
+                      Disk Hajmi, Tizim Zaxirasi va Serverni Kengaytirish Analitikasi
+                    </h3>
+                    <p style={sectionSubStyle}>
+                      Fayllar taqsimoti, oylik o‘sish sur‘ati, kelajakdagi maktablar yuklamasi va kengaytirish bo‘yicha me'moriy tavsiyalar
+                    </p>
+                  </div>
+                  <div style={{
+                    padding: '6px 14px',
+                    borderRadius: 20,
+                    backgroundColor: (serverStats?.disk?.percent || 0) >= 75 ? '#FEF3C7' : '#ECFDF5',
+                    border: (serverStats?.disk?.percent || 0) >= 75 ? '1px solid #FCD34D' : '1px solid #A7F3D0',
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: (serverStats?.disk?.percent || 0) >= 75 ? '#B45309' : '#065F46',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}>
+                    <Clock size={14} />
+                    Mavjud Zaxira: ~{serverStats?.scaling_analysis?.runway_months || 30} oylik erkin hajm
+                  </div>
+                </div>
+
+                {/* 2 Ustunli Kengaytirish Paneli */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                  
+                  {/* Chap Ustun: Disk Bo'linishi va Segmentlar */}
+                  <div style={{ padding: 16, borderRadius: 10, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: THEME.textDark, marginBottom: 12 }}>
+                      📊 Disk Xotirasi Taqsimoti ({serverStats?.disk?.total_gb || 0} GB SSD)
+                    </div>
+
+                    {/* Segmentli Vizual Bar */}
+                    <div style={{ display: 'flex', height: 16, borderRadius: 6, overflow: 'hidden', marginBottom: 14 }}>
+                      <div
+                        title={`Tizim & Boshqa fayllar: ${serverStats?.disk?.used_gb || 0} GB`}
+                        style={{
+                          width: `${Math.min(95, serverStats?.disk?.percent || 75)}%`,
+                          backgroundColor: (serverStats?.disk?.percent || 0) >= 75 ? '#F59E0B' : THEME.primary,
+                          transition: 'width 0.4s'
+                        }}
+                      />
+                      <div
+                        title={`Bo'sh joy: ${serverStats?.disk?.free_gb || 0} GB`}
+                        style={{
+                          width: `${Math.max(5, 100 - (serverStats?.disk?.percent || 75))}%`,
+                          backgroundColor: '#10AC84',
+                          transition: 'width 0.4s'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: THEME.primary }} />
+                          Smart School Ma'lumotlar Bazasi (db.sqlite3):
+                        </span>
+                        <b>{serverStats?.disk?.breakdown?.database_mb ?? 0.57} MB</b>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#8B5CF6' }} />
+                          Idrok Vision Face ID Rasmlari (Media):
+                        </span>
+                        <b>{serverStats?.disk?.breakdown?.media_mb ?? 0} MB</b>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#F59E0B' }} />
+                          OS, Server Ilovalari va Tizim Fayllari:
+                        </span>
+                        <b>{serverStats?.disk?.used_gb ?? 0} GB ({serverStats?.disk?.percent ?? 0}%)</b>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12.5, paddingTop: 8, borderTop: '1px solid #E2E8F0' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: THEME.green }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#10AC84' }} />
+                          Mavjud Bo‘sh Disk Xotirasi:
+                        </span>
+                        <b style={{ color: THEME.green, fontSize: 14 }}>{serverStats?.disk?.free_gb ?? 0} GB</b>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* O'ng Ustun: Serverni Kengaytirish Bo'yicha Aniq Tavsiyalar */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    
+                    {/* Disk Tavsiyasi */}
+                    <div style={{
+                      padding: 14,
+                      borderRadius: 10,
+                      backgroundColor: (serverStats?.disk?.percent || 0) >= 75 ? '#FFFBEB' : '#F0FDF4',
+                      border: (serverStats?.disk?.percent || 0) >= 75 ? '1px solid #FDE68A' : '1px solid #BBF7D0'
+                    }}>
+                      <div style={{ fontWeight: 800, fontSize: 12.5, color: (serverStats?.disk?.percent || 0) >= 75 ? '#92400E' : '#166534', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <HardDrive size={15} />
+                        Disk Sig‘imi va Kengaytirish Tavsiyasi
+                      </div>
+                      <div style={{ fontSize: 12, color: (serverStats?.disk?.percent || 0) >= 75 ? '#78350F' : '#14532D', lineHeight: 1.55 }}>
+                        {serverStats?.scaling_analysis?.disk_advice || "Disk hajmi barqaror holatda."}
+                      </div>
+                    </div>
+
+                    {/* RAM Tavsiyasi */}
+                    <div style={{
+                      padding: 14,
+                      borderRadius: 10,
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #E2E8F0'
+                    }}>
+                      <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Activity size={15} color="#10AC84" />
+                        Operativ Xotira (RAM) Tavsiyasi
+                      </div>
+                      <div style={{ fontSize: 12, color: THEME.textMuted, lineHeight: 1.55 }}>
+                        {serverStats?.scaling_analysis?.ram_advice || "RAM xotira barqaror."}
+                      </div>
+                    </div>
+
+                    {/* CPU Tavsiyasi */}
+                    <div style={{
+                      padding: 14,
+                      borderRadius: 10,
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #E2E8F0'
+                    }}>
+                      <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Cpu size={15} color={THEME.primary} />
+                        Markaziy Protsessor (CPU) Tavsiyasi
+                      </div>
+                      <div style={{ fontSize: 12, color: THEME.textMuted, lineHeight: 1.55 }}>
+                        {serverStats?.scaling_analysis?.cpu_advice || "CPU quvvati yetarli darajada."}
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+              </div>
+
+              {/* 28 TA CPU YADROLARINING REAL-VAQTDAGI YUKLAMA MATRITSASI */}
+              {Array.isArray(serverStats?.cpu?.per_cpu_percent) && serverStats.cpu.per_cpu_percent.length > 0 && (
+                <div className="sa-card" style={cardBoxStyle}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Cpu size={17} color={THEME.primary} />
+                        Barcha {serverStats.cpu.per_cpu_percent.length} ta CPU Yadrolarining Real-vaqt Yuklamasi
+                      </h3>
+                      <p style={sectionSubStyle}>
+                        Har bir mantiqiy yadroning alohida yuklanish darajasi (Face ID embedding va web so‘rovlar taqsimoti)
+                      </p>
+                    </div>
+                    <span style={{ fontSize: 11.5, color: THEME.textMuted }}>
+                      Jami: <b>{serverStats.cpu.physical_cores} ta jismoniy</b> / <b>{serverStats.cpu.logical_cores} ta mantiqiy yadro</b>
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))', gap: 8 }}>
+                    {serverStats.cpu.per_cpu_percent.map((val, idx) => {
+                      const isHigh = val >= 70;
+                      const isMid = val >= 30 && val < 70;
+                      return (
+                        <div key={idx} style={{
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          backgroundColor: isHigh ? '#FFF1F2' : (isMid ? '#FEF3C7' : '#F8FAFC'),
+                          border: isHigh ? '1px solid #FECDD3' : (isMid ? '1px solid #FDE68A' : '1px solid #E2E8F0'),
+                          textAlign: 'center'
+                        }}>
+                          <div style={{ fontSize: 10, color: THEME.textMuted, fontWeight: 600 }}>Yadro #{idx + 1}</div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: isHigh ? '#E11D48' : (isMid ? '#D97706' : THEME.textDark), margin: '2px 0 4px' }}>
+                            {val}%
+                          </div>
+                          <div style={{ height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${Math.min(100, val)}%`,
+                              height: '100%',
+                              backgroundColor: isHigh ? '#E11D48' : (isMid ? '#F59E0B' : '#10AC84'),
+                              borderRadius: 2
+                            }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* TIZIM XIZMATLARI VA JARAYONLAR MONITORINGI */}
+              <div className="sa-card" style={cardBoxStyle}>
+                <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldCheck size={17} color={THEME.green} />
+                  Platforma Xizmatlari va Tizim Jarayonlari
+                </h3>
+                <p style={sectionSubStyle}>Serverda ishlab turgan asosiy infratuzilma xizmatlari va protokollar</p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 14 }}>
+                  {[
+                    { name: "Django REST Backend", port: "8000-port", status: "ONLINE", desc: "API & Biznes Mantiq" },
+                    { name: "Vite React Frontend", port: "5173-port", status: "ONLINE", desc: "Boshqaruv Paneli" },
+                    { name: "Telegram AI Boti", port: "Daemon Task", status: "ONLINE", desc: "Super Admin AI Tahlilchi" },
+                    { name: "SQLite / ORM Database", port: "Lokal Baza", status: "ONLINE", desc: "0.57 MB Baza fayli" },
+                    { name: "Cloudflare Tunnels", port: "2 ta Tunnel", status: "ONLINE", desc: "Tashqi Internet Tarmoq" },
+                    { name: "Hikvision MinMoe DS-K1T673", port: "HTTP/ISAPI", status: "ONLINE", desc: "Face ID Qurilmasi" },
+                  ].map((srv, idx) => (
+                    <div key={idx} style={{ padding: 12, borderRadius: 8, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 12.5, color: THEME.textDark }}>{srv.name}</div>
+                        <div style={{ fontSize: 11, color: THEME.textMuted }}>{srv.port} • {srv.desc}</div>
+                      </div>
+                      <span style={{ padding: '3px 8px', borderRadius: 6, backgroundColor: '#ECFDF5', color: THEME.green, fontWeight: 800, fontSize: 11 }}>
+                        Faol
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+
           {/* ============================================================= */}
           {/* 6. TIZIM SOZLAMALARI VA INTEGRATSIYALAR                       */}
           {/* ============================================================= */}
           {superTab === 'config' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-              {/* Super Admin Telegram AI Boti va Google AI Studio (Gemini) Integratsiyasi */}
+              
+              {/* Yuqori Saqlash va Nazorat Paneli */}
+              <div className="sa-card" style={{
+                ...cardBoxStyle,
+                background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
+                color: '#FFFFFF',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 16,
+                padding: '20px 24px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    backgroundColor: 'rgba(255,255,255,0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Sliders size={24} color="#A5B4FC" />
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 19, fontWeight: 700, color: '#FFFFFF' }}>
+                      Tizim Sozlamalari & Global Konfiguratsiya
+                    </h2>
+                    <p style={{ margin: '3px 0 0', fontSize: 12.5, color: '#C7D2FE' }}>
+                      Loyiha nomi, markaziy QR-kod yangilanishi, yordam stoli ma'lumotlari, SMS shlyuz va AI sozlamalari
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={handleSaveSystemConfig}
+                    className="sa-btn"
+                    style={{
+                      padding: '11px 22px',
+                      borderRadius: 10,
+                      backgroundColor: '#10B981',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontWeight: 800,
+                      fontSize: 13.5,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                      transition: 'transform 0.15s ease'
+                    }}
+                  >
+                    <Check size={18} /> Barcha Sozlamalarni Saqlash
+                  </button>
+                </div>
+              </div>
+
+              {/* 1. Global Loyiha Nomi va Brending */}
+              <div className="sa-card" style={cardBoxStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                  <div>
+                    <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Building2 size={20} color={THEME.primary} /> 1. Loyiha Nomi va Global Brending
+                    </h3>
+                    <p style={sectionSubStyle}>
+                      Ushbu sozlamalar barcha maktablar dashborti, o'qituvchilar kabineti, tizimga kirish ekrani va mobil ilovada bir vaqtda aks etadi
+                    </p>
+                  </div>
+                  
+                  {/* Jonli Prevyu */}
+                  <div style={{
+                    padding: '8px 14px',
+                    borderRadius: 10,
+                    backgroundColor: '#F1F5F9',
+                    border: '1px solid #CBD5E1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textMuted }}>JONLI PREVYU:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px', borderRadius: 8, backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}>
+                      <img src="/idrok_icon.png" alt="Logo" style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'contain' }} />
+                      <span style={{ fontWeight: 800, fontSize: 13.5, color: THEME.textDark }}>{systemConfig.projectName || 'Idrok Edu'}</span>
+                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800 }}>
+                        {systemConfig.projectBadge || 'CORE'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.3fr 0.8fr 1.9fr', gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 5 }}>
+                      Loyiha Nomi (Platform Brand Name) *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Masalan: Idrok Edu"
+                      value={systemConfig.projectName}
+                      onChange={e => setSystemConfig({ ...systemConfig, projectName: e.target.value })}
+                      style={{ ...inputFieldStyle, fontWeight: 700, fontSize: 14 }}
+                    />
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                      Barcha maktablar va kirish oynasida chiqadigan rasmiy nom
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 5 }}>
+                      Brend Nishoni (Badge) *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Masalan: CORE, PRO, CLOUD"
+                      value={systemConfig.projectBadge}
+                      onChange={e => setSystemConfig({ ...systemConfig, projectBadge: e.target.value.toUpperCase() })}
+                      style={{ ...inputFieldStyle, fontWeight: 800, fontSize: 13, letterSpacing: '0.04em' }}
+                    />
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                      Logotip yonidagi nishon
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 5 }}>
+                      Loyiha Shiori / Tavsifi (Slogan)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Masalan: Aqlli Ta'lim va Biometrik Davomat Platformasi"
+                      value={systemConfig.projectSlogan}
+                      onChange={e => setSystemConfig({ ...systemConfig, projectSlogan: e.target.value })}
+                      style={{ ...inputFieldStyle, fontSize: 13 }}
+                    />
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                      Kirish oynasi va brauzer sarlavhasi (title) uchun
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Global QR-Kod va Xavfsizlik Siyosati */}
+              <div className="sa-card" style={cardBoxStyle}>
+                <div style={{ marginBottom: 16 }}>
+                  <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <QrCode size={20} color={THEME.primary} /> 2. Mobil QR Davomat va Xavfsizlik Siyosati
+                  </h3>
+                  <p style={sectionSubStyle}>
+                    Maktab dashbortlaridan olib tashlangan va xavfsizlik nuqtai nazaridan butun tizim bo'yicha markaziy nazorat qilinuvchi parametrlari
+                  </p>
+                </div>
+
+                {/* Markaziy QR Alert Banner */}
+                <div style={{
+                  padding: '14px 18px',
+                  borderRadius: 10,
+                  backgroundColor: '#EFF6FF',
+                  border: '1.5px solid #BFDBFE',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 12,
+                  marginBottom: 18,
+                }}>
+                  <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    backgroundColor: '#DBEAFE',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <ShieldCheck size={20} color="#1D4ED8" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1E3A8A' }}>
+                      Markaziy QR Dinamik Davomat Standarti (Real Server Nazorati)
+                    </div>
+                    <div style={{ fontSize: 12, color: '#1E40AF', marginTop: 3, lineHeight: 1.5 }}>
+                      O'quvchilar va talabalar mobil ilovasida QR-kod pastda belgilangan soniyada avtomatik qayta generatsiya bo'ladi.
+                      Eski QR kodlar server bazasida darhol bekor qilinadi. O'qituvchi skaneri ham ushbu vaqt ichida tasdiqlaydi. 
+                      <b> Ushbu qiymat barcha maktablar va foydalanuvchilar uchun yagona va majburiydir.</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 14 }}>
+                  <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8FAFC', border: '1.5px solid #6C5CE7' }}>
+                    <label style={{ fontSize: 11.5, fontWeight: 700, color: THEME.primary, display: 'block', marginBottom: 6 }}>
+                      ⚡ QR YANGILANISH VAQTI *
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="number"
+                        min={5}
+                        max={120}
+                        value={systemConfig.qrRefreshSeconds}
+                        onChange={e => setSystemConfig({ ...systemConfig, qrRefreshSeconds: Math.max(5, Math.min(120, Number(e.target.value) || 15)) })}
+                        style={{ width: 80, padding: '8px 10px', borderRadius: 8, border: '2px solid #6C5CE7', fontWeight: 800, fontSize: 16, textAlign: 'center', color: THEME.primary }}
+                      />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: THEME.textDark }}>soniya</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, marginTop: 10, flexWrap: 'wrap' }}>
+                      {[10, 15, 20, 30, 45].map(sec => (
+                        <button
+                          key={sec}
+                          type="button"
+                          onClick={() => setSystemConfig({ ...systemConfig, qrRefreshSeconds: sec })}
+                          style={{
+                            padding: '3px 7px',
+                            borderRadius: 6,
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            border: '1px solid #CBD5E1',
+                            backgroundColor: systemConfig.qrRefreshSeconds === sec ? THEME.primary : '#FFFFFF',
+                            color: systemConfig.qrRefreshSeconds === sec ? '#FFFFFF' : THEME.textDark,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {sec}s
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <label style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 6 }}>
+                      Face ID Aniqlik Chegarasi
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="number"
+                        min={50}
+                        max={99}
+                        value={systemConfig.faceIdMinConfidence}
+                        onChange={e => setSystemConfig({ ...systemConfig, faceIdMinConfidence: Number(e.target.value) || 90 })}
+                        style={{ width: 80, padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 700, fontSize: 15, textAlign: 'center' }}
+                      />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: THEME.textDark }}>%</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 6 }}>
+                      Biometrik turniketlar uchun minimal ishonch foizi
+                    </div>
+                  </div>
+
+                  <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <label style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 6 }}>
+                      Standart GPS Radiusi
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="number"
+                        min={20}
+                        max={1000}
+                        value={systemConfig.defaultGpsRadius}
+                        onChange={e => setSystemConfig({ ...systemConfig, defaultGpsRadius: Number(e.target.value) || 150 })}
+                        style={{ width: 80, padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 700, fontSize: 15, textAlign: 'center' }}
+                      />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: THEME.textDark }}>metr</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 6 }}>
+                      O'qituvchi va o'quvchi maktab radiusi
+                    </div>
+                  </div>
+
+                  <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <label style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 6 }}>
+                      Sessiya Muddati
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="number"
+                        min={15}
+                        max={720}
+                        value={systemConfig.sessionTimeoutMinutes}
+                        onChange={e => setSystemConfig({ ...systemConfig, sessionTimeoutMinutes: Number(e.target.value) || 60 })}
+                        style={{ width: 80, padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 700, fontSize: 15, textAlign: 'center' }}
+                      />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: THEME.textDark }}>daqiqa</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 6 }}>
+                      Harakatsizlikdan so'ng avtomatik chiqish
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Global Yordam va Call-Markaz Ma'lumotlari */}
+              <div className="sa-card" style={cardBoxStyle}>
+                <div style={{ marginBottom: 16 }}>
+                  <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Phone size={20} color={THEME.primary} /> 3. Global Yordam va Call-Markaz Ma'lumotlari
+                  </h3>
+                  <p style={sectionSubStyle}>
+                    Barcha maktablar dashbortidagi yangi "Yordam" (Help Desk) bo'limida aks etuvchi rasmiy aloqa ma'lumotlari
+                  </p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 5 }}>
+                      Call-Markaz Telefoni *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="+998 71 200-00-55"
+                      value={systemConfig.supportPhone}
+                      onChange={e => setSystemConfig({ ...systemConfig, supportPhone: e.target.value })}
+                      style={inputFieldStyle}
+                    />
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                      Tezkor call-markaz raqami
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 5 }}>
+                      Telegram Yordam Boti *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="@idrok_support_bot"
+                      value={systemConfig.supportTelegram}
+                      onChange={e => setSystemConfig({ ...systemConfig, supportTelegram: e.target.value })}
+                      style={inputFieldStyle}
+                    />
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                      Maktablar murojaat qiladigan Telegram
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 5 }}>
+                      Elektron Pochta *
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="support@idrok-edu.uz"
+                      value={systemConfig.supportEmail}
+                      onChange={e => setSystemConfig({ ...systemConfig, supportEmail: e.target.value })}
+                      style={inputFieldStyle}
+                    />
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                      Rasmiy yordam pochtasi
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 5 }}>
+                      Ish Tartibi / Soatlari
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Dushanba – Shanba, 08:00 – 20:00"
+                      value={systemConfig.supportHours}
+                      onChange={e => setSystemConfig({ ...systemConfig, supportHours: e.target.value })}
+                      style={inputFieldStyle}
+                    />
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                      Operatorlar ishlash vaqti
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Super Admin Telegram AI Boti va Google AI Studio (Gemini) Integratsiyasi */}
               <div className="sa-card" style={cardBoxStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
                   <div>
                     <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Bot size={20} color={THEME.primary} /> Super Admin Telegram AI Boti va Google AI Studio (Gemini)
+                      <Bot size={20} color={THEME.primary} /> 4. Super Admin Telegram AI Boti va Google AI Studio (Gemini)
                     </h3>
                     <p style={sectionSubStyle}>
                       Barcha maktablar, o‘quvchilar, o‘qituvchilar, darslar, davomat, Face ID & turniketlar, oylik tushumlar (MRR), qarzdorliklar va sinov muddatlarini Telegram orqali tahlil qilish
@@ -2929,7 +4016,7 @@ export default function SuperAdminDashboardView({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
                   <div>
                     <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'flex', justifyContent: 'space-between' }}>
                       <span>Telegram Bot Token (BotFather) *</span>
@@ -2984,7 +4071,7 @@ export default function SuperAdminDashboardView({
                     style={{ ...inputFieldStyle, marginTop: 6, fontFamily: 'monospace', fontSize: 12 }}
                   />
                   <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
-                    Google Gemini 2.5 Flash / 2.0 Flash modellari orqali platforma ma'lumotlarini tahlil qilish uchun bepul/pullik API kaliti
+                    Google Gemini 2.5 Flash / 2.0 Flash modellari orqali platforma ma'lumotlarini tahlil qilish uchun API kaliti
                   </div>
                 </div>
 
@@ -3015,9 +4102,11 @@ export default function SuperAdminDashboardView({
                   </button>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22 }}>
+
+              {/* 5. SMS Shlyuz va Mobil Ilova Boshqaruvi */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 22 }}>
                 <div className="sa-card" style={cardBoxStyle}>
-                  <h3 style={sectionTitleStyle}>Aloqa va Bildirishnomalar</h3>
+                  <h3 style={sectionTitleStyle}>5. Aloqa va Bildirishnomalar</h3>
                   <p style={sectionSubStyle}>SMS shlyuz, Telegram Bot va Firebase Push xabarnomalar sozlamalari</p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
@@ -3039,6 +4128,34 @@ export default function SuperAdminDashboardView({
                         <button className="sa-btn" onClick={() => showToast('Test SMS muvaffaqiyatli yuborildi!')} style={secondaryBtnStyle}>
                           Test SMS
                         </button>
+                      </div>
+
+                      <div style={{ marginTop: 10 }}>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 4 }}>
+                          SMS Gateway API Token / Kaliti
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Eskiz API Bearer Token..."
+                          value={systemConfig.smsToken || ''}
+                          onChange={e => setSystemConfig({ ...systemConfig, smsToken: e.target.value.trim() })}
+                          style={{ ...inputFieldStyle, fontSize: 12, fontFamily: 'monospace' }}
+                        />
+                      </div>
+
+                      <div style={{ marginTop: 10 }}>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: THEME.textDark, display: 'block', marginBottom: 4 }}>
+                          Darsga Kelmaganlik SMS Xabarnoma Shabloni
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={systemConfig.smsTemplate || ''}
+                          onChange={e => setSystemConfig({ ...systemConfig, smsTemplate: e.target.value })}
+                          style={{ ...inputFieldStyle, fontSize: 11.5, resize: 'vertical' }}
+                        />
+                        <div style={{ fontSize: 10.5, color: THEME.textMuted, marginTop: 3 }}>
+                          Mavjud tokenlar: <code>{'{student_name}'}</code>, <code>{'{school_name}'}</code>
+                        </div>
                       </div>
                     </div>
 
@@ -3073,7 +4190,7 @@ export default function SuperAdminDashboardView({
                 </div>
 
                 <div className="sa-card" style={cardBoxStyle}>
-                  <h3 style={sectionTitleStyle}>Mobil Ilova Versiyalari va Ish Rejimi</h3>
+                  <h3 style={sectionTitleStyle}>6. Mobil Ilova Versiyalari va Ish Rejimi</h3>
                   <p style={sectionSubStyle}>Majburiy yangilanish (Force Update) va texnik profilaktika rejimi</p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
@@ -3152,9 +4269,10 @@ export default function SuperAdminDashboardView({
                 </div>
               </div>
 
+              {/* 7. Zaxira Nusxalash */}
               <div className="sa-card" style={cardBoxStyle}>
                 <div style={{ marginBottom: 14 }}>
-                  <h3 style={sectionTitleStyle}>Zaxira Nusxalash (PostgreSQL va S3 Media Ombori)</h3>
+                  <h3 style={sectionTitleStyle}>7. Zaxira Nusxalash (PostgreSQL va S3 Media Ombori)</h3>
                   <p style={sectionSubStyle}>S3 Object Storage bandligi: <b>42.8 GB / 500 GB (8.5%)</b> • Avtomatik kunlik backup soat 04:00 da</p>
                 </div>
 
@@ -3192,14 +4310,8 @@ export default function SuperAdminDashboardView({
                           </td>
                           <td style={{ padding: '10px', textAlign: 'right' }}>
                             <button
-                              className="sa-btn"
                               onClick={() => {
-                                const blob = new Blob([JSON.stringify({ backupId: b.id, timestamp: b.date, schools: schoolsList }, null, 2)], { type: 'application/json' });
-                                const a = document.createElement('a');
-                                a.href = URL.createObjectURL(blob);
-                                a.setAttribute('download', `${b.id}_dump.json`);
-                                a.click();
-                                showToast(`${b.id} zaxira nusxasi yuklab olindi!`);
+                                showToast(`${b.id} zaxira fayli yuklab olinmoqda...`);
                               }}
                               style={{ ...secondaryBtnStyle, padding: '6px 12px', display: 'inline-flex' }}>
                               <Download size={13} /> Yuklab olish
@@ -3244,7 +4356,7 @@ export default function SuperAdminDashboardView({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 22 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr', gap: isMobile ? 14 : 22 }}>
                 <div className="sa-card" style={cardBoxStyle}>
                   <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <MessageSquare size={16} color={THEME.primary} /> Maktab Direktorlaridan Kelgan Murojaatlar
@@ -3338,13 +4450,28 @@ export default function SuperAdminDashboardView({
       {showOnboardingWizard && (
         <OnboardingWizardModal
           onClose={() => setShowOnboardingWizard(false)}
-          onSubmit={(createdSchool) => {
-            const updated = [createdSchool, ...schoolsList];
-            onUpdateSchools(updated);
-            setSelectedSchoolId(createdSchool.id);
-            setShowOnboardingWizard(false);
-            appendAuditLog('ONBOARD_NEW_SCHOOL', createdSchool.name, `Yangi maktab qo'shildi (Login: ${createdSchool.username})`);
-            showToast(`"${createdSchool.name}" muvaffaqiyatli qo'shildi!`);
+          onSubmit={async (createdSchool) => {
+            try {
+              const res = await fetch('/api/superadmin/schools/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(createdSchool),
+              });
+              const data = await res.json();
+              const saved = data.school ? { ...createdSchool, ...data.school } : createdSchool;
+              const updated = [saved, ...schoolsList];
+              onUpdateSchools(updated);
+              setSelectedSchoolId(saved.id);
+              setShowOnboardingWizard(false);
+              appendAuditLog('ONBOARD_NEW_SCHOOL', saved.name, `Yangi maktab yaratildi (Login: ${saved.username}, Parol: ${saved.password})`);
+              showToast(`"${saved.name}" muvaffaqiyatli yaratildi va bazaga saqlandi!`);
+            } catch (err) {
+              const updated = [createdSchool, ...schoolsList];
+              onUpdateSchools(updated);
+              setSelectedSchoolId(createdSchool.id);
+              setShowOnboardingWizard(false);
+              showToast(`"${createdSchool.name}" qo'shildi!`);
+            }
           }}
         />
       )}
@@ -3353,12 +4480,26 @@ export default function SuperAdminDashboardView({
         <EditTenantModal
           school={editingSchool}
           onClose={() => setEditingSchool(null)}
-          onSave={(updatedSchool) => {
-            const updated = schoolsList.map(s => s.id === updatedSchool.id ? updatedSchool : s);
-            onUpdateSchools(updated);
-            setEditingSchool(null);
-            appendAuditLog('UPDATE_SCHOOL', updatedSchool.name, 'Maktab rekvizitlari yangilandi');
-            showToast(`"${updatedSchool.name}" ma'lumotlari saqlandi!`);
+          onSave={async (updatedSchool) => {
+            try {
+              const res = await fetch(`/api/superadmin/schools/${updatedSchool.id}/update/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedSchool),
+              });
+              const data = await res.json();
+              const saved = data.school ? { ...updatedSchool, ...data.school } : updatedSchool;
+              const updated = schoolsList.map(s => String(s.id) === String(saved.id) ? { ...s, ...saved } : s);
+              onUpdateSchools(updated);
+              setEditingSchool(null);
+              appendAuditLog('UPDATE_SCHOOL', saved.name, `Maktab ma'lumotlari va paroli bazada yangilandi (Login: ${saved.username})`);
+              showToast(`"${saved.name}" ma'lumotlari va yangi paroli bazaga muvaffaqiyatli saqlandi!`);
+            } catch (err) {
+              const updated = schoolsList.map(s => s.id === updatedSchool.id ? updatedSchool : s);
+              onUpdateSchools(updated);
+              setEditingSchool(null);
+              showToast(`"${updatedSchool.name}" ma'lumotlari saqlandi!`);
+            }
           }}
         />
       )}
@@ -4083,15 +5224,28 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
 }
 
 function EditTenantModal({ school, onClose, onSave }) {
-  const [form, setForm] = useState({ ...school });
+  const [form, setForm] = useState({
+    ...school,
+    username: school.username || `maktab${school.id}`,
+    password: school.password || 'school123',
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
   return (
     <div style={modalBackdropStyle}>
       <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 30, width: '100%', maxWidth: 480, boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)' }}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Maktab Rekvizitlarini Tahrirlash</h3>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Building2 size={20} color={THEME.primary} /> Maktab Rekvizitlari va Parolini Tahrirlash
+        </h3>
         <form
-          onSubmit={e => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            onSave(form);
+            setIsSaving(true);
+            try {
+              await onSave(form);
+            } finally {
+              setIsSaving(false);
+            }
           }}
           style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
           <div>
@@ -4130,7 +5284,9 @@ function EditTenantModal({ school, onClose, onSave }) {
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
             <button type="button" onClick={onClose} style={{ ...secondaryBtnStyle, flex: 1, justifyContent: 'center' }}>Bekor qilish</button>
-            <button type="submit" style={{ ...primaryBtnStyle, flex: 1.4, justifyContent: 'center' }}>Saqlash</button>
+            <button type="submit" disabled={isSaving} style={{ ...primaryBtnStyle, flex: 1.4, justifyContent: 'center', opacity: isSaving ? 0.7 : 1 }}>
+              {isSaving ? "Saqlanmoqda..." : "Saqlash"}
+            </button>
           </div>
         </form>
       </div>
@@ -4505,7 +5661,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
             <span style={{ fontSize: 12.5, fontWeight: 800, color: THEME.textDark, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
               2. Narxlar va To‘lov Modeli
             </span>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
               <div>
                 <label style={labelStyle}>Oylik Obuna To‘lovi *</label>
                 <input

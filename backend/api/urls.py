@@ -8,10 +8,11 @@ from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView,
                     StudentProfileView,
                     DeviceEventIngestionView, DeviceLogsListView, DeviceSimulateView,
                     HikvisionTestConnectionView, HikvisionSyncStudentsView, SchoolDashboardAnalyticsView,
-                    SystemConfigView, SchoolStatusActionView, SchoolAccessCheckView, SuperAdminOverviewStatsView, TelegramBotStatusView, SuperAdminSchoolUpdateView, SuperAdminSchoolCreateView)
+                    SystemConfigView, SchoolStatusActionView, SchoolAccessCheckView, SuperAdminOverviewStatsView, TelegramBotStatusView, ServerAnalyticsView, SuperAdminSchoolUpdateView, SuperAdminSchoolCreateView, TeacherDashboardSummaryView, TeacherClassJournalView, BulkAttendanceMarkView, TeacherLessonContentUpdateView)
 
 urlpatterns = [
     path('superadmin/overview-stats/', SuperAdminOverviewStatsView.as_view(), name='superadmin_overview_stats'),
+    path('superadmin/server-analytics/', ServerAnalyticsView.as_view(), name='superadmin_server_analytics'),
     path('superadmin/schools/create/', SuperAdminSchoolCreateView.as_view(), name='superadmin_school_create'),
     path('superadmin/schools/<str:school_id>/update/', SuperAdminSchoolUpdateView.as_view(), name='superadmin_school_update'),
     path('superadmin/bot-status/', TelegramBotStatusView.as_view(), name='superadmin_bot_status'),
@@ -24,7 +25,11 @@ urlpatterns = [
     path('qr/generate/', GenerateDynamicQRView.as_view(), name='generate_qr'),
     path('attendance/scan/', ScanAttendanceView.as_view(), name='scan_attendance'),
     path('lessons/today/', TodayLessonsView.as_view(), name='today_lessons'),
-    path('student/dashboard-summary/', StudentDashboardSummaryView.as_view(), name='student_dashboard_summary'),
+        path('teacher/dashboard-summary/', TeacherDashboardSummaryView.as_view(), name='teacher_dashboard_summary'),
+    path('teacher/class-journal/', TeacherClassJournalView.as_view(), name='teacher_class_journal'),
+    path('attendance/bulk-mark/', BulkAttendanceMarkView.as_view(), name='attendance_bulk_mark'),
+    path('lessons/<int:lesson_id>/update-content/', TeacherLessonContentUpdateView.as_view(), name='teacher_lesson_update_content'),
+path('student/dashboard-summary/', StudentDashboardSummaryView.as_view(), name='student_dashboard_summary'),
     path('student/profile/', StudentProfileView.as_view(), name='student_profile'),
     path('student/monthly-attendance/', StudentMonthlyAttendanceView.as_view(), name='student_monthly_attendance'),
     path('lessons/<int:lesson_id>/room/', LessonRoomView.as_view(), name='lesson_room'),
