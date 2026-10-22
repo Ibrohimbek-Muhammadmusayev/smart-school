@@ -35,6 +35,30 @@ const THEME = {
   border: 'rgba(0, 0, 0, 0.05)',
 };
 
+// Global fetch interceptor: Super Admin sessiyasi mavjud bo'lganda avtomatik 'X-Super-Admin: 1' sarlavhasini qo'shish
+if (typeof window !== 'undefined' && !window._smart_fetch_wrapped) {
+  const originalFetch = window.fetch;
+  window.fetch = async function (input, init = {}) {
+    try {
+      const saved = sessionStorage.getItem('smart_auth_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.user?.role === 'SUPER_ADMIN') {
+          init = init || {};
+          const headers = new Headers(init.headers || {});
+          if (!headers.has('X-Super-Admin')) {
+            headers.set('X-Super-Admin', '1');
+            headers.set('X-User-Role', 'SUPER_ADMIN');
+          }
+          init.headers = headers;
+        }
+      }
+    } catch (_) {}
+    return originalFetch(input, init);
+  };
+  window._smart_fetch_wrapped = true;
+}
+
 export const normalizeMediaUrl = (url) => {
   if (!url || typeof url !== 'string') return '';
   if (url.startsWith('data:') || url.startsWith('blob:')) return url;

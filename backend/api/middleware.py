@@ -16,6 +16,7 @@ class MaintenanceAndSchoolStatusMiddleware(MiddlewareMixin):
     WHITELIST_PATHS = [
         '/admin/',
         '/api/system-config/',
+        '/api/schools/',
         '/api/school-config/status/',
         '/static/',
         '/media/',
