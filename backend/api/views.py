@@ -2062,12 +2062,46 @@ class SchoolConfigView(views.APIView):
         if 'debt_amount' in request.data:
             cfg.debt_amount = str(request.data.get('debt_amount') or '').strip()
 
+        if 'monthly_price' in request.data:
+            try:
+                cfg.monthly_price = max(0, int(request.data.get('monthly_price') or 1000000))
+            except (ValueError, TypeError):
+                pass
+
+        if 'is_free_trial' in request.data:
+            val = request.data.get('is_free_trial')
+            cfg.is_free_trial = bool(val is True or str(val).lower() in ('true', '1', 'yes'))
+            if cfg.is_free_trial:
+                cfg.status = 'TRIAL'
+                cfg.payment_status = 'PENDING'
+
+        if 'trial_until_date' in request.data:
+            d_val = request.data.get('trial_until_date')
+            if d_val:
+                try:
+                    cfg.trial_until_date = datetime.datetime.strptime(str(d_val)[:10], "%Y-%m-%d").date()
+                except Exception:
+                    pass
+            else:
+                cfg.trial_until_date = None
+
+        if 'admin_username' in request.data or 'username' in request.data:
+            uname = str(request.data.get('admin_username') or request.data.get('username') or '').strip()
+            if uname:
+                cfg.admin_username = uname
+
+        if 'admin_password' in request.data or 'password' in request.data:
+            pwd = str(request.data.get('admin_password') or request.data.get('password') or '').strip()
+            if pwd:
+                cfg.admin_password = pwd
+
         if 'updated_by' in request.data:
             ub = str(request.data.get('updated_by') or '').strip()
             if ub:
                 cfg.updated_by = ub
 
         cfg.save()
+        cfg.sync_credentials()
 
         # Shu maktabga tegishli barcha o'quvchi, o'qituvchi va sinf/guruhlarda maktab nomini sinxron yangilash
         User.objects.filter(school_id=school_id).update(school_name=cfg.school_name)
@@ -2955,6 +2989,15 @@ class SystemConfigView(views.APIView):
             if se:
                 cfg.support_email = se
 
+        if 'telegram_bot_token' in data:
+            cfg.telegram_bot_token = str(data.get('telegram_bot_token') or '').strip()
+
+        if 'telegram_admin_id' in data:
+            cfg.telegram_admin_id = str(data.get('telegram_admin_id') or '').strip()
+
+        if 'gemini_api_key' in data:
+            cfg.gemini_api_key = str(data.get('gemini_api_key') or '').strip()
+
         if 'updated_by' in data:
             ub = str(data.get('updated_by') or '').strip()
             if ub:
@@ -3030,6 +3073,140 @@ class SchoolStatusActionView(views.APIView):
             'config': cfg.to_dict()
         }, status=status.HTTP_200_OK)
 
+
+
+
+class SuperAdminSchoolUpdateView(views.APIView):
+    """
+    Super Admin tomonidan maktab rekvizitlari, login va parolini
+    to'g'ridan-to'g'ri bazaga saqlash va sinxronlash:
+    POST /api/superadmin/schools/<str:school_id>/update/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, school_id):
+        sid = str(school_id).strip() or '1'
+        cfg = SchoolConfig.get_or_create_for_school(sid)
+        data = request.data or {}
+
+        name = data.get('name') or data.get('school_name')
+        if name:
+            cfg.school_name = str(name).strip()
+
+        if 'district' in data:
+            cfg.district = str(data.get('district') or '').strip()
+        if 'address' in data:
+            cfg.address = str(data.get('address') or '').strip()
+        if 'director' in data or 'director_name' in data:
+            cfg.director_name = str(data.get('director') or data.get('director_name') or '').strip()
+        if 'phone' in data:
+            cfg.phone = str(data.get('phone') or '').strip()
+        if 'inn' in data:
+            cfg.inn = str(data.get('inn') or '').strip()
+
+        uname = data.get('username') or data.get('admin_username')
+        if uname:
+            cfg.admin_username = str(uname).strip()
+
+        pwd = data.get('password') or data.get('admin_password')
+        if pwd:
+            cfg.admin_password = str(pwd).strip()
+
+        cfg.save()
+
+        # Maktab adminini DB da sinxronlash
+        cfg.sync_credentials()
+
+        # O'quvchi va sinflarda maktab nomini yangilash
+        User.objects.filter(school_id=sid).update(school_name=cfg.school_name)
+        SchoolClass.objects.filter(school_id=sid).update(school_name=cfg.school_name)
+
+        return Response({
+            'success': True,
+            'message': f"'{cfg.school_name}' ma'lumotlari va paroli muvaffaqiyatli saqlandi!",
+            'school': {
+                'id': sid,
+                'name': cfg.school_name,
+                'inn': getattr(cfg, 'inn', '') or '309481023',
+                'district': cfg.district,
+                'director': cfg.director_name,
+                'phone': cfg.phone,
+                'username': cfg.admin_username,
+                'password': cfg.admin_password,
+                'status': cfg.status,
+                'paymentStatus': cfg.payment_status,
+                'debtAmount': cfg.debt_amount,
+            }
+        }, status=status.HTTP_200_OK)
+
+
+class SuperAdminSchoolCreateView(views.APIView):
+    """
+    Super Admin tomonidan yangi maktab kabineti yaratish:
+    POST /api/superadmin/schools/create/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        data = request.data or {}
+        name = str(data.get('name') or data.get('school_name') or '').strip()
+        if not name:
+            return Response({'detail': "Maktab nomi talab qilinadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # school_id generation
+        provided_id = str(data.get('id') or data.get('school_id') or '').strip()
+        existing_sids = set(SchoolConfig.objects.values_list('school_id', flat=True))
+        if provided_id and provided_id not in existing_sids and not provided_id.startswith('17'):
+            sid = provided_id
+        else:
+            counter = SchoolConfig.objects.count() + 1
+            sid = f"SCH-{counter:03d}"
+            while sid in existing_sids:
+                counter += 1
+                sid = f"SCH-{counter:03d}"
+
+        uname = str(data.get('username') or data.get('admin_username') or f"maktab_{sid.lower()}").strip()
+        pwd = str(data.get('password') or data.get('admin_password') or 'school123').strip()
+
+        cfg = SchoolConfig.objects.create(
+            school_id=sid,
+            school_name=name,
+            district=str(data.get('district') or 'Toshkent shahri').strip(),
+            address=str(data.get('address') or '').strip(),
+            director_name=str(data.get('director') or data.get('director_name') or "Maktab Direktori").strip(),
+            phone=str(data.get('phone') or "+998 71 200-00-00").strip(),
+            admin_username=uname,
+            admin_password=pwd,
+            status='ACTIVE',
+            payment_status='PAID',
+            debt_amount="0 so'm",
+        )
+
+        cfg.sync_credentials()
+
+        return Response({
+            'success': True,
+            'message': f"'{cfg.school_name}' maktabi muvaffaqiyatli yaratildi va ishga tushirildi!",
+            'school': {
+                'id': sid,
+                'name': cfg.school_name,
+                'inn': getattr(cfg, 'inn', '') or '309481023',
+                'district': cfg.district,
+                'director': cfg.director_name,
+                'phone': cfg.phone,
+                'username': cfg.admin_username,
+                'password': cfg.admin_password,
+                'status': 'ACTIVE',
+                'paymentStatus': 'PAID',
+                'debtAmount': "0 so'm",
+                'studentsCount': 0,
+                'teachersCount': 0,
+                'classesCount': 0,
+                'attendanceRate': 100,
+                'turnstileStatus': 'ONLINE',
+                'plan': data.get('plan') or 'Standart',
+            }
+        }, status=status.HTTP_201_CREATED)
 
 class SchoolAccessCheckView(views.APIView):
     """
@@ -3395,6 +3572,17 @@ class SuperAdminOverviewStatsView(views.APIView):
             photo_count = User.objects.filter(role='STUDENT', school_id=sid, photo_3x4__isnull=False).exclude(photo_3x4='').count()
             has_turnstile = DeviceEventLog.objects.filter(school_id=sid).exists()
 
+            m_price = getattr(cfg, 'monthly_price', 1000000) or 1000000
+            is_trial = bool(getattr(cfg, 'is_free_trial', False))
+            trial_date = cfg.trial_until_date.strftime('%Y-%m-%d') if getattr(cfg, 'trial_until_date', None) else ''
+
+            # Login va parolni sinxronlash
+            if not cfg.admin_username or not cfg.admin_password:
+                cfg.sync_credentials()
+
+            uname = cfg.admin_username or f"maktab{sid}"
+            pwd = cfg.admin_password or "school123"
+
             schools.append({
                 'id': sid,
                 'name': cfg.school_name,
@@ -3402,10 +3590,16 @@ class SuperAdminOverviewStatsView(views.APIView):
                 'district': cfg.district or "Toshkent shahri",
                 'director': cfg.director_name or "Noma'lum",
                 'phone': cfg.phone or "+998 71 200-00-00",
-                'username': f"maktab{sid}",
-                'status': cfg.status or 'ACTIVE',
-                'paymentStatus': cfg.payment_status or 'PAID',
+                'username': uname,
+                'password': pwd,
+                'admin_username': uname,
+                'admin_password': pwd,
+                'status': ('TRIAL' if is_trial else (cfg.status or 'ACTIVE')),
+                'paymentStatus': ('TRIAL' if is_trial else (cfg.payment_status or 'PAID')),
                 'debtAmount': cfg.debt_amount or "0 so'm",
+                'monthlyPrice': m_price,
+                'isFreeTrial': is_trial,
+                'trialUntilDate': trial_date,
                 'studentsCount': st_count,
                 'teachersCount': tc_count,
                 'classesCount': cl_count,
@@ -3415,7 +3609,7 @@ class SuperAdminOverviewStatsView(views.APIView):
                 'turnstileStatus': 'ONLINE' if has_turnstile else 'STANDBY',
                 'warningBanner': cfg.warning_banner or '',
                 'statusReason': cfg.status_reason or '',
-                'plan': 'Standart',
+                'plan': "Sinov (Bepul)" if is_trial else f"{m_price:,} so'm/oy".replace(',', ' '),
             })
 
         # 2. Global KPIs
@@ -3427,6 +3621,13 @@ class SuperAdminOverviewStatsView(views.APIView):
         avg_rate = round(att_pres / max(1, total_att) * 100, 1) if total_att > 0 else 0.0
         total_face_id = User.objects.filter(role='STUDENT', photo_3x4__isnull=False).exclude(photo_3x4='').count()
         total_events = DeviceEventLog.objects.count()
+
+        active_paid_schools = [s for s in schools if not s.get('isFreeTrial') and s.get('status') == 'ACTIVE']
+        mrr_val = sum(s.get('monthlyPrice', 0) for s in active_paid_schools)
+        arr_val = mrr_val * 12
+        overdue_schools = [s for s in schools if s.get('paymentStatus') == 'OVERDUE']
+        debt_val = sum(int(str(s.get('debtAmount', 0)).replace("so'm", "").replace(" ", "").strip() or 0) or s.get('monthlyPrice', 0) for s in overdue_schools)
+        trial_schools_count = sum(1 for s in schools if s.get('isFreeTrial') or s.get('status') == 'TRIAL')
 
         # 3. Real Hududlar (Faqat mavjud maktablar bo'yicha)
         regions_map = {}
@@ -3553,6 +3754,7 @@ class SuperAdminOverviewStatsView(views.APIView):
                 'total_schools': len(schools),
                 'active_schools': sum(1 for s in schools if s['status'] == 'ACTIVE'),
                 'suspended_schools': sum(1 for s in schools if s['status'] in ('SUSPENDED', 'BLOCKED')),
+                'trial_schools': trial_schools_count,
                 'total_students': total_st,
                 'total_teachers': total_tc,
                 'total_classes': total_cl,
@@ -3560,7 +3762,12 @@ class SuperAdminOverviewStatsView(views.APIView):
                 'total_attendance_records': total_att,
                 'avg_attendance_rate': avg_rate,
                 'total_events': total_events,
-                'mrr': "0 so'm",
+                'mrr_raw': mrr_val,
+                'mrr': f"{mrr_val:,} so‘m".replace(',', ' '),
+                'arr_raw': arr_val,
+                'arr': f"{arr_val:,} so‘m".replace(',', ' '),
+                'debt_raw': debt_val,
+                'debt': f"{debt_val:,} so‘m".replace(',', ' '),
             },
             'schools_list': schools,
             'regions_list': regions_list,
@@ -3570,3 +3777,59 @@ class SuperAdminOverviewStatsView(views.APIView):
             'backups': [],
             'tickets': [],
         }, status=status.HTTP_200_OK)
+
+
+class TelegramBotStatusView(views.APIView):
+    """
+    Super Admin Telegram Bot va Google AI Studio (Gemini) holatini tekshirish va sinash API:
+    - GET /api/superadmin/bot-status/
+    - POST /api/superadmin/test-telegram/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        cfg = SystemConfig.get_solo()
+        token = (cfg.telegram_bot_token or "").strip()
+        gemini_key = (cfg.gemini_api_key or "").strip()
+        admin_id = (cfg.telegram_admin_id or "").strip()
+
+        bot_info = None
+        is_token_valid = False
+        if token:
+            try:
+                import requests
+                r = requests.get(f"https://api.telegram.org/bot{token}/getMe", timeout=5)
+                if r.status_code == 200:
+                    data = r.json()
+                    if data.get('ok'):
+                        is_token_valid = True
+                        bot_info = data.get('result', {})
+            except Exception:
+                pass
+
+        return Response({
+            'success': True,
+            'has_bot_token': bool(token),
+            'is_token_valid': is_token_valid,
+            'bot_info': bot_info,
+            'has_gemini_key': bool(gemini_key),
+            'telegram_admin_id': admin_id,
+        })
+
+    def post(self, request):
+        cfg = SystemConfig.get_solo()
+        token = (cfg.telegram_bot_token or "").strip()
+        admin_id = (cfg.telegram_admin_id or "").strip()
+
+        if not token:
+            return Response({'success': False, 'message': "Telegram Bot Token kiritilmagan!"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not admin_id:
+            return Response({'success': False, 'message': "Telegram Admin Chat ID kiritilmagan! Avval botga /start bosing yoki ID ni yozing."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from api.telegram_ai_service import send_telegram_message
+        ok = send_telegram_message(token, admin_id, "Smart School (Idrok Edu) Sinov Xabari!\n\nTelegram Bot va Tizim integratsiyasi muvaffaqiyatli ishga tushirildi. AI tahlilchi sizning xizmatingizda!")
+        if ok:
+            return Response({'success': True, 'message': "Sinov xabari Telegram orqali muvaffaqiyatli yuborildi!"})
+        else:
+            return Response({'success': False, 'message': "Xabar yuborib bo'lmadi. Token yoki Admin Chat ID ni tekshiring."}, status=status.HTTP_400_BAD_REQUEST)

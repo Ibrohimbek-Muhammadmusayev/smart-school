@@ -266,6 +266,9 @@ export default function SuperAdminDashboardView({
           maintenanceMessage: sysData.maintenance_message || "Serverlarda rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi.",
           estimatedEndTime: sysData.estimated_end_time || "14:00",
           supportPhone: sysData.support_phone || "+998 71 200-00-00",
+          telegram_bot_token: sysData.telegram_bot_token || "",
+          telegram_admin_id: sysData.telegram_admin_id || "",
+          gemini_api_key: sysData.gemini_api_key || "",
         }));
       }
     } catch (_) {}
@@ -302,6 +305,15 @@ export default function SuperAdminDashboardView({
   const [warningBannerInput, setWarningBannerInput] = useState('');
 
   // Maintenance va Maktab to'xtatish modallari
+  const [pricingModalSchool, setPricingModalSchool] = useState(null);
+  const [pricingForm, setPricingForm] = useState({
+    monthly_price: 1000000,
+    is_free_trial: false,
+    trial_until_date: '',
+    payment_status: 'PAID',
+    debt_amount: "0 so'm",
+  });
+  const [telegramTestLoading, setTelegramTestLoading] = useState(false);
   const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
   const [maintenanceForm, setMaintenanceForm] = useState({
     is_maintenance_mode: false,
@@ -436,6 +448,9 @@ export default function SuperAdminDashboardView({
     smsBalance: 48250,
     telegramBotToken: '7192834102:AAH9xIdrokEduBot_ProdKey',
     telegramBotActive: true,
+    telegram_bot_token: '',
+    telegram_admin_id: '',
+    gemini_api_key: '',
     fcmActive: true,
     androidMinVersion: '2.4.1',
     iosMinVersion: '2.4.0',
@@ -462,6 +477,101 @@ export default function SuperAdminDashboardView({
     const updated = [entry, ...auditLogs];
     setAuditLogs(updated);
     localStorage.setItem('smart_school_audit_logs', JSON.stringify(updated));
+  };
+
+  const handleOpenPricingModal = (school) => {
+    setPricingModalSchool(school);
+    setPricingForm({
+      monthly_price: Number(school.monthlyPrice) || 1000000,
+      is_free_trial: Boolean(school.isFreeTrial),
+      trial_until_date: school.trialUntilDate || '',
+      payment_status: school.paymentStatus || 'PAID',
+      debt_amount: school.debtAmount || "0 so'm",
+    });
+  };
+
+  const handleSaveSchoolPricing = async () => {
+    if (!pricingModalSchool) return;
+    try {
+      const res = await fetch('/api/school-config/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN'
+        },
+        body: JSON.stringify({
+          school_id: pricingModalSchool.id,
+          monthly_price: pricingForm.monthly_price,
+          is_free_trial: pricingForm.is_free_trial,
+          trial_until_date: pricingForm.trial_until_date || null,
+          payment_status: pricingForm.is_free_trial ? 'PENDING' : pricingForm.payment_status,
+          debt_amount: pricingForm.debt_amount,
+          status: pricingForm.is_free_trial ? 'TRIAL' : (pricingModalSchool.status === 'TRIAL' ? 'ACTIVE' : pricingModalSchool.status)
+        })
+      });
+      if (res.ok) {
+        showToast(`${pricingModalSchool.name} oylik narxi saqlandi!`);
+        setPricingModalSchool(null);
+        if (typeof loadRealProjectStats === 'function') loadRealProjectStats();
+      } else {
+        showToast("Xatolik yuz berdi!");
+      }
+    } catch (_) {
+      showToast("Tarmoq xatosi!");
+    }
+  };
+
+  const handleSaveSystemConfig = async () => {
+    try {
+      const res = await fetch('/api/system-config/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN'
+        },
+        body: JSON.stringify({
+          telegram_bot_token: systemConfig.telegram_bot_token || '',
+          telegram_admin_id: systemConfig.telegram_admin_id || '',
+          gemini_api_key: systemConfig.gemini_api_key || '',
+          smsProvider: systemConfig.smsProvider,
+          support_phone: systemConfig.supportPhone,
+        })
+      });
+      if (res.ok) {
+        showToast("Telegram Bot va AI Studio sozlamalari muvaffaqiyatli saqlandi!");
+        if (typeof loadRealProjectStats === 'function') loadRealProjectStats();
+      } else {
+        showToast("Saqlashda xatolik yuz berdi!");
+      }
+    } catch (_) {
+      showToast("Tarmoq xatosi!");
+    }
+  };
+
+  const handleTestTelegramBot = async () => {
+    setTelegramTestLoading(true);
+    try {
+      const res = await fetch('/api/superadmin/test-telegram/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN'
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast("✅ " + data.message);
+      } else {
+        showToast("❌ " + (data.message || "Sinov xabari yuborilmadi!"));
+      }
+    } catch (_) {
+      showToast("❌ Server bilan bog'lanib bo'lmadi!");
+    } finally {
+      setTelegramTestLoading(false);
+    }
   };
 
   const handleGhostLogin = (school) => {
@@ -2368,129 +2478,116 @@ export default function SuperAdminDashboardView({
                   })()}
                 </div>
 
+                            {/* Maktablar Shartnomalari va Individual Oylik To'lovlar */}
               <div className="sa-card" style={cardBoxStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
                   <div>
-                    <h3 style={sectionTitleStyle}>Tarif Rejalari Konstruktori</h3>
-                    <p style={sectionSubStyle}>Maktab paketlari, modul ruxsatlari, oylik narxlar va xotira limitlarini to‘liq sozlash</p>
+                    <h3 style={sectionTitleStyle}>Maktablar Shartnomalari va Oylik To‘lovlar Boshqaruvi</h3>
+                    <p style={sectionSubStyle}>Boshlang‘ich bosqich uchun har bir maktabga individual narx (so‘mda) yoki bepul sinov muddati biriktirish</p>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button
-                      className="sa-btn"
-                      onClick={handleResetDefaultTiers}
-                      style={{ ...secondaryBtnStyle, fontSize: 12 }}
-                      title="Barcha tariflarni standart boshlang'ich holatiga qaytarish">
-                      <RefreshCw size={13} /> Dastlabki Holatga Qaytarish
-                    </button>
-                    <button
-                      className="sa-btn"
-                      onClick={handleOpenCreateTier}
-                      style={{ ...primaryBtnStyle, fontSize: 12 }}>
-                      <Plus size={15} /> Yangi Tarif Qo‘shish
-                    </button>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 6, backgroundColor: '#EEF2FF', color: THEME.primary }}>
+                      Jami: {schoolsList.length} ta maktab
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 6, backgroundColor: '#ECFDF5', color: THEME.green }}>
+                      MRR: {realStats?.kpis?.mrr || "0 so‘m"}
+                    </span>
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 18 }}>
-                  {pricingTiers.map(tier => {
-                    const activeModulesCount = tier.modules ? Object.values(tier.modules).filter(Boolean).length : 0;
-                    return (
-                      <div
-                        key={tier.id}
-                        className="sa-metric-card"
-                        style={{
-                          padding: 22,
-                          borderRadius: 10,
-                          border: `1.5px solid ${tier.popular ? tier.color || THEME.primary : THEME.border}`,
-                          backgroundColor: tier.popular ? '#FCFBFF' : '#FFFFFF',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 14,
-                          position: 'relative',
-                          boxShadow: tier.popular ? '0 12px 30px -8px rgba(108, 92, 231, 0.18)' : 'none',
-                        }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 900, fontSize: 17, color: tier.color || THEME.primary }}>
-                            {tier.name}
-                          </span>
-                          {tier.popular && (
-                            <span style={pillBadgeStyle}>
-                              <Star size={12} fill="#F59E0B" color="#F59E0B" style={{ display: 'inline', marginRight: 4 }} /> Eng Ommabop
-                            </span>
-                          )}
-                        </div>
-
-                        <div>
-                          <div style={{ fontSize: 22, fontWeight: 900, color: THEME.textDark }}>
-                            {tier.pricePerMonth}
-                          </div>
-                          <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
-                            Yoki: <b>{tier.perStudent}</b>
-                          </div>
-                        </div>
-
-                        {/* Limitlar */}
-                        <div style={{ padding: 13, borderRadius: 8, backgroundColor: '#F8F9FE', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Users size={14} color={THEME.primary} /> Maksimal o‘quvchilar: <b>{tier.maxStudents} nafar</b>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Building2 size={14} color={THEME.primary} /> Xonalar sig‘imi: <b>{tier.maxRooms} ta</b>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Database size={14} color={THEME.primary} /> Cloud Xotira: <b>{tier.storageGb} GB S3</b>
-                          </div>
-                        </div>
-
-                        {/* Modullar piktogrammalari */}
-                        {tier.modules && (
-                          <div style={{ padding: '10px 12px', borderRadius: 6, backgroundColor: '#F1F5F9', display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: THEME.textMuted, width: '100%', marginBottom: 2 }}>
-                              Yoqilgan tizim modullari ({activeModulesCount} ta):
-                            </span>
-                            {tier.modules.face_id && <span style={tierBadgeStyle}><ScanFace size={12} /> Face ID</span>}
-                            {tier.modules.dynamic_qr && <span style={tierBadgeStyle}><QrCode size={12} /> 25s QR</span>}
-                            {tier.modules.telegram_bot && <span style={tierBadgeStyle}><Bot size={12} /> TG Bot</span>}
-                            {tier.modules.turnstile_api && <span style={tierBadgeStyle}><DoorOpen size={12} /> Turniket</span>}
-                            {tier.modules.anti_spoofing && <span style={tierBadgeStyle}><ShieldCheck size={12} /> Anti-Spoof</span>}
-                            {tier.modules.sms_alerts && <span style={tierBadgeStyle}><Send size={12} /> SMS</span>}
-                            {tier.modules.journal_matrix && <span style={tierBadgeStyle}><FileSpreadsheet size={12} /> Jurnal</span>}
-                            {tier.modules.gps_geofence && <span style={tierBadgeStyle}><MapPin size={12} /> Geometka</span>}
-                            {tier.modules.vip_support && <span style={tierBadgeStyle}><Zap size={12} /> VIP SLA</span>}
-                          </div>
-                        )}
-
-                        {/* Imkoniyatlar ro'yxati */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, flex: 1 }}>
-                          {(tier.features || []).map((f, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, color: THEME.textDark }}>
-                              <CheckCircle2 size={14} color={THEME.green} style={{ flexShrink: 0 }} />
-                              <span>{f}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Pastki boshqaruv tugmalari */}
-                        <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 10, borderTop: `1px solid ${THEME.border}` }}>
-                          <button
-                            className="sa-btn"
-                            onClick={() => handleOpenEditTier(tier)}
-                            style={{ ...primaryBtnStyle, flex: 1, justifyContent: 'center', fontSize: 12, padding: '9px 12px', background: tier.color ? `linear-gradient(135deg, ${tier.color} 0%, #4338CA 100%)` : THEME.gradient }}>
-                            <Edit size={13} /> To‘liq Sozlash
-                          </button>
-                          {pricingTiers.length > 1 && (
-                            <button
-                              className="sa-btn"
-                              onClick={() => handleDeleteTier(tier.id)}
-                              title="Tarifni o‘chirish"
-                              style={{ ...secondaryBtnStyle, color: '#EF4444', borderColor: '#FCA5A5', padding: '9px 12px' }}>
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                  <table style={{ width: '100%', minWidth: 700, borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `2px solid ${THEME.bgSoft}`, color: THEME.textMuted }}>
+                        <th style={{ padding: '12px' }}>Maktab Nomi</th>
+                        <th style={{ padding: '12px' }}>Hudud</th>
+                        <th style={{ padding: '12px' }}>Direktor & Telefon</th>
+                        <th style={{ padding: '12px' }}>O‘quvchilar</th>
+                        <th style={{ padding: '12px' }}>Oylik Narxi</th>
+                        <th style={{ padding: '12px' }}>Sinov / Bepul Davri</th>
+                        <th style={{ padding: '12px' }}>To‘lov Holati</th>
+                        <th style={{ padding: '12px', textAlign: 'right' }}>Amallar</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {schoolsList.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} style={{ padding: 28, textAlign: 'center', color: THEME.textMuted }}>
+                            Maktablar ro‘yxati mavjud emas
+                          </td>
+                        </tr>
+                      ) : schoolsList.map(s => {
+                        const isTrial = Boolean(s.isFreeTrial) || s.status === 'TRIAL';
+                        const mPrice = Number(s.monthlyPrice) || 1000000;
+                        return (
+                          <tr key={s.id} style={{ borderBottom: `1px solid ${THEME.bgSoft}` }}>
+                            <td style={{ padding: '12px', fontWeight: 700, color: THEME.textDark }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                <Building2 size={15} color={THEME.primary} />
+                                <div>
+                                  <div>{s.name}</div>
+                                  <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 500 }}>ID: {s.id}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px', color: THEME.textDark }}>{s.district || "Toshkent"}</td>
+                            <td style={{ padding: '12px' }}>
+                              <div style={{ fontWeight: 600 }}>{s.director}</div>
+                              <div style={{ fontSize: 11, color: THEME.textMuted }}>{s.phone}</div>
+                            </td>
+                            <td style={{ padding: '12px', fontWeight: 700 }}>
+                              {s.studentsCount || 0} nafar
+                            </td>
+                            <td style={{ padding: '12px' }}>
+                              {isTrial ? (
+                                <span style={{ padding: '3px 8px', borderRadius: 4, backgroundColor: '#ECFDF5', color: THEME.green, fontWeight: 800, fontSize: 11.5 }}>
+                                  0 so‘m (Sinov)
+                                </span>
+                              ) : (
+                                <strong style={{ color: THEME.primary, fontSize: 13.5 }}>
+                                  {mPrice.toLocaleString()} so‘m
+                                </strong>
+                              )}
+                            </td>
+                            <td style={{ padding: '12px' }}>
+                              {isTrial && s.trialUntilDate ? (
+                                <span style={{ color: '#0284C7', fontWeight: 700, fontSize: 12 }}>
+                                  {s.trialUntilDate} gacha
+                                </span>
+                              ) : (
+                                <span style={{ color: THEME.textMuted, fontSize: 12 }}>
+                                  Muddatsiz
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '12px' }}>
+                              {s.paymentStatus === 'PAID' ? (
+                                <span style={{ padding: '3px 8px', borderRadius: 4, backgroundColor: '#ECFDF5', color: THEME.green, fontWeight: 700, fontSize: 11 }}>
+                                  To‘langan
+                                </span>
+                              ) : s.paymentStatus === 'OVERDUE' ? (
+                                <span style={{ padding: '3px 8px', borderRadius: 4, backgroundColor: '#FEF2F2', color: '#EF4444', fontWeight: 700, fontSize: 11 }}>
+                                  Qarzdor ({s.debtAmount || "Mavjud"})
+                                </span>
+                              ) : (
+                                <span style={{ padding: '3px 8px', borderRadius: 4, backgroundColor: '#FFFBEB', color: '#D97706', fontWeight: 700, fontSize: 11 }}>
+                                  Kutilmoqda
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'right' }}>
+                              <button
+                                className="sa-btn"
+                                onClick={() => handleOpenPricingModal(s)}
+                                style={{ ...primaryBtnStyle, padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                <Edit size={13} /> Narxni Sozlash
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -2788,6 +2885,136 @@ export default function SuperAdminDashboardView({
           {/* ============================================================= */}
           {superTab === 'config' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+              {/* Super Admin Telegram AI Boti va Google AI Studio (Gemini) Integratsiyasi */}
+              <div className="sa-card" style={cardBoxStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                  <div>
+                    <h3 style={{ ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Bot size={20} color={THEME.primary} /> Super Admin Telegram AI Boti va Google AI Studio (Gemini)
+                    </h3>
+                    <p style={sectionSubStyle}>
+                      Barcha maktablar, o‘quvchilar, o‘qituvchilar, darslar, davomat, Face ID & turniketlar, oylik tushumlar (MRR), qarzdorliklar va sinov muddatlarini Telegram orqali tahlil qilish
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{
+                      padding: '5px 12px',
+                      borderRadius: 20,
+                      fontSize: 11.5,
+                      fontWeight: 800,
+                      backgroundColor: systemConfig.telegram_bot_token && systemConfig.gemini_api_key ? '#ECFDF5' : '#FFFBEB',
+                      color: systemConfig.telegram_bot_token && systemConfig.gemini_api_key ? THEME.green : '#D97706',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      <span style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        backgroundColor: systemConfig.telegram_bot_token && systemConfig.gemini_api_key ? THEME.green : '#D97706'
+                      }} />
+                      {systemConfig.telegram_bot_token && systemConfig.gemini_api_key ? 'AI & Bot Faol' : 'Sozlash Kutilmoqda'}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: 16, border: '1px solid #E2E8F0', marginBottom: 16 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: THEME.textDark, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Sparkles size={16} color="#F59E0B" /> Google AI Studio (Gemini) & Tizim Bazasining To‘liq Integratsiyasi
+                  </div>
+                  <div style={{ fontSize: 12, color: THEME.textMuted, lineHeight: 1.6 }}>
+                    Ushbu botga Super Admin sifatida istalgan savolingizni yozsangiz, u platformaning <b>100% haqiqiy ma'lumotlar bazasini</b> tekshirib,
+                    Google AI Studio (Gemini 2.5/2.0 Flash) orqali chuqur tahlil qilib, aniq raqamlar, jadvallar va xulosalar bilan javob beradi.
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Telegram Bot Token (BotFather) *</span>
+                      <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" style={{ color: THEME.primary, fontSize: 11, textDecoration: 'none' }}>
+                        @BotFather dan olish &rarr;
+                      </a>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Masalan: 7192834102:AAH9xIdrokEduBot_ProdKey"
+                      value={systemConfig.telegram_bot_token || ''}
+                      onChange={e => setSystemConfig({ ...systemConfig, telegram_bot_token: e.target.value.trim() })}
+                      style={{ ...inputFieldStyle, marginTop: 6, fontFamily: 'monospace', fontSize: 12 }}
+                    />
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                      Telegram orqali yaratilgan botingizning HTTP API tokeni
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Super Admin Telegram Chat ID *</span>
+                      <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" style={{ color: THEME.primary, fontSize: 11, textDecoration: 'none' }}>
+                        @userinfobot dan bilish &rarr;
+                      </a>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Masalan: 123456789 (Faqat sizning xabaringizga javob berishi uchun)"
+                      value={systemConfig.telegram_admin_id || ''}
+                      onChange={e => setSystemConfig({ ...systemConfig, telegram_admin_id: e.target.value.trim() })}
+                      style={{ ...inputFieldStyle, marginTop: 6, fontFamily: 'monospace', fontSize: 12 }}
+                    />
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                      Begonalar kirishini to‘sish va faqat sizga xizmat ko‘rsatish uchun shaxsiy Telegram ID
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 14 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Google AI Studio (Gemini) API Key *</span>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: THEME.primary, fontSize: 11, textDecoration: 'none' }}>
+                      aistudio.google.com dan olish &rarr;
+                    </a>
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Masalan: AIzaSyD39k-EXAMPLE_KEY_FOR_GEMINI_AI"
+                    value={systemConfig.gemini_api_key || ''}
+                    onChange={e => setSystemConfig({ ...systemConfig, gemini_api_key: e.target.value.trim() })}
+                    style={{ ...inputFieldStyle, marginTop: 6, fontFamily: 'monospace', fontSize: 12 }}
+                  />
+                  <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                    Google Gemini 2.5 Flash / 2.0 Flash modellari orqali platforma ma'lumotlarini tahlil qilish uchun bepul/pullik API kaliti
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, paddingTop: 14, borderTop: '1px solid #F1F5F9', flexWrap: 'wrap', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button
+                      className="sa-btn"
+                      type="button"
+                      disabled={telegramTestLoading}
+                      onClick={handleTestTelegramBot}
+                      style={{ ...secondaryBtnStyle, padding: '8px 14px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <Send size={14} color={THEME.primary} />
+                      {telegramTestLoading ? "Yuborilmoqda..." : "Test Telegram Xabar Yuborish"}
+                    </button>
+                    <span style={{ fontSize: 11.5, color: THEME.textMuted }}>
+                      * Oldin botingizga Telegramdan kirib <code>/start</code> bosgan bo‘ling
+                    </span>
+                  </div>
+
+                  <button
+                    className="sa-btn"
+                    type="button"
+                    onClick={handleSaveSystemConfig}
+                    style={{ ...primaryBtnStyle, padding: '8px 18px', fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Check size={15} /> Bot va AI Sozlamalarini Saqlash
+                  </button>
+                </div>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22 }}>
                 <div className="sa-card" style={cardBoxStyle}>
                   <h3 style={sectionTitleStyle}>Aloqa va Bildirishnomalar</h3>
@@ -3374,6 +3601,181 @@ export default function SuperAdminDashboardView({
         </div>
       )}
 
+      {/* Maktabning oylik narxi va sinov muddatini sozlash modali */}
+      {pricingModalSchool && (
+        <div style={modalBackdropStyle}>
+          <div className="sa-modal-box" style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 26, width: '100%', maxWidth: 520, boxShadow: '0 25px 50px -12px rgba(108, 92, 231, 0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: THEME.textDark }}>
+                  {pricingModalSchool.name}
+                </div>
+                <div style={{ fontSize: 12, color: THEME.textMuted }}>
+                  Oylik to‘lov summasi va shartnoma shartlarini belgilash
+                </div>
+              </div>
+              <button
+                onClick={() => setPricingModalSchool(null)}
+                style={{ border: 'none', background: '#F1F5F9', borderRadius: 12, width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={15} color={THEME.textMuted} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Sinov / Bepul muddat tanlagichi */}
+              <div style={{
+                padding: '12px 14px',
+                borderRadius: 10,
+                backgroundColor: pricingForm.is_free_trial ? '#ECFDF5' : '#F8FAFC',
+                border: pricingForm.is_free_trial ? '1.5px solid #10B981' : '1px solid #E2E8F0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: pricingForm.is_free_trial ? '#065F46' : THEME.textDark }}>
+                    🎁 Bepul Sinov Muddati (Free Trial)
+                  </div>
+                  <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>
+                    Ushbu rejimda maktabdan to‘lov olinmaydi va qarz hisoblanmaydi
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={pricingForm.is_free_trial}
+                  onChange={e => setPricingForm({ ...pricingForm, is_free_trial: e.target.checked })}
+                  style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#10B981' }}
+                />
+              </div>
+
+              {pricingForm.is_free_trial ? (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                    Sinov Muddati Tugash Sanasi
+                  </label>
+                  <input
+                    type="date"
+                    value={pricingForm.trial_until_date}
+                    onChange={e => setPricingForm({ ...pricingForm, trial_until_date: e.target.value })}
+                    style={{ ...inputFieldStyle, marginTop: 6 }}
+                  />
+                  <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>
+                    Ko‘rsatilgan sanadan so‘ng maktab avtomatik pullik rejimga yoki to‘lov kutilishiga o‘tadi
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                      Kelishilgan Oylik Narx (so‘mda)
+                    </label>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: THEME.primary }}>
+                      {Number(pricingForm.monthly_price || 0).toLocaleString()} so‘m / oy
+                    </span>
+                  </div>
+
+                  <input
+                    type="number"
+                    step="100000"
+                    min="0"
+                    value={pricingForm.monthly_price}
+                    onChange={e => setPricingForm({ ...pricingForm, monthly_price: Number(e.target.value) || 0 })}
+                    style={{ ...inputFieldStyle, marginTop: 6, fontWeight: 800, fontSize: 14 }}
+                  />
+
+                  {/* Tezkor narx tugmalari */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    {[500000, 1000000, 1500000, 2000000, 3000000, 5000000].map(val => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setPricingForm({ ...pricingForm, monthly_price: val })}
+                        style={{
+                          padding: '5px 10px',
+                          borderRadius: 8,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          border: pricingForm.monthly_price === val ? `1.5px solid ${THEME.primary}` : '1px solid #E2E8F0',
+                          backgroundColor: pricingForm.monthly_price === val ? THEME.primaryLight : '#FFFFFF',
+                          color: pricingForm.monthly_price === val ? THEME.primary : THEME.textDark,
+                        }}
+                      >
+                        {(val / 1000000 >= 1 ? `${val / 1000000} mln` : `${val / 1000} ming`)} so‘m
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* To'lov Holati */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                  To‘lov Holati
+                </label>
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  {[
+                    { id: 'PAID', label: 'To‘langan', color: '#10B981', bg: '#ECFDF5' },
+                    { id: 'PENDING', label: 'Kutilmoqda', color: '#D97706', bg: '#FFFBEB' },
+                    { id: 'OVERDUE', label: 'Qarzdor', color: '#EF4444', bg: '#FEF2F2' },
+                  ].map(item => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setPricingForm({ ...pricingForm, payment_status: item.id })}
+                      style={{
+                        flex: 1,
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        border: pricingForm.payment_status === item.id ? `2px solid ${item.color}` : '1px solid #E2E8F0',
+                        backgroundColor: pricingForm.payment_status === item.id ? item.bg : '#FFFFFF',
+                        color: pricingForm.payment_status === item.id ? item.color : THEME.textDark,
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {pricingForm.payment_status === 'OVERDUE' && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
+                    Qarz Summasi (so‘mda yoki matn)
+                  </label>
+                  <input
+                    value={pricingForm.debt_amount}
+                    onChange={e => setPricingForm({ ...pricingForm, debt_amount: e.target.value })}
+                    style={{ ...inputFieldStyle, marginTop: 6, color: '#EF4444', fontWeight: 700 }}
+                  />
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setPricingModalSchool(null)}
+                  style={{ ...secondaryBtnStyle, flex: 1, justifyContent: 'center' }}
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSchoolPricing}
+                  style={{ ...primaryBtnStyle, flex: 1.5, justifyContent: 'center' }}
+                >
+                  Saqlash va Yangilash
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showNewInvoiceModal && (
         <NewInvoiceModal
           schoolsList={schoolsList}
@@ -3412,6 +3814,9 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
     address: '',
     inn: '309' + Math.floor(100000 + Math.random() * 900000),
     plan: 'Standart',
+    monthly_price: 1000000,
+    is_free_trial: false,
+    trial_until_date: '',
     capacity: 800,
     roomsLimit: 45,
     storageGb: 100,
@@ -3436,7 +3841,10 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
       district: form.district.trim(),
       address: form.address.trim(),
       inn: form.inn.trim(),
-      plan: form.plan,
+      plan: form.is_free_trial ? 'Sinov (Tekin)' : `${(Number(form.monthly_price || 1000000) / 1000000).toFixed(1)} mln so'm`,
+      monthlyPrice: Number(form.monthly_price) || 1000000,
+      isFreeTrial: Boolean(form.is_free_trial),
+      trialUntilDate: form.trial_until_date || '',
       capacity: Number(form.capacity) || 800,
       roomsLimit: Number(form.roomsLimit) || 40,
       storageGb: Number(form.storageGb) || 100,
@@ -3506,14 +3914,81 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
 
           {step === 2 && (
             <>
-              <div>
-                <label style={labelStyle}>Tarif Rejasi</label>
-                <select value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value })} style={{ ...inputFieldStyle, backgroundColor: '#FFF' }}>
-                  <option value="Boshlang‘ich">Boshlang‘ich</option>
-                  <option value="Standart">Standart</option>
-                  <option value="Litsenziyali Pro">Litsenziyali Pro</option>
-                </select>
+              {/* Oylik To'lov yoki Bepul Sinov */}
+              <div style={{
+                padding: '12px 14px',
+                borderRadius: 10,
+                backgroundColor: form.is_free_trial ? '#ECFDF5' : '#F8FAFC',
+                border: form.is_free_trial ? '1.5px solid #10B981' : '1px solid #E2E8F0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: form.is_free_trial ? '#065F46' : THEME.textDark }}>
+                    🎁 Bepul Sinov Muddati (Free Trial)
+                  </div>
+                  <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>
+                    Dastlabki sinov davri uchun bepul biriktirish
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={form.is_free_trial}
+                  onChange={e => setForm({ ...form, is_free_trial: e.target.checked })}
+                  style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#10B981' }}
+                />
               </div>
+
+              {form.is_free_trial ? (
+                <div>
+                  <label style={labelStyle}>Sinov Muddati Tugash Sanasi</label>
+                  <input
+                    type="date"
+                    value={form.trial_until_date}
+                    onChange={e => setForm({ ...form, trial_until_date: e.target.value })}
+                    style={inputFieldStyle}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={labelStyle}>Kelishilgan Oylik To‘lov (so‘mda)</label>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: THEME.primary }}>
+                      {Number(form.monthly_price || 0).toLocaleString()} so‘m / oy
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    step="100000"
+                    min="0"
+                    value={form.monthly_price}
+                    onChange={e => setForm({ ...form, monthly_price: Number(e.target.value) || 0 })}
+                    style={{ ...inputFieldStyle, fontWeight: 800 }}
+                  />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    {[500000, 1000000, 1500000, 2000000, 3000000, 5000000].map(val => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setForm({ ...form, monthly_price: val })}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          border: form.monthly_price === val ? `1.5px solid ${THEME.primary}` : '1px solid #E2E8F0',
+                          backgroundColor: form.monthly_price === val ? THEME.primaryLight : '#FFFFFF',
+                          color: form.monthly_price === val ? THEME.primary : THEME.textDark,
+                        }}
+                      >
+                        {(val / 1000000 >= 1 ? `${val / 1000000} mln` : `${val / 1000} ming`)} so‘m
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 <div>
                   <label style={labelStyle}>Maks. O‘quvchilar</label>

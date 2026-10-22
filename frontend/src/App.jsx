@@ -11,11 +11,12 @@ import {
   Edit, Trash2, Copy, ZoomIn, ExternalLink,
   Radio, Play, Pause, Cpu, Upload, Settings,
   Sun, Sunset, Camera, ScanFace, DoorOpen, Globe, FileText, FileSpreadsheet,
-  Star, Zap, FlaskConical, ShieldCheck, CheckSquare, Square, Wrench, LayoutDashboard
+  Star, Zap, FlaskConical, ShieldCheck, CheckSquare, Square, Wrench, LayoutDashboard, HelpCircle
 } from 'lucide-react';
 import SuperAdminDashboardView from './SuperAdminDashboard';
 import SchoolMapPicker from './components/SchoolMapPicker';
 import { MaintenanceScreen, SchoolSuspendedScreen, TeacherSuspendedScreen } from './components/MaintenanceScreens';
+import SchoolHelpSupportSection from './components/SchoolHelpSupportSection';
 
 // Easy Learn Palette Constants
 const THEME = {
@@ -2104,6 +2105,15 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             collapsed={isSidebarCollapsed}
             title="Maktab Sozlamalari"
           />
+
+          <NavButton
+            active={activeTab === 'help'}
+            onClick={() => setActiveTab('help')}
+            icon={<HelpCircle size={18} />}
+            label="Yordam Markazi"
+            collapsed={isSidebarCollapsed}
+            title="Yordam & Texnik Qo'llab-quvvatlash"
+          />
         </div>
 
         {/* Super Admin ga qaytish tugmasi (agar Super Admin maktab kabinetiga kirgan bo'lsa) */}
@@ -2349,15 +2359,22 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                 {activeTab === 'teachers' && "O'qituvchilar"}
                 {activeTab === 'attendance' && "Jonli Davomat Auditi"}
                 {activeTab === 'settings' && "Maktab Sozlamalari"}
+                {activeTab === 'help' && "Yordam & Qo'llab-quvvatlash"}
               </h1>
               <p style={{ fontSize: 12, color: THEME.textMuted, margin: '3px 0 0 0', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span>O'quv yili: <b style={{ color: THEME.textDark }}>{schoolConfig?.academic_year || '2026-2027'}</b></span>
-                <span>•</span>
-                <span>Mas'ul: <b style={{ color: THEME.primary }}>{schoolConfig?.director_name || (currentUser?.name ? currentUser.name.replace(/\s*\(Direktor\)/i, '') : 'Direktor')}</b></span>
-                {schoolConfig?.district && (
+                {activeTab === 'help' ? (
+                  <span>Texnik ko'mak, tezkor yordam so'rovi va ko'p beriladigan savollar (FAQ)</span>
+                ) : (
                   <>
+                    <span>O'quv yili: <b style={{ color: THEME.textDark }}>{schoolConfig?.academic_year || '2026-2027'}</b></span>
                     <span>•</span>
-                    <span>{schoolConfig.district}</span>
+                    <span>Mas'ul: <b style={{ color: THEME.primary }}>{schoolConfig?.director_name || (currentUser?.name ? currentUser.name.replace(/\s*\(Direktor\)/i, '') : 'Direktor')}</b></span>
+                    {schoolConfig?.district && (
+                      <>
+                        <span>•</span>
+                        <span>{schoolConfig.district}</span>
+                      </>
+                    )}
                   </>
                 )}
               </p>
@@ -2685,6 +2702,17 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               terms={terms}
               actorLabel={actorLabel}
               onSaveConfig={handleSaveSchoolConfig}
+            />
+          )}
+
+          {/* TAB 7: YORDAM & TEXNIK QO'LLAB-QUVVATLASH */}
+          {activeTab === 'help' && (
+            <SchoolHelpSupportSection
+              schoolId={schoolId}
+              schoolName={schoolName}
+              schoolConfig={schoolConfig}
+              currentUser={currentUser}
+              actorLabel={actorLabel}
             />
           )}
             </div>

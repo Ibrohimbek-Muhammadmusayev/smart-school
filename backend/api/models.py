@@ -50,6 +50,9 @@ class SystemConfig(models.Model):
     estimated_end_time = models.CharField(max_length=100, blank=True, default="14:00")
     support_phone = models.CharField(max_length=50, blank=True, default="+998 71 200-00-00")
     support_email = models.CharField(max_length=100, blank=True, default="support@smart-school.uz")
+    telegram_bot_token = models.CharField(max_length=255, blank=True, default="")
+    telegram_admin_id = models.CharField(max_length=255, blank=True, default="")
+    gemini_api_key = models.CharField(max_length=255, blank=True, default="")
     updated_by = models.CharField(max_length=255, blank=True, default="Super Administrator")
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,6 +70,9 @@ class SystemConfig(models.Model):
             'estimated_end_time': self.estimated_end_time or "Tez orada",
             'support_phone': self.support_phone or "+998 71 200-00-00",
             'support_email': self.support_email or "support@smart-school.uz",
+            'telegram_bot_token': self.telegram_bot_token or "",
+            'telegram_admin_id': self.telegram_admin_id or "",
+            'gemini_api_key': self.gemini_api_key or "",
             'updated_by': self.updated_by or "Super Administrator",
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M') if self.updated_at else '',
         }
@@ -107,12 +113,19 @@ class SchoolConfig(models.Model):
     phone = models.CharField(max_length=50, blank=True, default="+998 71 234-56-78")
     academic_year = models.CharField(max_length=30, default="2026-2027")
 
+    # Direktor Login va Paroli (Super Admin boshqaruvi uchun)
+    admin_username = models.CharField(max_length=150, blank=True, default="")
+    admin_password = models.CharField(max_length=128, blank=True, default="school123")
+
     # Maktab holati, to'lov holati va ogohlantirish bannerlari
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
     status_reason = models.TextField(blank=True, default='') # Sababi (masalan: "Oylik abonent to'lovi to'lanmaganligi sababli to'xtatildi")
     warning_banner = models.TextField(blank=True, default='') # Maktab dashbortida ko'rinuvchi ogohlantirish
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PAID')
     debt_amount = models.CharField(max_length=50, blank=True, default="0 so'm")
+    monthly_price = models.IntegerField(default=1000000)
+    is_free_trial = models.BooleanField(default=False)
+    trial_until_date = models.DateField(null=True, blank=True)
 
     # Tizim terminologiyasi va rejim sozlamalari (Sinf vs Guruh, Dars vs Para, O'quvchi vs Talaba)
     group_term = models.CharField(max_length=20, choices=GROUP_TERM_CHOICES, default='SINF')
@@ -322,6 +335,61 @@ class SchoolConfig(models.Model):
         unit = 'guruh' if (self.group_term or 'SINF').upper() == 'GURUH' else 'sinf'
         return f"{base} {unit}"
 
+    def sync_credentials(self):
+        """
+        SchoolConfig va User (role='ADMIN') o'rtasida login va parolni sinxron saqlaydi.
+        """
+        sid = str(self.school_id)
+        uname = (self.admin_username or f"maktab{sid}").strip()
+        pwd = (self.admin_password or "school123").strip()
+
+        changed = False
+        if self.admin_username != uname:
+            self.admin_username = uname
+            changed = True
+        if self.admin_password != pwd:
+            self.admin_password = pwd
+            changed = True
+        if changed:
+            self.save(update_fields=['admin_username', 'admin_password'])
+
+        # Maktab adminini User jadvalida topish yoki yaratish
+        admin_u = User.objects.filter(school_id=sid, role='ADMIN').exclude(is_superuser=True).first()
+        if not admin_u:
+            admin_u = User.objects.filter(username__iexact=uname).exclude(is_superuser=True).first()
+
+        if admin_u:
+            admin_u.username = uname
+            admin_u.role = 'ADMIN'
+            admin_u.school_id = sid
+            admin_u.school_name = self.school_name
+            admin_u.raw_initial_password = pwd
+            admin_u.set_password(pwd)
+            admin_u.save()
+        else:
+            final_uname = uname
+            counter = 1
+            while User.objects.filter(username__iexact=final_uname).exists():
+                final_uname = f"{uname}_{counter}"
+                counter += 1
+            if final_uname != self.admin_username:
+                self.admin_username = final_uname
+                self.save(update_fields=['admin_username'])
+
+            admin_u = User.objects.create(
+                username=final_uname,
+                role='ADMIN',
+                school_id=sid,
+                school_name=self.school_name,
+                raw_initial_password=pwd,
+                is_staff=False,
+                is_superuser=False,
+            )
+            admin_u.set_password(pwd)
+            admin_u.save()
+
+        return admin_u
+
     def get_access_info(self, client_type='DASHBOARD'):
         """
         Mijoz turiga (DASHBOARD - Maktab Admini, MOBILE - O'quvchi/Ota-ona ilovasi, DEVICE - Turniket/Face ID)
@@ -384,11 +452,18 @@ class SchoolConfig(models.Model):
             'director_name': self.director_name,
             'phone': self.phone,
             'academic_year': self.academic_year,
+            'admin_username': self.admin_username or f'maktab{self.school_id}',
+            'admin_password': self.admin_password or 'school123',
+            'username': self.admin_username or f'maktab{self.school_id}',
+            'password': self.admin_password or 'school123',
             'status': self.status or 'ACTIVE',
             'status_reason': self.status_reason or '',
             'warning_banner': self.warning_banner or '',
             'payment_status': self.payment_status or 'PAID',
             'debt_amount': self.debt_amount or "0 so'm",
+            'monthly_price': self.monthly_price or 1000000,
+            'is_free_trial': bool(self.is_free_trial),
+            'trial_until_date': self.trial_until_date.strftime('%Y-%m-%d') if self.trial_until_date else '',
             'access_info_dashboard': self.get_access_info('DASHBOARD'),
             'access_info_mobile': self.get_access_info('MOBILE'),
             'group_term': 'GURUH' if is_guruh else 'SINF',

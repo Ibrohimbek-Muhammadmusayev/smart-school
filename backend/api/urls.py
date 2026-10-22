@@ -8,10 +8,14 @@ from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView,
                     StudentProfileView,
                     DeviceEventIngestionView, DeviceLogsListView, DeviceSimulateView,
                     HikvisionTestConnectionView, HikvisionSyncStudentsView, SchoolDashboardAnalyticsView,
-                    SystemConfigView, SchoolStatusActionView, SchoolAccessCheckView, SuperAdminOverviewStatsView)
+                    SystemConfigView, SchoolStatusActionView, SchoolAccessCheckView, SuperAdminOverviewStatsView, TelegramBotStatusView, SuperAdminSchoolUpdateView, SuperAdminSchoolCreateView)
 
 urlpatterns = [
     path('superadmin/overview-stats/', SuperAdminOverviewStatsView.as_view(), name='superadmin_overview_stats'),
+    path('superadmin/schools/create/', SuperAdminSchoolCreateView.as_view(), name='superadmin_school_create'),
+    path('superadmin/schools/<str:school_id>/update/', SuperAdminSchoolUpdateView.as_view(), name='superadmin_school_update'),
+    path('superadmin/bot-status/', TelegramBotStatusView.as_view(), name='superadmin_bot_status'),
+    path('superadmin/test-telegram/', TelegramBotStatusView.as_view(), name='superadmin_test_telegram'),
     path('system-config/', SystemConfigView.as_view(), name='system_config'),
     path('schools/<str:school_id>/status/', SchoolStatusActionView.as_view(), name='school_status_action'),
     path('schools/<str:school_id>/access-status/', SchoolAccessCheckView.as_view(), name='school_access_status'),
