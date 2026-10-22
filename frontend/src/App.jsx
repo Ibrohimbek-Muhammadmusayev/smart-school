@@ -1944,16 +1944,6 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           />
 
           <NavButton
-            active={activeTab === 'schedule'}
-            onClick={() => setActiveTab('schedule')}
-            icon={<Calendar size={18} />}
-            label={`${terms.lessonSingular} Jadvali`}
-            badge={schedulesList.length > 0 ? `${schedulesList.length}` : undefined}
-            collapsed={isSidebarCollapsed}
-            title={`${terms.lessonSingular} Jadvali`}
-          />
-
-          <NavButton
             active={activeTab === 'groups'}
             onClick={() => setActiveTab('groups')}
             icon={<FolderOpen size={18} />}
@@ -1961,6 +1951,16 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
             badge={classesList.length > 0 ? `${classesList.length}` : undefined}
             collapsed={isSidebarCollapsed}
             title={`${terms.groupPlural} Boshqaruvi`}
+          />
+
+          <NavButton
+            active={activeTab === 'schedule'}
+            onClick={() => setActiveTab('schedule')}
+            icon={<Calendar size={18} />}
+            label={`${terms.lessonSingular} Jadvali`}
+            badge={schedulesList.length > 0 ? `${schedulesList.length}` : undefined}
+            collapsed={isSidebarCollapsed}
+            title={`${terms.lessonSingular} Jadvali`}
           />
 
           <NavButton
@@ -2482,6 +2482,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
           {/* TAB 1: BOSH SAHIFA (DAVOMAT & ANALITIKA MARKAZI) */}
           {activeTab === 'matrix' && (
             <AttendanceMatrixSection
+              schoolId={schoolId}
               realStudents={realStudents}
               classesList={classesList}
               teachersList={teachersList}
@@ -2786,6 +2787,7 @@ function MicroSparkline({ data = [92, 93, 91.5, 94.2, 95.1, 94.8, 95.8], color =
 }
 
 function AttendanceMatrixSection({
+  schoolId = '1',
   realStudents = [],
   classesList = [],
   teachersList = [],
@@ -2809,127 +2811,118 @@ function AttendanceMatrixSection({
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'DANGER' | 'EXCELLENT'
 
-  // Maktab bo'yicha jami o'quvchilar soni
-  const totalEnrolled = realStudents.length > 0 ? realStudents.length : 240;
+  // Real bazadan yuklanuvchi analitika holati
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+  const [refreshingAnalytics, setRefreshingAnalytics] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState('');
 
-  // Kunlik haqiqiy davomat statistikasi (Oxirgi kunlarga nisbatan solishtirma ma'lumotlar)
-  const chartDaysData = React.useMemo(() => {
-    const count = chartRange === '14d' ? 14 : 7;
-    const dayNamesUz = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
-    const monthNamesUz = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"];
-
-    const list = [];
-    const now = new Date();
-    let stepsBack = 0;
-
-    while (list.length < count && stepsBack < 30) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - stepsBack);
-      const dayOfWeek = d.getDay();
-      if (dayOfWeek !== 0) {
-        const isToday = stepsBack === 0;
-        const seed = (d.getDate() * 7 + d.getMonth() * 13 + dayOfWeek * 17) % 100;
-        
-        const percent = isToday ? 95.8 : Number((92.4 + (seed % 55) / 10).toFixed(1));
-        const presentCount = Math.round((percent / 100) * totalEnrolled);
-        const lateCount = Math.max(2, Math.round(((100 - percent) * 0.45 / 100) * totalEnrolled));
-        const absentCount = Math.max(1, totalEnrolled - presentCount - lateCount);
-
-        list.unshift({
-          dateObj: d,
-          dateLabel: `${d.getDate()}-${monthNamesUz[d.getMonth()]}`,
-          weekday: isToday ? "Bugun" : dayNamesUz[dayOfWeek],
-          fullDate: d.toLocaleDateString('uz-UZ'),
-          isToday,
-          percent,
-          presentCount,
-          lateCount,
-          absentCount,
-          total: totalEnrolled,
-        });
+  // 100% Real bazadan analitikani yuklash funksiyasi
+  const fetchAnalytics = async (silent = false) => {
+    if (!silent) setRefreshingAnalytics(true);
+    try {
+      const url = `/api/dashboard/analytics/?school_id=${encodeURIComponent(schoolId)}&range=${encodeURIComponent(chartRange)}&class_name=${encodeURIComponent(selectedClassFilter)}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setAnalyticsData(data);
+        setLastRefreshedAt(new Date().toLocaleTimeString('uz-UZ'));
       }
-      stepsBack++;
+    } catch (err) {
+      console.error("Dashboard analytics error:", err);
+    } finally {
+      setLoadingAnalytics(false);
+      setRefreshingAnalytics(false);
     }
-
-    return list.map((item, idx) => {
-      if (idx === 0) return { ...item, diff: 0 };
-      const prev = list[idx - 1];
-      const diff = Number((item.percent - prev.percent).toFixed(1));
-      return { ...item, diff };
-    });
-  }, [chartRange, totalEnrolled]);
-
-  // Bugungi ko'rsatkichlar (KPI)
-  const todayStats = chartDaysData[chartDaysData.length - 1] || {
-    percent: 95.8,
-    diff: 1.4,
-    presentCount: Math.round(totalEnrolled * 0.958),
-    lateCount: Math.round(totalEnrolled * 0.025),
-    absentCount: Math.round(totalEnrolled * 0.017),
   };
 
-  // Sparkline mini-trend massivlari
-  const davomatSpark = React.useMemo(() => chartDaysData.map(d => d.percent), [chartDaysData]);
-  const presentSpark = React.useMemo(() => chartDaysData.map(d => d.presentCount), [chartDaysData]);
-  const lateSpark = React.useMemo(() => chartDaysData.map(d => d.lateCount), [chartDaysData]);
-  const absentSpark = React.useMemo(() => chartDaysData.map(d => d.absentCount), [chartDaysData]);
+  useEffect(() => {
+    fetchAnalytics(false);
+  }, [schoolId, chartRange, selectedClassFilter]);
 
-  // O'rtacha davomat ko'rsatkichi
-  const averageAttendance = React.useMemo(() => {
-    if (chartDaysData.length === 0) return 95.0;
-    const sum = chartDaysData.reduce((acc, curr) => acc + curr.percent, 0);
-    return Number((sum / chartDaysData.length).toFixed(1));
-  }, [chartDaysData]);
+  // Jonli avtomatik yangilanish (Har 10 soniyada va Face ID / Turniket signali kelganda darhol)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      fetchAnalytics(true);
+    }, 10000);
 
-  // Sinflar davomat reytingi
-  const classRankings = React.useMemo(() => {
-    const baseClasses = classesList.length > 0 
-      ? classesList 
-      : [{ id: 1, name: '10-A' }, { id: 2, name: '9-B' }, { id: 3, name: '11-A' }, { id: 4, name: '8-V' }];
+    const handleAttendanceUpdate = () => {
+      fetchAnalytics(true);
+    };
+    window.addEventListener('smartschool:attendance-updated', handleAttendanceUpdate);
 
-    return baseClasses.map((cls, idx) => {
-      const clsStudents = realStudents.filter(s => s.class_name === cls.name);
-      const studentCount = clsStudents.length > 0 ? clsStudents.length : 24 + (idx % 6);
-      const attRate = Number((98.8 - idx * 2.8 + (idx % 2 ? 0.9 : -0.4)).toFixed(1));
-      return {
-        id: cls.id,
-        name: cls.name,
-        studentCount,
-        attendanceRate: Math.max(84.0, Math.min(99.6, attRate)),
-      };
-    }).sort((a, b) => b.attendanceRate - a.attendanceRate);
-  }, [classesList, realStudents]);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('smartschool:attendance-updated', handleAttendanceUpdate);
+    };
+  }, [schoolId, chartRange, selectedClassFilter]);
 
-  // Diqqat talab o'quvchilar (Davomat xavfi)
-  const dangerStudents = React.useMemo(() => {
-    if (realStudents.length === 0) {
-      return [
-        { id: 'mock-1', name: 'Karimov Jasur', class_name: '9-A', phone: '+998 90 123-45-67', nbHours: 8, rate: 84 },
-        { id: 'mock-2', name: 'Alimova Madina', class_name: '8-B', phone: '+998 93 456-78-90', nbHours: 6, rate: 86 },
-        { id: 'mock-3', name: 'Rustamov Bobur', class_name: '10-A', phone: '+998 97 789-01-23', nbHours: 6, rate: 88 },
-      ];
-    }
-    return realStudents
-      .map((st, idx) => {
-        const rate = 82 + ((st.id || idx) % 17);
-        const nbHours = rate < 90 ? (90 - rate) * 2 : 0;
-        return {
-          id: st.id,
-          name: `${st.last_name || ''} ${st.first_name || ''}`.trim() || 'O\'quvchi',
-          class_name: st.class_name || 'Guruhsiz',
-          phone: st.parent_phone || st.phone || '+998 90 000-00-00',
-          nbHours,
-          rate,
-          original: st,
-        };
-      })
-      .filter(s => s.rate < 90)
-      .slice(0, 4);
-  }, [realStudents]);
+  // Maktab bo'yicha jami o'quvchilar soni (Real baza)
+  const totalEnrolled = analyticsData?.total_enrolled ?? (realStudents.length > 0 ? realStudents.length : 0);
 
-  // Matritsa jadvali uchun filtrlangan o'quvchilar
+  // Kunlik haqiqiy davomat statistikasi (Real baza)
+  const chartDaysData = analyticsData?.chart_days_data || [];
+
+  // Bugungi ko'rsatkichlar (KPI) - Real baza
+  const todayStats = analyticsData?.today_stats || {
+    percent: 0,
+    diff: 0,
+    presentCount: 0,
+    lateCount: 0,
+    absentCount: 0,
+    total: totalEnrolled,
+    weekday: "Bugun",
+    dateLabel: "Bugun",
+  };
+
+  // Sparkline mini-trend massivlari (Real baza)
+  const davomatSpark = analyticsData?.sparklines?.davomat || (chartDaysData.length > 0 ? chartDaysData.map(d => d.percent) : [0]);
+  const presentSpark = analyticsData?.sparklines?.present || (chartDaysData.length > 0 ? chartDaysData.map(d => d.presentCount) : [0]);
+  const lateSpark = analyticsData?.sparklines?.late || (chartDaysData.length > 0 ? chartDaysData.map(d => d.lateCount) : [0]);
+  const absentSpark = analyticsData?.sparklines?.absent || (chartDaysData.length > 0 ? chartDaysData.map(d => d.absentCount) : [0]);
+
+  // O'rtacha davomat ko'rsatkichi (Real baza)
+  const averageAttendance = analyticsData?.average_rate ?? (
+    chartDaysData.length > 0 
+      ? Number((chartDaysData.reduce((acc, curr) => acc + curr.percent, 0) / chartDaysData.length).toFixed(1))
+      : 0
+  );
+
+  // Sinflar davomat reytingi (Real baza)
+  const classRankings = (analyticsData?.class_rankings && analyticsData.class_rankings.length > 0)
+    ? analyticsData.class_rankings
+    : classesList.map(c => ({
+        id: c.id,
+        name: c.name,
+        studentCount: realStudents.filter(s => s.class_name === c.name).length,
+        attendanceRate: 100.0,
+      }));
+
+  // Diqqat talab o'quvchilar (Davomat xavfi — Real baza)
+  const dangerStudents = analyticsData?.danger_students || [];
+
+  // Matritsa jadvali uchun o'quvchilar ro'yxati (Real baza)
+  const rawMatrixStudents = (analyticsData?.students_matrix && analyticsData.students_matrix.length > 0)
+    ? analyticsData.students_matrix
+    : realStudents.map(st => ({
+        id: st.id,
+        student_id: st.student_id || String(st.id),
+        first_name: st.first_name,
+        last_name: st.last_name,
+        full_name: `${st.last_name || ''} ${st.first_name || ''}`.trim() || st.username,
+        class_name: st.class_name || 'Guruhsiz',
+        photo_3x4: st.photo_3x4,
+        parent_phone: st.parent_phone || st.phone || '',
+        attendance_rate: 100.0,
+        absent_count: 0,
+        late_count: 0,
+        nb_hours: 0,
+        weekly_days: {},
+      }));
+
+  // Filtrlangan o'quvchilar
   const filteredStudents = React.useMemo(() => {
-    let list = realStudents;
+    let list = rawMatrixStudents;
     if (selectedClassFilter !== 'ALL') {
       list = list.filter(s => s.class_name === selectedClassFilter);
     }
@@ -2938,34 +2931,58 @@ function AttendanceMatrixSection({
       list = list.filter(s => 
         (s.first_name && s.first_name.toLowerCase().includes(q)) ||
         (s.last_name && s.last_name.toLowerCase().includes(q)) ||
+        (s.full_name && s.full_name.toLowerCase().includes(q)) ||
         (s.student_id && String(s.student_id).toLowerCase().includes(q))
       );
     }
     if (statusFilter === 'DANGER') {
-      list = list.filter((_, idx) => (idx % 5) === 0);
+      list = list.filter(s => (s.attendance_rate < 90 || (s.nb_hours || 0) > 0));
     } else if (statusFilter === 'EXCELLENT') {
-      list = list.filter((_, idx) => (idx % 5) !== 0);
+      list = list.filter(s => s.attendance_rate >= 90 && (s.nb_hours || 0) === 0);
     }
     return list;
-  }, [realStudents, selectedClassFilter, searchQuery, statusFilter]);
+  }, [rawMatrixStudents, selectedClassFilter, searchQuery, statusFilter]);
 
-  // CSV Eksport funksiyasi (Rasmiy tabel)
+  // Joriy hafta kunlari va sanalarini dinamik hisoblash
+  const weekDates = React.useMemo(() => {
+    const now = new Date();
+    const currentDay = now.getDay(); // 0=Yakshanba, 1=Dushanba...
+    const mondayDiff = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayDiff);
+
+    const monthNamesUz = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"];
+
+    return days.map((dayName, idx) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + idx);
+      const isToday = d.toDateString() === now.toDateString();
+      return {
+        name: dayName,
+        dateStr: `${d.getDate()} ${monthNamesUz[d.getMonth()]}`,
+        isToday,
+      };
+    });
+  }, [days]);
+
+  // CSV Eksport funksiyasi (Rasmiy tabel — Haqiqiy Baza)
   const handleExportCSV = () => {
     try {
-      const headers = ["O'quvchi F.I.Sh", "Sinf / Guruh", "ID Raqami", "Davomat %", "Holati"];
-      const rows = (filteredStudents.length > 0 ? filteredStudents : realStudents).map(st => [
-        `"${st.last_name || ''} ${st.first_name || ''}"`,
+      const headers = ["O'quvchi F.I.Sh", "Sinf / Guruh", "ID Raqami", "Davomat %", "NB Soatlari", "Holati"];
+      const rows = filteredStudents.map(st => [
+        `"${st.full_name || `${st.last_name || ''} ${st.first_name || ''}`.trim()}"`,
         `"${st.class_name || 'Guruhsiz'}"`,
-        `"${st.student_id || ''}"`,
-        `"${90 + ((st.id || 0) % 8)}%"`,
-        `"Faol"`
+        `"${st.student_id || st.id}"`,
+        `"${st.attendance_rate || 100}%"`,
+        `"${st.nb_hours || 0} soat"`,
+        `"${((st.attendance_rate || 100) >= 90 && (st.nb_hours || 0) === 0) ? 'Faol' : 'Xavf guruhi'}"`
       ]);
       const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `davomat_tabeli_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute("download", `davomat_haqiqiy_tabel_${new Date().toISOString().slice(0, 10)}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -2984,7 +3001,13 @@ function AttendanceMatrixSection({
   const padBottom = 34;
   const plotW = svgWidth - padLeft - padRight;
   const plotH = svgHeight - padTop - padBottom;
-  const minVal = 80;
+  
+  // Dinamik min/max shkala (Real bazaga moslashuvchan)
+  const minVal = React.useMemo(() => {
+    if (chartDaysData.length === 0) return 80;
+    const lowest = Math.min(...chartDaysData.map(d => d.percent));
+    return Math.max(0, Math.min(80, Math.floor(lowest / 10) * 10));
+  }, [chartDaysData]);
   const maxVal = 100;
 
   // Har bir kunning SVG koordinatalari
@@ -2992,12 +3015,12 @@ function AttendanceMatrixSection({
     const n = chartDaysData.length;
     if (n === 0) return [];
     return chartDaysData.map((d, i) => {
-      const x = padLeft + (i / Math.max(1, n - 1)) * plotW;
+      const x = n === 1 ? padLeft + plotW / 2 : padLeft + (i / Math.max(1, n - 1)) * plotW;
       const clampedPercent = Math.max(minVal, Math.min(maxVal, d.percent));
-      const y = padTop + (1 - (clampedPercent - minVal) / (maxVal - minVal)) * plotH;
+      const y = padTop + (1 - (clampedPercent - minVal) / Math.max(1, maxVal - minVal)) * plotH;
       return { ...d, x, y, index: i };
     });
-  }, [chartDaysData, plotW, plotH]);
+  }, [chartDaysData, plotW, plotH, minVal, maxVal]);
 
   // Silliq Bezier Spline chizig'ini hisoblash
   const splinePath = React.useMemo(() => {
@@ -3059,7 +3082,7 @@ function AttendanceMatrixSection({
             <span style={{ color: '#1E2038', fontWeight: 600 }}>Bosh Sahifa</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: 18, fontWeight: 600, color: '#1E2038', margin: 0 }}>
               Bosh Sahifa & Analitika Markazi
             </h1>
@@ -3067,6 +3090,32 @@ function AttendanceMatrixSection({
               <span className="sa-ping-dot"></span>
               Jonli Rejim • Idrok Vision & Turniket Faol
             </span>
+            <button
+              onClick={() => fetchAnalytics(false)}
+              disabled={refreshingAnalytics}
+              title="Real bazadan qayta yuklash"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 9px',
+                borderRadius: 6,
+                border: '1px solid #E2E8F0',
+                backgroundColor: '#FFFFFF',
+                color: '#6C5CE7',
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}>
+              <RefreshCw size={11} className={refreshingAnalytics ? 'animate-spin' : ''} />
+              <span>{refreshingAnalytics ? "Yangilanmoqda..." : "Yangilash"}</span>
+            </button>
+            {lastRefreshedAt && (
+              <span style={{ fontSize: 11, color: '#8A90A2' }}>
+                ({lastRefreshedAt} da yangilandi)
+              </span>
+            )}
           </div>
         </div>
 
@@ -3176,7 +3225,7 @@ function AttendanceMatrixSection({
         </div>
       </div>
 
-      {/* 2. TOP 4 TA KPI VA STATISTIKA KARTALARI (SPARKLINE BILAN) */}
+      {/* 2. TOP 4 TA KPI VA STATISTIKA KARTALARI (SPARKLINE BILAN - REAL BAZA) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
         
         {/* Karta 1: Bugungi Real Davomat */}
@@ -3202,7 +3251,7 @@ function AttendanceMatrixSection({
             }}>
               {todayStats.diff >= 0 ? `▲ +${todayStats.diff}%` : `▼ ${todayStats.diff}%`}
             </span>
-            <span style={{ fontSize: 11, color: '#8A90A2' }}>o'tgan haftaga nisbatan</span>
+            <span style={{ fontSize: 11, color: '#8A90A2' }}>kechagi kunga nisbatan</span>
           </div>
         </div>
 
@@ -3227,7 +3276,7 @@ function AttendanceMatrixSection({
               padding: '2px 6px',
               borderRadius: 4
             }}>
-              ▲ +0.8%
+              ▲ Jami {totalEnrolled} ta
             </span>
             <span style={{ fontSize: 11, color: '#8A90A2' }}>turniket & Face ID orqali</span>
           </div>
@@ -3254,9 +3303,9 @@ function AttendanceMatrixSection({
               padding: '2px 6px',
               borderRadius: 4
             }}>
-              ▼ -0.3%
+              Kechikishlar
             </span>
-            <span style={{ fontSize: 11, color: '#8A90A2' }}>qo'ng'iroqdan so'ng</span>
+            <span style={{ fontSize: 11, color: '#8A90A2' }}>qo'ng'iroqdan so'ng kelganlar</span>
           </div>
         </div>
 
@@ -3281,15 +3330,15 @@ function AttendanceMatrixSection({
               padding: '2px 6px',
               borderRadius: 4
             }}>
-              ▼ -0.5%
+              Sababsiz NB
             </span>
-            <span style={{ fontSize: 11, color: '#8A90A2' }}>sababsiz qoldirganlar</span>
+            <span style={{ fontSize: 11, color: '#8A90A2' }}>darsda qatnashmaganlar</span>
           </div>
         </div>
 
       </div>
 
-      {/* 3. ASOSIY ENTERPRISE GRAFIK: KUNLIK DAVOMAT STATISTIKASI */}
+      {/* 3. ASOSIY ENTERPRISE GRAFIK: KUNLIK DAVOMAT STATISTIKASI (REAL BAZA) */}
       <div className="sa-card" style={{ padding: '20px 24px', position: 'relative' }}>
         
         {/* Grafik Sarlavhasi va Boshqaruv Tugmalari */}
@@ -3311,11 +3360,10 @@ function AttendanceMatrixSection({
               </span>
             </div>
             <div style={{ fontSize: 12, color: '#8A90A2', marginTop: 2 }}>
-              O'tgan kunlarga nisbatan real davomat ko'rsatkichlari va dinamikasi
+              Haqiqiy turniket va dars jurnali orqali qayd etilgan davomat foizlari
             </div>
           </div>
 
-          {/* Rejim (Area/Bar) va Davr (7d/14d) Filtrlari */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ display: 'flex', backgroundColor: '#F1F5F9', padding: 2, borderRadius: 6 }}>
               <button
@@ -3325,14 +3373,14 @@ function AttendanceMatrixSection({
                   borderRadius: 4,
                   border: 'none',
                   backgroundColor: chartMode === 'area' ? '#FFFFFF' : 'transparent',
-                  color: chartMode === 'area' ? '#6C5CE7' : '#8A90A2',
+                  color: chartMode === 'area' ? '#1E2038' : '#8A90A2',
                   fontWeight: 600,
                   fontSize: 12,
+                  boxShadow: chartMode === 'area' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                   cursor: 'pointer',
-                  boxShadow: chartMode === 'area' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
                   transition: 'all 0.15s ease'
                 }}>
-                Silliq Chiziqli
+                Chiziqli
               </button>
               <button
                 onClick={() => setChartMode('bar')}
@@ -3341,11 +3389,11 @@ function AttendanceMatrixSection({
                   borderRadius: 4,
                   border: 'none',
                   backgroundColor: chartMode === 'bar' ? '#FFFFFF' : 'transparent',
-                  color: chartMode === 'bar' ? '#6C5CE7' : '#8A90A2',
+                  color: chartMode === 'bar' ? '#1E2038' : '#8A90A2',
                   fontWeight: 600,
                   fontSize: 12,
+                  boxShadow: chartMode === 'bar' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                   cursor: 'pointer',
-                  boxShadow: chartMode === 'bar' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
                   transition: 'all 0.15s ease'
                 }}>
                 Ustunli
@@ -3394,7 +3442,6 @@ function AttendanceMatrixSection({
             onMouseLeave={() => setHoveredPointIndex(null)}
             style={{ width: '100%', height: 'auto', minWidth: 640, display: 'block' }}>
             <defs>
-              {/* Nozik so'nuvchi gradient (0.12 dan 0.0 gacha) */}
               <linearGradient id="enterpriseChartGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#6C5CE7" stopOpacity="0.12" />
                 <stop offset="90%" stopColor="#6C5CE7" stopOpacity="0.0" />
@@ -3411,9 +3458,9 @@ function AttendanceMatrixSection({
               </linearGradient>
             </defs>
 
-            {/* Gorizontal yordamchi to'r chiziqlari (80%, 85%, 90%, 95%, 100%) */}
-            {[80, 85, 90, 95, 100].map((level) => {
-              const y = padTop + (1 - (level - minVal) / (maxVal - minVal)) * plotH;
+            {/* Gorizontal yordamchi to'r chiziqlari */}
+            {[minVal, Math.round(minVal + (maxVal - minVal) * 0.25), Math.round(minVal + (maxVal - minVal) * 0.5), Math.round(minVal + (maxVal - minVal) * 0.75), maxVal].map((level) => {
+              const y = padTop + (1 - (level - minVal) / Math.max(1, maxVal - minVal)) * plotH;
               return (
                 <g key={level}>
                   <line
@@ -3443,7 +3490,6 @@ function AttendanceMatrixSection({
               <>
                 <path d={splineAreaPath} fill="url(#enterpriseChartGradient)" />
 
-                {/* Toza 2px chiziq */}
                 <path
                   d={splinePath}
                   fill="none"
@@ -3453,7 +3499,6 @@ function AttendanceMatrixSection({
                   strokeLinejoin="round"
                 />
 
-                {/* Hover trigger maydonlari va crosshair */}
                 {chartPoints.map((pt, i) => {
                   const isHovered = hoveredPointIndex === i;
                   return (
@@ -3462,7 +3507,6 @@ function AttendanceMatrixSection({
                       onMouseEnter={() => setHoveredPointIndex(i)}
                       style={{ cursor: 'pointer' }}>
                       
-                      {/* Vertikal yo'naltiruvchi chiziq (Crosshair) */}
                       {isHovered && (
                         <line
                           x1={pt.x}
@@ -3475,7 +3519,6 @@ function AttendanceMatrixSection({
                         />
                       )}
 
-                      {/* Faqat hover bo'lganda ko'rinuvchi nuqta */}
                       {isHovered && (
                         <circle
                           cx={pt.x}
@@ -3487,7 +3530,6 @@ function AttendanceMatrixSection({
                         />
                       )}
 
-                      {/* Hover hududi */}
                       <rect
                         x={pt.x - 18}
                         y={padTop}
@@ -3501,93 +3543,89 @@ function AttendanceMatrixSection({
               </>
             )}
 
-            {/* REJIM 2: USTUNLI (BAR) */}
+            {/* REJIM 2: USTUNLI GRAFIK (BAR CHART) */}
             {chartMode === 'bar' && (
-              chartPoints.map((pt, i) => {
-                const barWidth = Math.min(24, Math.max(12, (plotW / chartPoints.length) * 0.4));
-                const barHeight = Math.max(4, (padTop + plotH) - pt.y);
-                const isHovered = hoveredPointIndex === i;
+              <g>
+                {chartPoints.map((pt, i) => {
+                  const barW = Math.max(14, Math.min(32, plotW / (chartPoints.length * 1.8)));
+                  const barH = ((pt.percent - minVal) / Math.max(1, maxVal - minVal)) * plotH;
+                  const barY = padTop + plotH - barH;
+                  const isHovered = hoveredPointIndex === i;
 
-                return (
-                  <g
-                    key={i}
-                    onMouseEnter={() => setHoveredPointIndex(i)}
-                    style={{ cursor: 'pointer' }}>
-                    <rect
-                      x={pt.x - barWidth / 2}
-                      y={pt.y}
-                      width={barWidth}
-                      height={barHeight}
-                      rx={3}
-                      ry={3}
-                      fill={pt.isToday ? "url(#entTodayBarGradient)" : (isHovered ? "#5845D8" : "url(#entBarGradient)")}
-                      opacity={isHovered ? 1 : 0.9}
-                      transition="opacity 0.15s ease"
-                    />
-                  </g>
-                );
-              })
+                  return (
+                    <g
+                      key={i}
+                      onMouseEnter={() => setHoveredPointIndex(i)}
+                      style={{ cursor: 'pointer' }}>
+                      <rect
+                        x={pt.x - barW / 2}
+                        y={barY}
+                        width={barW}
+                        height={barH}
+                        rx={4}
+                        fill={pt.isToday ? "url(#entTodayBarGradient)" : "url(#entBarGradient)"}
+                        opacity={isHovered ? 1 : 0.88}
+                        style={{ transition: 'all 0.15s ease' }}
+                      />
+                    </g>
+                  );
+                })}
+              </g>
             )}
 
-            {/* X-o'qi kunlari va sanalari */}
-            {chartPoints.map((pt, i) => {
-              const bottomY = padTop + plotH + 15;
-              return (
-                <g key={i}>
-                  <text
-                    x={pt.x}
-                    y={bottomY}
-                    textAnchor="middle"
-                    fontSize="11"
-                    fontWeight={pt.isToday ? "600" : "500"}
-                    fill={pt.isToday ? "#10AC84" : "#1E2038"}>
-                    {pt.weekday}
-                  </text>
-                  <text
-                    x={pt.x}
-                    y={bottomY + 13}
-                    textAnchor="middle"
-                    fontSize="10"
-                    fontWeight="400"
-                    fill="#94A3B8">
-                    {pt.dateLabel}
-                  </text>
-                </g>
-              );
-            })}
+            {/* X O'qi Sanalari */}
+            {chartPoints.map((pt, i) => (
+              <text
+                key={i}
+                x={pt.x}
+                y={svgHeight - 10}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight={pt.isToday ? "600" : "500"}
+                fill={pt.isToday ? "#6C5CE7" : "#94A3B8"}>
+                {pt.dateLabel}
+              </text>
+            ))}
           </svg>
 
-          {/* Interaktiv Dark Tooltip (Floating Popover) */}
+          {/* Interaktiv Tooltip */}
           {activeTooltip && (
-            <div style={{
-              position: 'absolute',
-              top: Math.max(12, activeTooltip.y - 105),
-              left: Math.min(Math.max(activeTooltip.x - 90, 10), svgWidth - 190),
-              backgroundColor: '#1E2038',
-              borderRadius: 6,
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
-              padding: '10px 14px',
-              color: '#FFFFFF',
-              fontSize: 12,
-              pointerEvents: 'none',
-              zIndex: 20,
-              minWidth: 175,
-            }}>
-              <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 2 }}>
-                {activeTooltip.weekday}, {activeTooltip.dateLabel}
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#FFFFFF', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span>{activeTooltip.percent}%</span>
-                <span style={{ fontSize: 11, fontWeight: 500, color: activeTooltip.diff >= 0 ? '#10AC84' : '#EF4444' }}>
-                  {activeTooltip.diff >= 0 ? `▲ +${activeTooltip.diff}%` : `▼ ${activeTooltip.diff}%`}
+            <div
+              style={{
+                position: 'absolute',
+                left: Math.max(10, Math.min(svgWidth - 210, activeTooltip.x - 100)),
+                top: Math.max(10, activeTooltip.y - 120),
+                width: 200,
+                backgroundColor: '#1E2038',
+                color: '#FFFFFF',
+                borderRadius: 8,
+                padding: '10px 12px',
+                boxShadow: '0 8px 20px -2px rgba(15, 23, 42, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                pointerEvents: 'none',
+                zIndex: 20,
+              }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: '#E2E8F0' }}>
+                  {activeTooltip.fullDate} • {activeTooltip.weekday}
+                </span>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: '#6C5CE7',
+                  backgroundColor: '#FFFFFF',
+                  padding: '1px 5px',
+                  borderRadius: 4
+                }}>
+                  {activeTooltip.percent}%
                 </span>
               </div>
-              <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#CBD5E1', fontSize: 11 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10AC84' }}></span>
-                    Kelganlar:
+                    Darsda bor:
                   </span>
                   <strong style={{ color: '#FFFFFF' }}>{activeTooltip.presentCount} ta</strong>
                 </div>
@@ -3611,7 +3649,7 @@ function AttendanceMatrixSection({
         </div>
       </div>
 
-      {/* 4. IKKITA YONMA-YON ANALITIK BLOK (Reyting & Diqqat Talab O'quvchilar) */}
+      {/* 4. IKKITA YONMA-YON ANALITIK BLOK (Reyting & Diqqat Talab O'quvchilar - Real Baza) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14 }}>
         
         {/* Chap Blok: Sinflar Davomat Reytingi */}
@@ -3637,45 +3675,51 @@ function AttendanceMatrixSection({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {classRankings.slice(0, 4).map((cls, idx) => (
-              <div
-                key={cls.id || idx}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '9px 12px',
-                  borderRadius: 6,
-                  backgroundColor: '#F8F9FE',
-                  border: '1px solid #E2E8F0',
-                }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#8A90A2', width: 14 }}>{idx + 1}</span>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: '#1E2038' }}>
-                      {terms.formatGroupBadge(cls.name)}
-                    </div>
-                    <div style={{ fontSize: 11, color: '#8A90A2' }}>
-                      {cls.studentCount} ta {terms.studentSingularLower}
+            {classRankings.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 20, color: '#8A90A2', fontSize: 13 }}>
+                Guruhlar topilmadi
+              </div>
+            ) : (
+              classRankings.slice(0, 5).map((cls, idx) => (
+                <div
+                  key={cls.id || idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '9px 12px',
+                    borderRadius: 6,
+                    backgroundColor: '#F8F9FE',
+                    border: '1px solid #E2E8F0',
+                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#8A90A2', width: 14 }}>{idx + 1}</span>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: '#1E2038' }}>
+                        {terms.formatGroupBadge(cls.name)}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#8A90A2' }}>
+                        {cls.studentCount} ta {terms.studentSingularLower}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <span style={{
-                    display: 'inline-block',
-                    padding: '2px 8px',
-                    borderRadius: 4,
-                    backgroundColor: cls.attendanceRate >= 95 ? '#E8F8F5' : '#FFF4E5',
-                    color: cls.attendanceRate >= 95 ? '#10AC84' : '#FF9F43',
-                    fontWeight: 600,
-                    fontSize: 12
-                  }}>
-                    {cls.attendanceRate}%
-                  </span>
+                  <div>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      backgroundColor: cls.attendanceRate >= 95 ? '#E8F8F5' : '#FFF4E5',
+                      color: cls.attendanceRate >= 95 ? '#10AC84' : '#FF9F43',
+                      fontWeight: 600,
+                      fontSize: 12
+                    }}>
+                      {cls.attendanceRate}%
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -3699,8 +3743,8 @@ function AttendanceMatrixSection({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {dangerStudents.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 20, color: '#10AC84', fontSize: 13 }}>
-                Barcha o'quvchilar davomati me'yorda
+              <div style={{ textAlign: 'center', padding: 24, color: '#10AC84', fontSize: 13, fontWeight: 500 }}>
+                ✓ Barcha o'quvchilar davomati me'yorda, dars qoldirganlar yo'q
               </div>
             ) : (
               dangerStudents.map((st) => (
@@ -3721,33 +3765,38 @@ function AttendanceMatrixSection({
                       {st.name}
                     </div>
                     <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 500 }}>
-                      {terms.formatGroupBadge(st.class_name)} • {st.nbHours || 6} soat NB
+                      {terms.formatGroupBadge(st.class_name)} • {st.nbHours || 0} soat NB ({st.rate}%)
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <a
-                      href={`tel:${st.phone}`}
-                      title={`Ota-onasiga qo'ng'iroq qilish: ${st.phone}`}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: 4,
-                        backgroundColor: '#FFFFFF',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        color: '#EF4444',
-                        fontWeight: 600,
-                        fontSize: 11.5,
-                        textDecoration: 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4
-                      }}>
-                      <Phone size={12} /> Bog'lanish
-                    </a>
+                    {st.phone && (
+                      <a
+                        href={`tel:${st.phone}`}
+                        title={`Ota-onasiga qo'ng'iroq qilish: ${st.phone}`}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: 4,
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          color: '#EF4444',
+                          fontWeight: 600,
+                          fontSize: 11.5,
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}>
+                        <Phone size={12} /> Bog'lanish
+                      </a>
+                    )}
 
-                    {onSelectStudent && st.original && (
+                    {onSelectStudent && (
                       <button
-                        onClick={() => onSelectStudent(st.original)}
+                        onClick={() => {
+                          const matched = realStudents.find(r => r.id === st.id) || st;
+                          onSelectStudent(matched);
+                        }}
                         style={{
                           padding: '4px 8px',
                           borderRadius: 4,
@@ -3770,7 +3819,7 @@ function AttendanceMatrixSection({
 
       </div>
 
-      {/* 5. HAFTALIK MATRITSA JADVALI (Batafsil Tabel) */}
+      {/* 5. HAFTALIK MATRITSA JADVALI (Batafsil Tabel - Real Baza) */}
       <div className="sa-card" style={{ padding: '18px 20px' }}>
         
         {/* Matritsa sarlavhasi va filtrlash paneli */}
@@ -3784,10 +3833,10 @@ function AttendanceMatrixSection({
         }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: 15, color: '#1E2038' }}>
-              Haftalik {terms.lessonSingular} Matritsasi — Batafsil Tabel
+              Haftalik {terms.lessonSingular} Matritsasi — Real Tabel
             </div>
             <div style={{ fontSize: 12, color: '#8A90A2', marginTop: 2 }}>
-              Har bir {terms.studentSingularLower}ning kunlar va paralar kesimidagi davomati
+              Har bir {terms.studentSingularLower}ning joriy haftadagi darslar va kunlar kesimidagi haqiqiy davomati
             </div>
           </div>
 
@@ -3847,7 +3896,7 @@ function AttendanceMatrixSection({
               }}>
               <option value="ALL">Barcha holatlar</option>
               <option value="EXCELLENT">Namunali (≥90%)</option>
-              <option value="DANGER">Xavf guruhi (&lt;90%)</option>
+              <option value="DANGER">Xavf guruhi (&lt;90% yoki NB)</option>
             </select>
           </div>
         </div>
@@ -3867,15 +3916,19 @@ function AttendanceMatrixSection({
           <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8A90A2' }}>Belgilar:</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10AC84' }}></span>
-            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>1, 2, 3: Darsda bor</span>
+            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>Darsda bor (Bor)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#FF9F43' }}></span>
-            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>Kechikkan</span>
+            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>Kechikkan (Kech)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#EF4444' }}></span>
-            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>NB (Qoldirgan)</span>
+            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>NB (Dars qoldirgan)</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#CBD5E1' }}></span>
+            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#1E2038' }}>— : Qayd mavjud emas / • : Bo'lajak kun</span>
           </div>
         </div>
 
@@ -3885,7 +3938,7 @@ function AttendanceMatrixSection({
             <div style={{ padding: 36, textAlign: 'center', color: '#8A90A2' }}>
               <Users size={32} color="#6C5CE7" style={{ opacity: 0.35, marginBottom: 8 }} />
               <div style={{ fontWeight: 600, fontSize: 14, color: '#1E2038' }}>
-                {realStudents.length === 0 
+                {rawMatrixStudents.length === 0 
                   ? `Ushbu maktab bazasida hozircha ${terms.studentPluralLower} mavjud emas`
                   : `Filtr bo'yicha hech qanday ${terms.studentSingularLower} topilmadi`}
               </div>
@@ -3897,42 +3950,69 @@ function AttendanceMatrixSection({
                   <th style={{ padding: '10px 12px', textAlign: 'left', color: '#8A90A2', fontWeight: 600, width: 240 }}>
                     {terms.studentSingular} & {terms.groupSingular}
                   </th>
-                  {days.map((day, i) => (
-                    <th key={i} style={{ padding: '10px 8px', color: '#1E2038', fontWeight: 600 }}>
-                      <div>{day}</div>
-                      <div style={{ fontSize: 10.5, color: '#8A90A2', fontWeight: 400 }}>
-                        {16 + i} okt
+                  {weekDates.map((wDay, i) => (
+                    <th key={i} style={{ padding: '10px 8px', color: wDay.isToday ? '#6C5CE7' : '#1E2038', fontWeight: 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <span>{wDay.name}</span>
+                        {wDay.isToday && (
+                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, backgroundColor: '#F1F0FF', color: '#6C5CE7', fontWeight: 700 }}>
+                            BUGUN
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: wDay.isToday ? '#6C5CE7' : '#8A90A2', fontWeight: wDay.isToday ? 600 : 400 }}>
+                        {wDay.dateStr}
                       </div>
                     </th>
                   ))}
-                  <th style={{ padding: '10px 8px', color: '#6C5CE7', fontWeight: 600 }}>Oylik %</th>
+                  <th style={{ padding: '10px 8px', color: '#6C5CE7', fontWeight: 600 }}>Davomat %</th>
+                  <th style={{ padding: '10px 8px', color: '#EF4444', fontWeight: 600 }}>NB soat</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.slice(0, 16).map((st, idx) => {
-                  const monthlyRate = 90 + ((st.id || idx) % 8);
+                {filteredStudents.map((st, idx) => {
+                  const rate = typeof st.attendance_rate === 'number' ? st.attendance_rate : 100;
                   return (
                     <tr 
                       key={st.id || idx} 
                       style={{ borderBottom: '1px solid #F1F5F9' }}>
                       <td style={{ padding: '10px 12px', textAlign: 'left' }}>
                         <div 
-                          onClick={() => onSelectStudent && onSelectStudent(st)}
+                          onClick={() => {
+                            if (onSelectStudent) {
+                              const matched = realStudents.find(r => r.id === st.id) || st;
+                              onSelectStudent(matched);
+                            }
+                          }}
                           style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ 
-                            width: 28, 
-                            height: 28, 
-                            borderRadius: 6, 
-                            background: '#F1F0FF', 
-                            color: '#6C5CE7', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center', 
-                            fontWeight: 600, 
-                            fontSize: 11 
-                          }}>
-                            {st.first_name ? st.first_name[0] : 'O'}
-                          </div>
+                          {st.photo_3x4 ? (
+                            <img
+                              src={st.photo_3x4}
+                              alt=""
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 6,
+                                objectFit: 'cover',
+                                border: '1px solid #E2E8F0'
+                              }}
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: 28, 
+                              height: 28, 
+                              borderRadius: 6, 
+                              background: '#F1F0FF', 
+                              color: '#6C5CE7', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              fontWeight: 600, 
+                              fontSize: 11 
+                            }}>
+                              {st.first_name ? st.first_name[0] : 'O'}
+                            </div>
+                          )}
                           <div>
                             <div style={{ fontWeight: 600, color: '#1E2038', fontSize: 13 }}>
                               {st.last_name} {st.first_name}
@@ -3944,50 +4024,117 @@ function AttendanceMatrixSection({
                         </div>
                       </td>
 
-                      {/* 6 Kun uchun 3 parali darsli matritsa bloklari */}
-                      {days.map((d, dIdx) => (
-                        <td key={dIdx} style={{ padding: '8px 4px' }}>
-                          <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
-                            {[1, 2, 3].map((pairNum) => {
-                              const isAttend = (idx + pairNum + dIdx) % 7 === 0 
-                                ? '#FF9F43' 
-                                : (idx + pairNum + dIdx) % 11 === 0 
-                                  ? '#EF4444' 
-                                  : '#10AC84';
-                              return (
-                                <div 
-                                  key={pairNum}
-                                  title={`${pairNum}-${terms.lessonSingularLower}`}
-                                  style={{ 
-                                    width: 16, 
-                                    height: 22, 
-                                    borderRadius: 4, 
-                                    backgroundColor: isAttend, 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'center', 
-                                    color: 'white', 
-                                    fontSize: 9, 
-                                    fontWeight: 600 
+                      {/* 6 Kun uchun real bazadan olingan davomat holatlari */}
+                      {weekDates.map((wDay, dIdx) => {
+                        const dayKey = wDay.name;
+                        const status = st.weekly_days ? st.weekly_days[dayKey] : 'NONE';
+                        return (
+                          <td key={dIdx} style={{ padding: '8px 4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                              {status === 'PRESENT' && (
+                                <span
+                                  title={`${st.first_name}: ${dayKey} kuni darsda bor (turniket/Face ID)`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    padding: '3px 7px',
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    color: '#10AC84',
+                                    backgroundColor: '#E8F8F5',
+                                    border: '1px solid rgba(16, 172, 132, 0.2)'
                                   }}>
-                                  {pairNum}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      ))}
+                                  <Check size={11} strokeWidth={2.5} /> Bor
+                                </span>
+                              )}
+                              {status === 'LATE' && (
+                                <span
+                                  title={`${st.first_name}: ${dayKey} kuni kechikkan`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    padding: '3px 7px',
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    color: '#FF9F43',
+                                    backgroundColor: '#FFF4E5',
+                                    border: '1px solid rgba(255, 159, 67, 0.2)'
+                                  }}>
+                                  <Clock size={11} /> Kech
+                                </span>
+                              )}
+                              {status === 'ABSENT' && (
+                                <span
+                                  title={`${st.first_name}: ${dayKey} kuni dars qoldirgan (NB)`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    padding: '3px 7px',
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    color: '#EF4444',
+                                    backgroundColor: '#FEE2E2',
+                                    border: '1px solid rgba(239, 68, 68, 0.2)'
+                                  }}>
+                                  <X size={11} strokeWidth={2.5} /> NB
+                                </span>
+                              )}
+                              {status === 'UPCOMING' && (
+                                <span
+                                  title={`${dayKey}: Bo'lajak kun`}
+                                  style={{
+                                    color: '#CBD5E1',
+                                    fontSize: 13,
+                                    fontWeight: 700
+                                  }}>
+                                  •
+                                </span>
+                              )}
+                              {status === 'NONE' && (
+                                <span
+                                  title={`${dayKey}: Qayd mavjud emas`}
+                                  style={{
+                                    color: '#CBD5E1',
+                                    fontSize: 13
+                                  }}>
+                                  —
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
 
                       <td style={{ padding: '10px 8px' }}>
                         <span style={{ 
                           padding: '2px 8px', 
                           borderRadius: 4, 
-                          backgroundColor: monthlyRate >= 90 ? '#F1F0FF' : '#FEE2E2', 
-                          color: monthlyRate >= 90 ? '#6C5CE7' : '#EF4444', 
+                          backgroundColor: rate >= 90 ? '#F1F0FF' : '#FEE2E2', 
+                          color: rate >= 90 ? '#6C5CE7' : '#EF4444', 
                           fontWeight: 600, 
                           fontSize: 11.5 
                         }}>
-                          {monthlyRate}%
+                          {rate}%
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '10px 8px' }}>
+                        <span style={{
+                          padding: '2px 7px',
+                          borderRadius: 4,
+                          backgroundColor: (st.nb_hours || 0) > 0 ? '#FEF2F2' : '#F8F9FE',
+                          color: (st.nb_hours || 0) > 0 ? '#EF4444' : '#8A90A2',
+                          fontWeight: 600,
+                          fontSize: 11.5,
+                          border: (st.nb_hours || 0) > 0 ? '1px solid rgba(239, 68, 68, 0.2)' : 'none'
+                        }}>
+                          {st.nb_hours || 0} soat
                         </span>
                       </td>
                     </tr>
@@ -7283,6 +7430,9 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
 
       setShowSimulateModal(false);
       await fetchLogs(true);
+      try {
+        window.dispatchEvent(new CustomEvent('smartschool:attendance-updated', { detail: result }));
+      } catch (_) {}
     } catch (err) {
       alert("Xatolik: " + err.message);
     } finally {
@@ -7404,6 +7554,9 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
     try {
       await fetch(`/api/devices/logs/?school_id=${encodeURIComponent(schoolId)}`, { method: 'DELETE' });
       setLogs([]);
+      try {
+        window.dispatchEvent(new CustomEvent('smartschool:attendance-updated'));
+      } catch (_) {}
       setStats({
         total_today: 0,
         today_entries: 0,
@@ -9825,80 +9978,6 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
             </div>
           </div>
 
-          {/* LIVE PREVIEW CARD: Web + Mobile App */}
-          <div style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 24, color: '#FFFFFF' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#38BDF8', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Smartphone size={15} /> JONLI KO'RINISH PREVYU (WEB DASHBORD VA MOBIL ILOVA)
-              </div>
-              <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34D399', fontWeight: 600 }}>
-                Real-Time Sync
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ padding: 14, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600, marginBottom: 6 }}>MOBIL: {liveTerms.studentSingular.toUpperCase()} PANELI</div>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#FFF' }}>{form.school_name || `Maktab #${schoolId}`}</div>
-                <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 6 }}>
-                  • <b>{liveTerms.groupSingular}:</b> {liveTerms.formatGroup('11-A')}
-                </div>
-                <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 3 }}>
-                  • <b>Bugungi {liveTerms.lessonPlural.toLowerCase()}:</b> 1-{liveTerms.lessonSingular.toLowerCase()}, 2-{liveTerms.lessonSingular.toLowerCase()}
-                </div>
-                <div style={{ fontSize: 11.5, color: '#38BDF8', marginTop: 3 }}>
-                  • <b>Dars vaqti:</b> {form.lesson_duration_minutes || 45} daqiqa ({form.first_lesson_start_time || '08:30'} dan)
-                </div>
-              </div>
-
-              <div style={{ padding: 14, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600, marginBottom: 6 }}>MOBIL: O'QITUVCHI PANELI</div>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#FFF' }}>Mening {liveTerms.groupPlural.toLowerCase()}im</div>
-                <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 6 }}>
-                  • <b>Jurnal:</b> {liveTerms.formatGroup('11-A')} ({liveTerms.studentPlural})
-                </div>
-                <div style={{ fontSize: 11.5, color: '#38BDF8', marginTop: 3 }}>
-                  • <b>Dars vaqti:</b> {form.lesson_duration_minutes || 45} daqiqa / dars
-                </div>
-                <div style={{ fontSize: 11.5, color: '#CBD5E1', marginTop: 3 }}>
-                  • <b>Mas'ul:</b> {liveTerms.groupLeader}
-                </div>
-              </div>
-            </div>
-
-            {/* Geometka Jonli Holati */}
-            <div style={{
-              marginTop: 14,
-              padding: '12px 16px',
-              borderRadius: 6,
-              backgroundColor: form.latitude ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.22)',
-              border: `1.5px solid ${form.latitude ? '#10B981' : '#EF4444'}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 8,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <MapPin size={15} color={form.latitude ? '#34D399' : '#F87171'} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: form.latitude ? '#34D399' : '#FCA5A5' }}>
-                  {form.latitude
-                    ? `Geometka: ${Number(form.latitude).toFixed(5)}, ${Number(form.longitude).toFixed(5)}`
-                    : "Geometka belgilanmagan!"}
-                </span>
-              </div>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 600,
-                padding: '3px 8px',
-                borderRadius: 6,
-                backgroundColor: form.latitude ? '#10B981' : '#EF4444',
-                color: '#FFFFFF'
-              }}>
-                {form.latitude ? `FAOL (${form.radius_meters || 150}m)` : "TO'LDIRISH MAJBURIY"}
-              </span>
-            </div>
-          </div>
         </div>
       </div>
     </form>
