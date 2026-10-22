@@ -119,3 +119,32 @@ html, body, #root {
   background-color: #10AC84;
   animation: pingPulse 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
+
+/* School Dashboard Sidebar Navigation */
+.school-sidebar {
+  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1), padding 0.22s ease;
+  will-change: width;
+}
+
+.school-nav-btn {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.school-nav-btn:hover:not(.active) {
+  background-color: #F8FAFC !important;
+  color: #1E2038 !important;
+}
+
+.school-nav-btn:hover:not(.active) .school-nav-btn-icon {
+  color: #1E2038 !important;
+}
+
+.school-nav-btn.active {
+  background-color: #F1F0FF !important;
+  color: #6C5CE7 !important;
+  border-color: rgba(108, 92, 231, 0.2) !important;
+}
+
+.school-nav-btn.active .school-nav-btn-icon {
+  color: #6C5CE7 !important;
+}

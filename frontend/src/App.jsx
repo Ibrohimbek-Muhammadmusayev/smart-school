@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Building2, Shield, Users, CheckCircle2, AlertTriangle, 
   Search, Plus, RefreshCw, Key, Send, TrendingUp, 
-  BarChart3, Activity, ChevronRight, Filter, Download, 
+  BarChart3, Activity, ChevronRight, ChevronLeft, Filter, Download, 
   ArrowUpRight, ArrowDownRight, School, Bell, Menu, X, 
   Power, Lock, Unlock, Eye, MapPin, Phone, Mail, Award,
   Sliders, Layers, Server, Database, LogOut, UserPlus, BookOpen,
@@ -903,6 +903,17 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
   // Dars jadvali (Schedule) boshqaruvi holatlari
   const [schedulesList, setSchedulesList] = useState([]);
   const [selectedScheduleClassId, setSelectedScheduleClassId] = useState(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('school_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('school_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [showAddLessonModal, setShowAddLessonModal] = useState(false);
   const [editingLessonSchedule, setEditingLessonSchedule] = useState(null);
@@ -1517,49 +1528,258 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', backgroundColor: THEME.bgSoft, overflow: 'hidden' }}>
       
-      {/* SIDEBAR (EASY LEARN PURPLE THEME) */}
-      <aside style={{ width: 260, backgroundColor: '#FFFFFF', borderRight: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', padding: '24px 18px', zIndex: 10 }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22, paddingLeft: 6 }}>
-          <img 
-            src="/idrok_icon.png" 
-            alt="Idrok Edu" 
-            style={{ 
-              width: 44, 
-              height: 44, 
-              borderRadius: 6, 
-              objectFit: 'contain', 
-              boxShadow: 'none', 
-              flexShrink: 0 
-            }} 
-          />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontWeight: 600, fontSize: 15, color: THEME.textDark }}>Idrok Edu</span>
-              <span style={{ fontSize: 9.5, padding: '1px 6px', borderRadius: 6, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 600 }}>CORE</span>
-            </div>
-            <div title={schoolName} style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {schoolName} • #{schoolId}
-            </div>
+      {/* SIDEBAR (ENTERPRISE HIGH-DENSITY NAVIGATION) */}
+      <aside
+        className="school-sidebar"
+        style={{
+          width: isSidebarCollapsed ? 76 : 272,
+          backgroundColor: '#FFFFFF',
+          borderRight: '1px solid #E2E8F0',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: isSidebarCollapsed ? '16px 8px' : '18px 12px',
+          zIndex: 20,
+          flexShrink: 0,
+          overflowX: 'hidden',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+          position: 'relative',
+        }}>
+        {/* Logo & Toggle Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isSidebarCollapsed ? 'center' : 'space-between',
+            paddingBottom: 14,
+            marginBottom: 10,
+            borderBottom: '1px solid #F1F5F9',
+            paddingLeft: isSidebarCollapsed ? 0 : 4,
+            paddingRight: isSidebarCollapsed ? 0 : 4,
+          }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              minWidth: 0,
+              cursor: 'pointer',
+            }}
+            onClick={() => setActiveTab('matrix')}
+            title={schoolName}>
+            <img
+              src="/idrok_icon.png"
+              alt="Idrok Edu"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 8,
+                objectFit: 'contain',
+                flexShrink: 0,
+              }}
+            />
+            {!isSidebarCollapsed && (
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14.5, color: THEME.textDark, letterSpacing: '-0.02em' }}>
+                    Idrok Edu
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 9.5,
+                      padding: '1px 5px',
+                      borderRadius: 4,
+                      backgroundColor: THEME.primaryLight,
+                      color: THEME.primary,
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                    }}>
+                    CORE
+                  </span>
+                </div>
+                <div
+                  title={schoolName}
+                  style={{
+                    fontSize: 11,
+                    color: THEME.textMuted,
+                    fontWeight: 500,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: 155,
+                    marginTop: 1,
+                  }}>
+                  {schoolName} • #{schoolId}
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Collapse / Expand Toggle Button */}
+          <button
+            onClick={toggleSidebarCollapse}
+            title={isSidebarCollapsed ? "Yon panelni kengaytirish" : "Yon panelni ixchamlashtirish"}
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 6,
+              border: '1px solid #E2E8F0',
+              backgroundColor: '#F8FAFC',
+              color: '#64748B',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+              padding: 0,
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = '#EEF2FF';
+              e.currentTarget.style.color = THEME.primary;
+              e.currentTarget.style.borderColor = '#C7D2FE';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = '#F8FAFC';
+              e.currentTarget.style.color = '#64748B';
+              e.currentTarget.style.borderColor = '#E2E8F0';
+            }}>
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
         </div>
 
-        {/* Navigation Menus */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <NavButton active={activeTab === 'matrix'} onClick={() => setActiveTab('matrix')} icon={<LayoutDashboard size={18} />} label={`Bosh Sahifa (${terms.lessonSingular} Matritsasi)`} badge="Asosiy" />
-          <NavButton active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} icon={<Calendar size={18} />} label={`${terms.lessonSingular} Jadvali`} badge={schedulesList.length > 0 ? `${schedulesList.length} ta` : undefined} />
-          <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<FolderOpen size={18} />} label={`${terms.groupPlural} Boshqaruvi`} badge={`${classesList.length} ta`} />
-          <NavButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} icon={<Users size={18} />} label={terms.studentPlural} badge={`${realStudents.length} ta`} />
-          <NavButton active={activeTab === 'teachers'} onClick={() => setActiveTab('teachers')} icon={<GraduationCap size={18} />} label="O'qituvchilar" badge={`${teachersList.length} ta`} />
-          <NavButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<Cpu size={18} />} label="Idrok Vision (Face ID)" badge="Jonli" />
-          <div style={{ margin: '6px 4px', borderTop: `1px dashed ${THEME.border}` }} />
+        {/* Navigation Menus with Sections */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            paddingRight: 2,
+          }}>
+          {/* Section 1: Asosiy Boshqaruv */}
+          {!isSidebarCollapsed ? (
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#94A3B8',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                padding: '8px 10px 4px',
+              }}>
+              Asosiy Boshqaruv
+            </div>
+          ) : (
+            <div style={{ height: 6 }} />
+          )}
+
+          <NavButton
+            active={activeTab === 'matrix'}
+            onClick={() => setActiveTab('matrix')}
+            icon={<LayoutDashboard size={18} />}
+            label="Bosh Sahifa"
+            badge="Asosiy"
+            collapsed={isSidebarCollapsed}
+            title="Bosh Sahifa • Davomat & Analitika"
+          />
+
+          <NavButton
+            active={activeTab === 'schedule'}
+            onClick={() => setActiveTab('schedule')}
+            icon={<Calendar size={18} />}
+            label={`${terms.lessonSingular} Jadvali`}
+            badge={schedulesList.length > 0 ? `${schedulesList.length}` : undefined}
+            collapsed={isSidebarCollapsed}
+            title={`${terms.lessonSingular} Jadvali`}
+          />
+
+          <NavButton
+            active={activeTab === 'groups'}
+            onClick={() => setActiveTab('groups')}
+            icon={<FolderOpen size={18} />}
+            label={`${terms.groupPlural} Boshqaruvi`}
+            badge={classesList.length > 0 ? `${classesList.length}` : undefined}
+            collapsed={isSidebarCollapsed}
+            title={`${terms.groupPlural} Boshqaruvi`}
+          />
+
+          <NavButton
+            active={activeTab === 'students'}
+            onClick={() => setActiveTab('students')}
+            icon={<Users size={18} />}
+            label={terms.studentPlural}
+            badge={realStudents.length > 0 ? `${realStudents.length}` : undefined}
+            collapsed={isSidebarCollapsed}
+            title={`Maktab ${terms.studentPlural}`}
+          />
+
+          <NavButton
+            active={activeTab === 'teachers'}
+            onClick={() => setActiveTab('teachers')}
+            icon={<GraduationCap size={18} />}
+            label="O'qituvchilar"
+            badge={teachersList.length > 0 ? `${teachersList.length}` : undefined}
+            collapsed={isSidebarCollapsed}
+            title="Maktab O'qituvchilari"
+          />
+
+          {/* Section 2: Smart Xizmatlar */}
+          {!isSidebarCollapsed ? (
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#94A3B8',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                padding: '12px 10px 4px',
+              }}>
+              Smart Xizmatlar
+            </div>
+          ) : (
+            <div style={{ margin: '6px 0', borderTop: '1px solid #F1F5F9' }} />
+          )}
+
+          <NavButton
+            active={activeTab === 'attendance'}
+            onClick={() => setActiveTab('attendance')}
+            icon={<Cpu size={18} />}
+            label="Idrok Vision (Face ID)"
+            badge="Jonli"
+            badgeColor="#10AC84"
+            collapsed={isSidebarCollapsed}
+            title="Idrok Vision (Face ID Davomat)"
+          />
+
+          {/* Section 3: Tizim Sozlamalari */}
+          {!isSidebarCollapsed ? (
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#94A3B8',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                padding: '12px 10px 4px',
+              }}>
+              Tizim
+            </div>
+          ) : (
+            <div style={{ margin: '6px 0', borderTop: '1px solid #F1F5F9' }} />
+          )}
+
           <NavButton
             active={activeTab === 'settings'}
             onClick={() => setActiveTab('settings')}
             icon={<Sliders size={18} />}
             label="Maktab Sozlamalari"
-            badge={isLocationMissing ? "Kiritish shart!" : terms.groupSingular}
+            badge={isLocationMissing ? "Diqqat!" : undefined}
             badgeColor={isLocationMissing ? "#EF4444" : undefined}
+            collapsed={isSidebarCollapsed}
+            title="Maktab Sozlamalari"
           />
         </div>
 
@@ -1567,69 +1787,172 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
         {onReturnToSuperAdmin && (
           <button
             onClick={onReturnToSuperAdmin}
+            title="Super Adminga Qaytish"
             style={{
               width: '100%',
-              padding: '12px 14px',
-              marginBottom: 14,
-              borderRadius: 6,
-              border: 'none',
-              background: THEME.warmGradient,
-              color: '#FFFFFF',
+              padding: isSidebarCollapsed ? '9px 0' : '9px 12px',
+              marginBottom: 10,
+              borderRadius: 8,
+              border: '1px solid #FED7AA',
+              background: '#FFF7ED',
+              color: '#C2410C',
               fontWeight: 600,
-              fontSize: 12.5,
+              fontSize: 12,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isSidebarCollapsed ? 'center' : 'center',
+              gap: 8,
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+            }}>
+            <Shield size={15} color="#EA580C" style={{ flexShrink: 0 }} />
+            {!isSidebarCollapsed && <span>Super Adminga Qaytish</span>}
+          </button>
+        )}
+
+        {/* Bottom Profile Tile */}
+        <div
+          style={{
+            marginTop: 'auto',
+            padding: isSidebarCollapsed ? '8px 4px' : '10px 10px',
+            borderRadius: 8,
+            backgroundColor: '#F8FAFC',
+            border: '1px solid #E2E8F0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isSidebarCollapsed ? 'center' : 'space-between',
+            gap: 8,
+            boxSizing: 'border-box',
+          }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minWidth: 0,
+              flex: isSidebarCollapsed ? '0 0 auto' : 1,
+            }}
+            title={currentUser?.isSuperAdminImpersonating ? 'Super Admin' : (schoolConfig?.director_name || currentUser?.name || "Maktab Direktori")}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                background: THEME.gradient,
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: 12,
+                flexShrink: 0,
+              }}>
+              {currentUser?.isSuperAdminImpersonating ? 'SA' : 'DR'}
+            </div>
+            {!isSidebarCollapsed && (
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 12,
+                    color: THEME.textDark,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                  {currentUser?.isSuperAdminImpersonating
+                    ? 'Super Admin'
+                    : (schoolConfig?.director_name || currentUser?.name || "Maktab Direktori")}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    color: '#10AC84',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontWeight: 600,
+                    marginTop: 1,
+                  }}>
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      backgroundColor: '#10AC84',
+                      display: 'inline-block',
+                    }}
+                  />
+                  Maktab #{schoolId}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {!isSidebarCollapsed && (
+            <button
+              onClick={handleLogout}
+              title="Tizimdan chiqish"
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                color: '#64748B',
+                padding: 6,
+                borderRadius: 6,
+                cursor: 'pointer',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = '#EF4444';
+                e.currentTarget.style.borderColor = '#FECACA';
+                e.currentTarget.style.backgroundColor = '#FEF2F2';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = '#64748B';
+                e.currentTarget.style.borderColor = '#E2E8F0';
+                e.currentTarget.style.backgroundColor = '#FFFFFF';
+              }}>
+              <LogOut size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* If collapsed, show logout button underneath */}
+        {isSidebarCollapsed && (
+          <button
+            onClick={handleLogout}
+            title="Tizimdan chiqish"
+            style={{
+              marginTop: 6,
+              width: '100%',
+              background: 'transparent',
+              border: '1px solid transparent',
+              color: '#EF4444',
+              padding: '7px 0',
+              borderRadius: 6,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8,
-              boxShadow: 'none',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = '#FEF2F2';
+              e.currentTarget.style.borderColor = '#FECACA';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = 'transparent';
             }}>
-            <Shield size={16} /> Super Adminga Qaytish
-          </button>
-        )}
-
-        {/* Bottom Profile (BENTO MINI-TILE) */}
-        <div style={{
-          marginTop: 'auto',
-          padding: '12px 14px',
-          borderRadius: 6,
-          backgroundColor: '#FAF9FE',
-          border: '1px solid #E2E8F0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: THEME.gradient,
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 600,
-              fontSize: 13,
-              boxShadow: 'none',
-              flexShrink: 0
-            }}>
-              {currentUser?.isSuperAdminImpersonating ? 'SA' : 'DR'}
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 12.5, color: THEME.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {currentUser?.isSuperAdminImpersonating ? 'Super Admin' : (schoolConfig?.director_name || currentUser?.name || "Maktab Direktori")}
-              </div>
-              <div style={{ fontSize: 10.5, color: THEME.green, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: THEME.green }}></span> Maktab #{schoolId}
-              </div>
-            </div>
-          </div>
-          <button onClick={handleLogout} title="Chiqish" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#EF4444', padding: 8, borderRadius: 10, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <LogOut size={15} />
           </button>
-        </div>
+        )}
       </aside>
 
       {/* MAIN CONTENT AREA */}
@@ -9489,51 +9812,118 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
 // =========================================================================
 // YORDAMCHI KOMPONENTLAR (UI BUTTONS, MODALS, CARDS)
 // =========================================================================
-function NavButton({ active, onClick, icon, label, badge, badgeColor }) {
+function NavButton({ active, onClick, icon, label, badge, badgeColor, collapsed = false, title }) {
   return (
     <button
       onClick={onClick}
+      title={title || (collapsed ? label : undefined)}
+      className={`school-nav-btn ${active ? 'active' : ''}`}
       style={{
         width: '100%',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '11px 14px',
-        borderRadius: 6,
-        border: active ? `1px solid rgba(108, 92, 231, 0.18)` : '1px solid transparent',
-        background: active ? THEME.primaryLight : 'transparent',
-        color: active ? THEME.primary : THEME.textDark,
-        fontWeight: active ? 800 : 600,
+        justifyContent: collapsed ? 'center' : 'space-between',
+        padding: collapsed ? '9px 0' : '9px 12px',
+        borderRadius: 8,
+        border: active ? '1px solid rgba(108, 92, 231, 0.22)' : '1px solid transparent',
+        background: active ? '#F1F0FF' : 'transparent',
+        color: active ? '#6C5CE7' : '#334155',
+        fontWeight: active ? 600 : 500,
         fontSize: 13,
         cursor: 'pointer',
         transition: 'all 0.15s ease',
-      }}
-      onMouseEnter={e => {
-        if (!active) {
-          e.currentTarget.style.backgroundColor = '#F8FAFC';
-        }
-      }}
-      onMouseLeave={e => {
-        if (!active) {
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }
+        position: 'relative',
+        boxSizing: 'border-box',
+        minHeight: 40,
+        outline: 'none',
       }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {icon}
-        <span>{label}</span>
-      </div>
-      {badge && (
-        <span style={{ 
-          padding: '2px 8px', 
-          borderRadius: 8, 
-          backgroundColor: badgeColor || (active ? THEME.primary : '#F1F5F9'), 
-          color: badgeColor ? '#FFFFFF' : (active ? '#FFFFFF' : THEME.textMuted), 
-          fontSize: 11, 
-          fontWeight: 600,
-          boxShadow: badgeColor ? '0 2px 8px rgba(239, 68, 68, 0.35)' : 'none'
+      {/* Active Accent Bar on Left (when expanded) */}
+      {active && !collapsed && (
+        <span
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 7,
+            bottom: 7,
+            width: 3.5,
+            borderRadius: '0 4px 4px 0',
+            backgroundColor: '#6C5CE7',
+          }}
+        />
+      )}
+
+      {/* Main Content: Icon + Label */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          minWidth: 0,
+          flex: collapsed ? '0 0 auto' : 1,
+          justifyContent: collapsed ? 'center' : 'flex-start',
         }}>
-          {badge}
+        <span
+          className="school-nav-btn-icon"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            color: active ? '#6C5CE7' : '#64748B',
+          }}>
+          {icon}
         </span>
+
+        {!collapsed && (
+          <span
+            style={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              fontSize: 13,
+              letterSpacing: '-0.01em',
+              color: active ? '#6C5CE7' : '#334155',
+              minWidth: 0,
+            }}>
+            {label}
+          </span>
+        )}
+      </div>
+
+      {/* Badge Handling */}
+      {badge && (
+        collapsed ? (
+          <span
+            style={{
+              position: 'absolute',
+              top: 7,
+              right: 12,
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              backgroundColor: badgeColor || (active ? '#6C5CE7' : '#EF4444'),
+              boxShadow: '0 0 0 2px #FFFFFF',
+            }}
+          />
+        ) : (
+          <span
+            style={{
+              flexShrink: 0,
+              padding: '2px 7px',
+              borderRadius: 6,
+              backgroundColor: badgeColor || (active ? '#6C5CE7' : '#F1F5F9'),
+              color: badgeColor ? '#FFFFFF' : (active ? '#FFFFFF' : '#475569'),
+              fontSize: 11,
+              fontWeight: 600,
+              lineHeight: 1.25,
+              whiteSpace: 'nowrap',
+              marginLeft: 8,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {badge}
+          </span>
+        )
       )}
     </button>
   );
