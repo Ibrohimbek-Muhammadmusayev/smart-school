@@ -19,6 +19,26 @@ import { MaintenanceScreen, SchoolSuspendedScreen, TeacherSuspendedScreen } from
 import SchoolHelpSupportSection from './components/SchoolHelpSupportSection';
 
 // Easy Learn Palette Constants
+// Helper to safely get cached global system branding across components
+function getCachedSystemBranding() {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('smart_school_system_config') : null;
+    if (raw) {
+      const cfg = JSON.parse(raw);
+      return {
+        projectName: cfg.project_name || "Idrok Edu",
+        projectBadge: cfg.project_badge || "CORE",
+        projectSlogan: cfg.project_slogan || "Aqlli Ta'lim va Biometrik Davomat Platformasi",
+      };
+    }
+  } catch (_) {}
+  return {
+    projectName: "Idrok Edu",
+    projectBadge: "CORE",
+    projectSlogan: "Aqlli Ta'lim va Biometrik Davomat Platformasi",
+  };
+}
+
 const THEME = {
   primary: '#6C5CE7',
   primaryDark: '#5845D8',
@@ -275,7 +295,12 @@ function generateLessonSlots(cfg, totalSlots = 7, shift = 1) {
 // =========================================================================
 // RASMIY ENTERPRISE YUKLANISH VA AUTENTIFIKATSIYA MODULLARI (OFFICIAL LOADERS)
 // =========================================================================
-function AppInitialLoader() {
+function AppInitialLoader({ systemConfig }) {
+  const brand = systemConfig ? {
+    projectName: systemConfig.project_name || "Idrok Edu",
+    projectSlogan: systemConfig.project_slogan || "Yagona Ta'lim va Davomat Boshqaruv Ekotizimi"
+  } : getCachedSystemBranding();
+
   return (
     <div
       style={{
@@ -339,7 +364,7 @@ function AppInitialLoader() {
             margin: '0 0 6px 0',
             letterSpacing: '-0.02em',
           }}>
-          Idrok Edu
+          {brand.projectName}
         </h2>
         <p
           style={{
@@ -349,7 +374,7 @@ function AppInitialLoader() {
             fontWeight: 500,
             lineHeight: 1.4,
           }}>
-          Yagona Ta'lim va Davomat Boshqaruv Ekotizimi
+          {brand.projectSlogan}
         </p>
 
         {/* Progress bar */}
@@ -572,6 +597,8 @@ export default function App() {
               director: cfg.director_name || s.director,
               district: cfg.district || s.district,
               phone: cfg.phone || s.phone,
+              username: cfg.admin_username || cfg.username || s.username || `maktab${s.id}`,
+              password: cfg.admin_password || cfg.password || s.password || 'school123',
               institutionType: cfg.institution_type || s.institutionType || '',
               academicYear: cfg.academic_year || s.academicYear || '2026-2027',
               groupTerm: cfg.group_term || s.groupTerm || 'SINF',
@@ -639,6 +666,9 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setSystemMaintenance(data);
+        try {
+          localStorage.setItem('smart_school_system_config', JSON.stringify(data));
+        } catch (_) {}
       }
     } catch (_) {
     } finally {
@@ -646,11 +676,21 @@ export default function App() {
     }
   };
 
+  const globalProjectName = systemMaintenance?.project_name || "Idrok Edu";
+  const globalProjectBadge = systemMaintenance?.project_badge || "CORE";
+  const globalProjectSlogan = systemMaintenance?.project_slogan || "Aqlli Ta'lim va Biometrik Davomat Platformasi";
+
   useEffect(() => {
     fetchSystemMaintenance();
     const interval = setInterval(fetchSystemMaintenance, 12000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (globalProjectName) {
+      document.title = `${globalProjectName} — ${globalProjectSlogan || "Yagona Ta'lim Ekotizimi"}`;
+    }
+  }, [globalProjectName, globalProjectSlogan]);
 
   const saveSession = (user) => {
     const sessionData = {
@@ -727,7 +767,7 @@ export default function App() {
   }
 
   if (appInitializing) {
-    return <AppInitialLoader />;
+    return <AppInitialLoader systemConfig={systemMaintenance} />;
   }
 
   if (authTransitionUser) {
@@ -783,6 +823,8 @@ export default function App() {
         handleLogout={handleLogout}
         globalAnnouncement={globalAnnouncement}
         onUpdateAnnouncement={handleUpdateAnnouncement}
+        systemConfigProp={systemMaintenance}
+        onSystemConfigUpdated={fetchSystemMaintenance}
       />
     );
   }
@@ -1906,7 +1948,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14.5, color: THEME.textDark, letterSpacing: '-0.02em' }}>
-                    Idrok Edu
+                    {getCachedSystemBranding().projectName}
                   </span>
                   <span
                     style={{
@@ -1918,7 +1960,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
                       fontWeight: 700,
                       letterSpacing: '0.04em',
                     }}>
-                    CORE
+                    {getCachedSystemBranding().projectBadge}
                   </span>
                 </div>
                 <div
@@ -2702,6 +2744,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               terms={terms}
               actorLabel={actorLabel}
               onSaveConfig={handleSaveSchoolConfig}
+              systemConfig={systemMaintenance}
             />
           )}
 
@@ -2713,6 +2756,7 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
               schoolConfig={schoolConfig}
               currentUser={currentUser}
               actorLabel={actorLabel}
+              systemConfig={systemMaintenance}
             />
           )}
             </div>
@@ -9086,7 +9130,7 @@ function AttendanceAuditSection({ realStudents = [], schoolName, schoolId = '1',
 // =========================================================================
 // 8.B MAKTAB SOZLAMALARI / NASTROYKA BO'LIMI (SCHOOL-WIDE CONFIGURATION)
 // =========================================================================
-function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSaveConfig }) {
+function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSaveConfig, systemConfig }) {
   const [form, setForm] = useState({
     school_name: schoolConfig?.school_name || '',
     institution_type: schoolConfig?.institution_type || 'MAKTAB',
@@ -9539,24 +9583,7 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
               Mobil ilovada QR-kod yangilanish tezligi va {liveTerms.lessonSingular.toLowerCase()}ga kechikish me'yorlari
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-              <div style={{ padding: 14, borderRadius: 6, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, display: 'block' }}>
-                  QR YANGILANISH VAQTI
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                  <input
-                    type="number"
-                    min={5}
-                    max={60}
-                    value={form.qr_refresh_seconds}
-                    onChange={e => setForm({ ...form, qr_refresh_seconds: Number(e.target.value) || 15 })}
-                    style={{ width: 70, padding: '8px 10px', borderRadius: 10, border: '1px solid #CBD5E1', fontWeight: 600, fontSize: 14 }}
-                  />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>soniya</span>
-                </div>
-              </div>
-
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
               <div style={{ padding: 14, borderRadius: 6, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                 <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, display: 'block' }}>
                   KECHIKISH ME'YORI
@@ -9585,6 +9612,34 @@ function SchoolSettingsSection({ schoolId, schoolConfig, terms, actorLabel, onSa
                   <option value="5-BALLIK">5 ballik tizim (2–5)</option>
                   <option value="100-FOIZLIK">100 ballik reyting</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Markaziy QR Davomat Xavfsizligi Ma'lumoti */}
+            <div style={{
+              marginTop: 14,
+              padding: '12px 16px',
+              borderRadius: 8,
+              backgroundColor: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                backgroundColor: '#DCFCE7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <QrCode size={19} color="#16A34A" />
+              </div>
+              <div style={{ flex: 1, fontSize: 12.5, color: '#166534', lineHeight: 1.45 }}>
+                <b>Markaziy QR Davomat Xavfsizligi:</b> QR-kodning mobil ilovada dinamik yangilanish vaqti xavfsizlik talablariga asosan <b>Super Administrator</b> tomonidan markaziy boshqariladi: hozirda butun tizim bo'yicha har <b>{systemConfig?.qr_refresh_seconds || 15} soniyada</b> yangilanadi.
               </div>
             </div>
 
@@ -10192,7 +10247,7 @@ function TeacherDashboardView({ currentUser, handleLogout }) {
             }} 
           />
           <div>
-            <div style={{ fontWeight: 600, fontSize: 16, color: THEME.textDark }}>Idrok Edu • Ustoz</div>
+            <div style={{ fontWeight: 600, fontSize: 16, color: THEME.textDark }}>{getCachedSystemBranding().projectName} • Ustoz</div>
             <div style={{ fontSize: 11, color: THEME.textMuted }}>{displaySchoolName}</div>
           </div>
         </div>

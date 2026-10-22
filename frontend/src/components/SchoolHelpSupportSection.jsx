@@ -59,7 +59,13 @@ const INITIAL_FAQS = [
   }
 ];
 
-export default function SchoolHelpSupportSection({ schoolId, schoolName, schoolConfig, currentUser, actorLabel }) {
+export default function SchoolHelpSupportSection({ schoolId, schoolName, schoolConfig, currentUser, actorLabel, systemConfig }) {
+  const supportPhone = systemConfig?.support_phone || "+998 (71) 200-00-55";
+  const supportTelegram = systemConfig?.support_telegram || "@idrok_support_bot";
+  const supportEmail = systemConfig?.support_email || "support@idrok-edu.uz";
+  const supportHours = systemConfig?.support_hours || "Har kuni 08:00 – 20:00";
+  const cleanTgUser = supportTelegram.replace('@', '');
+  const supportTelegramLink = `https://t.me/${cleanTgUser}`;
   const [tickets, setTickets] = useState(() => {
     try {
       const saved = localStorage.getItem(`smart_school_tickets_${schoolId}`);
@@ -211,12 +217,12 @@ export default function SchoolHelpSupportSection({ schoolId, schoolName, schoolC
             </div>
             <div>
               <div style={{ fontSize: 11, color: '#CBD5E1', fontWeight: 600 }}>Tezkor Call-markaz</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.02em' }}>+998 (71) 200-00-55</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.02em' }}>{supportPhone}</div>
             </div>
           </div>
 
           <a
-            href="https://t.me/idrok_support_bot"
+            href={supportTelegramLink}
             target="_blank"
             rel="noreferrer"
             style={{
@@ -233,7 +239,7 @@ export default function SchoolHelpSupportSection({ schoolId, schoolName, schoolC
               boxShadow: '0 4px 12px rgba(56, 189, 248, 0.3)',
               transition: 'transform 0.15s ease'
             }}>
-            <MessageSquare size={16} /> Telegram Yordam Boti
+            <MessageSquare size={16} /> Telegram Yordam ({supportTelegram})
           </a>
         </div>
       </div>
@@ -498,31 +504,31 @@ export default function SchoolHelpSupportSection({ schoolId, schoolName, schoolC
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 600 }}>Asosiy Call-markaz (Bepul)</div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: THEME.textDark }}>+998 (71) 200-00-55</div>
-                  <div style={{ fontSize: 10.5, color: '#10AC84', fontWeight: 600 }}>Har kuni 08:00 – 20:00</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: THEME.textDark }}>{supportPhone}</div>
+                  <div style={{ fontSize: 10.5, color: '#10AC84', fontWeight: 600 }}>{supportHours}</div>
                 </div>
               </div>
 
-              <div style={{ padding: 12, borderRadius: 8, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <a href={supportTelegramLink} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit', padding: 12, borderRadius: 8, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <MessageSquare size={16} color="#10AC84" />
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 600 }}>Telegram Qo'llab-quvvatlash</div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: THEME.textDark }}>@idrok_support_bot</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: THEME.primary }}>{supportTelegram}</div>
                   <div style={{ fontSize: 10.5, color: THEME.textMuted }}>O'rtacha javob vaqti: 5 daqiqa</div>
                 </div>
-              </div>
+              </a>
 
-              <div style={{ padding: 12, borderRadius: 8, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <a href={`mailto:${supportEmail}`} style={{ textDecoration: 'none', color: 'inherit', padding: 12, borderRadius: 8, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Mail size={16} color="#3B82F6" />
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 600 }}>Elektron Pochta</div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: THEME.textDark }}>support@idrok-edu.uz</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: THEME.primary }}>{supportEmail}</div>
                 </div>
-              </div>
+              </a>
             </div>
           </div>
 

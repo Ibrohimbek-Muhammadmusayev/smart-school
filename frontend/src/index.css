@@ -164,3 +164,74 @@ html, body, #root {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.05); opacity: 0.85; }
 }
+
+
+/* =========================================================================
+   RESPONSIVE DESIGN SYSTEM — MOBILE & TABLET ADAPTATION
+   ========================================================================= */
+
+@media (max-width: 1024px) {
+  .sa-tab-content {
+    padding: 14px 12px 84px 12px !important;
+    gap: 16px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Prevent horizontal overflow on mobile viewports */
+  body, html, #root {
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+
+  /* Table responsive scrolling */
+  table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Compact button styling on mobile */
+  .sa-btn {
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+  }
+
+  /* Modal boxes full width on mobile */
+  .sa-modal-box {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 20px 14px !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+    border-radius: 12px !important;
+    margin: 8px !important;
+  }
+
+  /* Responsive card adjustments */
+  .sa-card {
+    padding: 14px !important;
+  }
+
+  /* Touch optimization */
+  button, select, input, a {
+    touch-action: manipulation;
+  }
+
+  /* Safe area padding and touch optimization */
+  body, html, #root {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@media (max-width: 640px) {
+  .sa-tab-content {
+    padding: 10px 8px 84px 8px !important;
+  }
+  .sa-modal-box {
+    width: 98vw !important;
+    max-width: 98vw !important;
+    padding: 18px 12px !important;
+  }
+}

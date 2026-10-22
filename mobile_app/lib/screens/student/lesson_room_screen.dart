@@ -21,7 +21,7 @@ class _LessonRoomScreenState extends State<LessonRoomScreen> {
 
   // Dinamik QR holati
   String? _qrToken;
-  int _secondsLeft = 20;
+  int _secondsLeft = 15;
   Timer? _qrTimer;
   Timer? _refreshPollTimer;
 
@@ -93,7 +93,7 @@ class _LessonRoomScreenState extends State<LessonRoomScreen> {
       if (mounted) {
         setState(() {
           _qrToken = res['qr_token'];
-          _secondsLeft = 20;
+          _secondsLeft = (res['expires_in_seconds'] as num?)?.toInt() ?? 15;
         });
       }
     } catch (_) {}

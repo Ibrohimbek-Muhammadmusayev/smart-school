@@ -267,6 +267,85 @@ class ApiService {
     return jsonDecode(utf8.decode(response.bodyBytes));
   }
 
+  // 2.0 O'qituvchi bosh sahifasi (Bugungi darslar, real davomat, statistika, haftalik jadval, sinflar)
+  static Future<Map<String, dynamic>?> getTeacherDashboardSummary() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/teacher/dashboard-summary/'), headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data is Map<String, dynamic>) {
+          if (data['school_config'] != null) {
+            schoolConfig = Map<String, dynamic>.from(data['school_config']);
+          }
+          if (data['teacher'] != null && data['teacher'] is Map) {
+            currentUser ??= {};
+            final tMap = Map<String, dynamic>.from(data['teacher']);
+            tMap.forEach((k, v) {
+              if (v != null) currentUser![k] = v;
+            });
+          }
+          return data;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // 2.1 Sinf/Guruh Jurnali (O'quvchilar ro'yxati, kunlik/oylik davomat, o'rtacha baho)
+  static Future<Map<String, dynamic>?> getTeacherClassJournal({int? classId}) async {
+    try {
+      final url = classId != null 
+          ? '$baseUrl/teacher/class-journal/?class_id=$classId' 
+          : '$baseUrl/teacher/class-journal/';
+      final response = await http.get(Uri.parse(url), headers: headers);
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // 2.2 Barcha o'quvchilarni bir bosishda davomatdan o'tkazish
+  static Future<Map<String, dynamic>> bulkMarkAttendance({
+    required int lessonId,
+    List<int>? studentIds,
+    bool allPresent = true,
+  }) async {
+    final body = <String, dynamic>{
+      'lesson_id': lessonId,
+      'all_present': allPresent,
+    };
+    if (studentIds != null) {
+      body['student_ids'] = studentIds;
+    }
+    final response = await http.post(
+      Uri.parse('$baseUrl/attendance/bulk-mark/'),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+    return jsonDecode(utf8.decode(response.bodyBytes));
+  }
+
+  // 2.3 Dars mavzusi va uyga vazifani yangilash
+  static Future<Map<String, dynamic>> updateLessonContent({
+    required int lessonId,
+    String? topic,
+    String? homeworkDescription,
+    String? materialsUrl,
+  }) async {
+    final body = <String, dynamic>{};
+    if (topic != null) body['topic'] = topic;
+    if (homeworkDescription != null) body['homework_description'] = homeworkDescription;
+    if (materialsUrl != null) body['materials_url'] = materialsUrl;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/lessons/$lessonId/update-content/'),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+    return jsonDecode(utf8.decode(response.bodyBytes));
+  }
+
   // 2.4 QR skanerlash / qo'lda davomat belgilash
   static Future<Map<String, dynamic>> scanAttendance({
     required int lessonId,

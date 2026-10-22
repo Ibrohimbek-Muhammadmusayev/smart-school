@@ -42,14 +42,42 @@ class User(AbstractUser):
 
 
 class SystemConfig(models.Model):
+    # Global loyiha nomi va brending sozlamalari
+    project_name = models.CharField(max_length=150, default="Idrok Edu")
+    project_badge = models.CharField(max_length=50, default="CORE")
+    project_slogan = models.CharField(max_length=255, default="Aqlli Ta'lim va Biometrik Davomat Platformasi")
+
+    # Global xavfsizlik va davomat sozlamalari
+    qr_refresh_seconds = models.IntegerField(default=15)
+    face_id_min_confidence = models.IntegerField(default=90)
+    default_gps_radius = models.IntegerField(default=150)
+    session_timeout_minutes = models.IntegerField(default=60)
+
+    # Global yordam va aloqa markazi ma'lumotlari
+    support_phone = models.CharField(max_length=50, blank=True, default="+998 71 200-00-00")
+    support_telegram = models.CharField(max_length=100, blank=True, default="@idrok_support_bot")
+    support_email = models.CharField(max_length=100, blank=True, default="support@smart-school.uz")
+    support_hours = models.CharField(max_length=150, blank=True, default="Dushanba – Shanba, 08:00 – 20:00")
+
+    # Global SMS integratsiya sozlamalari
+    sms_provider = models.CharField(max_length=100, blank=True, default="Eskiz.uz Official Gateway")
+    sms_token = models.CharField(max_length=255, blank=True, default="")
+    sms_template = models.TextField(blank=True, default="Hurmatli ota-ona! Farzandingiz {student_name} bugun darsga kelmadi.")
+
+    # Mobil ilova versiya nazorati
+    android_min_version = models.CharField(max_length=50, blank=True, default="2.4.1")
+    ios_min_version = models.CharField(max_length=50, blank=True, default="2.4.0")
+    force_update = models.BooleanField(default=True)
+
+    # Texnik ishlar (Maintenance mode)
     is_maintenance_mode = models.BooleanField(default=False)
     maintenance_title = models.CharField(max_length=255, default="Tizimda profilaktika ishlari olib borilmoqda")
     maintenance_message = models.TextField(
         default="Tizim serverlarida rejali modernizatsiya va texnik sozlash ishlari amalga oshirilmoqda. Tez orada barcha xizmatlar to'liq tiklanadi."
     )
     estimated_end_time = models.CharField(max_length=100, blank=True, default="14:00")
-    support_phone = models.CharField(max_length=50, blank=True, default="+998 71 200-00-00")
-    support_email = models.CharField(max_length=100, blank=True, default="support@smart-school.uz")
+
+    # Tashqi AI va Telegram integratsiyalari
     telegram_bot_token = models.CharField(max_length=255, blank=True, default="")
     telegram_admin_id = models.CharField(max_length=255, blank=True, default="")
     gemini_api_key = models.CharField(max_length=255, blank=True, default="")
@@ -64,12 +92,27 @@ class SystemConfig(models.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'project_name': self.project_name or "Idrok Edu",
+            'project_badge': self.project_badge or "CORE",
+            'project_slogan': self.project_slogan or "Aqlli Ta'lim va Biometrik Davomat Platformasi",
+            'qr_refresh_seconds': int(self.qr_refresh_seconds or 15),
+            'face_id_min_confidence': int(self.face_id_min_confidence or 90),
+            'default_gps_radius': int(self.default_gps_radius or 150),
+            'session_timeout_minutes': int(self.session_timeout_minutes or 60),
             'is_maintenance_mode': bool(self.is_maintenance_mode),
             'maintenance_title': self.maintenance_title,
             'maintenance_message': self.maintenance_message,
             'estimated_end_time': self.estimated_end_time or "Tez orada",
             'support_phone': self.support_phone or "+998 71 200-00-00",
+            'support_telegram': self.support_telegram or "@idrok_support_bot",
             'support_email': self.support_email or "support@smart-school.uz",
+            'support_hours': self.support_hours or "Dushanba – Shanba, 08:00 – 20:00",
+            'sms_provider': self.sms_provider or "Eskiz.uz Official Gateway",
+            'sms_token': self.sms_token or "",
+            'sms_template': self.sms_template or "Hurmatli ota-ona! Farzandingiz {student_name} bugun darsga kelmadi.",
+            'android_min_version': self.android_min_version or "2.4.1",
+            'ios_min_version': self.ios_min_version or "2.4.0",
+            'force_update': bool(self.force_update),
             'telegram_bot_token': self.telegram_bot_token or "",
             'telegram_admin_id': self.telegram_admin_id or "",
             'gemini_api_key': self.gemini_api_key or "",
@@ -574,7 +617,9 @@ class DynamicQRToken(models.Model):
     @classmethod
     def generate_for_student(cls, student):
         token = secrets.token_urlsafe(24)
-        expires = timezone.now() + timezone.timedelta(seconds=25)
+        sys_cfg = SystemConfig.get_solo()
+        qr_sec = max(5, min(300, int(sys_cfg.qr_refresh_seconds or 15)))
+        expires = timezone.now() + timezone.timedelta(seconds=qr_sec + 5)
         # Old tokens can be cleared
         cls.objects.filter(student=student).delete()
         return cls.objects.create(student=student, token=token, expires_at=expires)

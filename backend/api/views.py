@@ -4375,6 +4375,7 @@ class SuperAdminOverviewStatsView(views.APIView):
                 'debt_raw': debt_val,
                 'debt': f"{debt_val:,} so‘m".replace(',', ' '),
             },
+            'schools': schools,
             'schools_list': schools,
             'regions_list': regions_list,
             'time_series_data': time_series,

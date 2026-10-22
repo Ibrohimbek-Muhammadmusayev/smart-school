@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  HardDrive, Wifi,
+  LayoutDashboard, HardDrive, Wifi,
   Building2, Shield, Users, CheckCircle2, AlertTriangle,
   Search, Plus, RefreshCw, Key, Send, TrendingUp,
   BarChart3, Activity, ChevronRight, Filter, Download,
@@ -1015,6 +1015,7 @@ export default function SuperAdminDashboardView({
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1024);
   const [isSmallScreen, setIsSmallScreen] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSchoolTab, setMobileSchoolTab] = useState('details');
 
   useEffect(() => {
     const handleResize = () => {
@@ -1116,51 +1117,160 @@ export default function SuperAdminDashboardView({
             </button>
           </div>
         )}
-        {/* Brand */}
+        {/* Brand Card — Enterprise Master Platform */}
         <div
+          onClick={() => setSuperTab('overview')}
+          title="Boshqaruv markaziga o'tish"
           style={{
-            padding: '12px 14px',
+            padding: '13px 14px',
             marginBottom: 16,
-            background: '#F8FAFC',
-            borderRadius: 8,
+            background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)',
+            borderRadius: 12,
             border: '1px solid #E2E8F0',
-          }}>
-          <img
-            src="/idrok_superadmin_logo.png"
-            alt="Idrok Super Admin"
-            style={{
-              height: 38,
-              width: 'auto',
-              maxWidth: '100%',
-              objectFit: 'contain',
-              display: 'block',
-              margin: '0 auto',
-            }}
-          />
-          <div
-            style={{
-              fontSize: 11,
-              color: THEME.primary,
-              fontWeight: 600,
+            boxShadow: '0 2px 8px -2px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03)',
+            cursor: 'pointer',
+            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = '#C7D2FE';
+            e.currentTarget.style.boxShadow = '0 6px 18px -4px rgba(108, 92, 231, 0.14)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = '#E2E8F0';
+            e.currentTarget.style.boxShadow = '0 2px 8px -2px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          {/* Yuqori nafis rangli aksent chiziq */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            background: 'linear-gradient(90deg, #6C5CE7 0%, #10AC84 50%, #48DBFB 100%)',
+          }} />
+
+          {/* Logo va Platforma Nomi */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+            <div style={{
+              position: 'relative',
+              width: 42,
+              height: 42,
+              borderRadius: 10,
+              backgroundColor: '#F1F0FF',
+              border: '1px solid rgba(108, 92, 231, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6,
-              paddingTop: 8,
-              marginTop: 6,
-              borderTop: '1px dashed #E2E8F0',
+              flexShrink: 0,
+              boxShadow: '0 4px 10px rgba(108, 92, 231, 0.15)',
             }}>
-            <span
-              style={{
-                width: 6,
-                height: 6,
+              <img
+                src="/idrok_icon.png"
+                alt="Logo"
+                style={{
+                  width: 30,
+                  height: 30,
+                  objectFit: 'contain',
+                }}
+              />
+              <span style={{
+                position: 'absolute',
+                bottom: -2,
+                right: -2,
+                width: 10,
+                height: 10,
                 borderRadius: '50%',
                 backgroundColor: '#10AC84',
+                border: '2px solid #FFFFFF',
+                boxShadow: '0 0 4px rgba(16, 172, 132, 0.6)',
+              }} />
+            </div>
+
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                <span style={{
+                  fontWeight: 800,
+                  fontSize: 14.5,
+                  color: '#0F172A',
+                  letterSpacing: '-0.02em',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {systemConfig.projectName || "Idrok Edu"}
+                </span>
+                <span style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  padding: '2px 6px',
+                  borderRadius: 5,
+                  background: 'linear-gradient(135deg, #6C5CE7 0%, #4F46E5 100%)',
+                  color: '#FFFFFF',
+                  flexShrink: 0,
+                  boxShadow: '0 2px 4px rgba(108, 92, 231, 0.25)',
+                }}>
+                  SUPER
+                </span>
+              </div>
+              <div style={{
+                fontSize: 11,
+                color: '#64748B',
+                fontWeight: 600,
+                letterSpacing: '-0.01em',
+                marginTop: 1,
+              }}>
+                Bosh Boshqarma Markazi
+              </div>
+            </div>
+          </div>
+
+          {/* Pastki Tizim Holati Paneli */}
+          <div style={{
+            marginTop: 10,
+            paddingTop: 8,
+            borderTop: '1px solid #F1F5F9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 11,
+          }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              color: '#334155',
+              fontWeight: 600,
+            }}>
+              <span style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                backgroundColor: '#10AC84',
+                boxShadow: '0 0 0 2px rgba(16, 172, 132, 0.2)',
                 display: 'inline-block',
                 flexShrink: 0,
-              }}
-            />
-            <span>{systemConfig.projectName || "Idrok Edu"} Core Boshqaruvi</span>
+              }} />
+              <span>{systemConfig.projectBadge || "CORE"} Boshqaruvi</span>
+            </div>
+            
+            <span style={{
+              fontSize: 9.5,
+              fontWeight: 800,
+              padding: '1.5px 6px',
+              borderRadius: 4,
+              backgroundColor: '#ECFDF5',
+              color: '#059669',
+              border: '1px solid #A7F3D0',
+              letterSpacing: '0.03em',
+            }}>
+              ONLINE
+            </span>
           </div>
         </div>
 
@@ -1516,7 +1626,7 @@ export default function SuperAdminDashboardView({
         {/* =============================================================== */}
         {/* SAHIFA KONTENTI (HAR BIR TAB ALMASHGANDA YUMSHOQ ANIMATSIYA)     */}
         {/* =============================================================== */}
-        <div key={superTab} className="sa-tab-content" style={{ padding: isMobile ? '14px 12px' : '24px 30px', flex: 1, display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 22, overflowX: 'hidden' }}>
+        <div key={superTab} className="sa-tab-content" style={{ padding: isMobile ? '12px 10px 84px 10px' : '24px 30px', flex: 1, display: 'flex', flexDirection: 'column', gap: isMobile ? 14 : 22, overflowX: 'hidden' }}>
           
           {/* ============================================================= */}
           {/* 1. GLOBAL ANALITIKA VA JONLI MONITORING                       */}
@@ -2374,7 +2484,79 @@ export default function SuperAdminDashboardView({
               {/* Chapda Maktablar Ro'yxati + O'ngda Maktab Pasporti */}
               <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 14 : 22, alignItems: 'stretch' }}>
                 
-                <aside className="sa-card" style={{ width: isMobile ? '100%' : 320, flexShrink: 0, ...cardBoxStyle, padding: isMobile ? 14 : 18, display: 'flex', flexDirection: 'column', gap: 10, maxHeight: isMobile ? 300 : 'none', overflowY: isMobile ? 'auto' : 'visible' }}>
+{/* Mobil Qurilmalar Uchun Segmentli Boshqaruv (Pasport vs Ro'yxat) */}
+              {isMobile && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', backgroundColor: '#EDE9FE', borderRadius: 10, padding: 3, gap: 4 }}>
+                    <button
+                      onClick={() => setMobileSchoolTab('details')}
+                      style={{
+                        flex: 1,
+                        padding: '9px 12px',
+                        borderRadius: 8,
+                        border: 'none',
+                        backgroundColor: mobileSchoolTab === 'details' ? THEME.primary : 'transparent',
+                        color: mobileSchoolTab === 'details' ? '#FFFFFF' : THEME.textDark,
+                        fontWeight: 700,
+                        fontSize: 12.5,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}>
+                      Maktab Pasporti
+                    </button>
+                    <button
+                      onClick={() => setMobileSchoolTab('list')}
+                      style={{
+                        flex: 1,
+                        padding: '9px 12px',
+                        borderRadius: 8,
+                        border: 'none',
+                        backgroundColor: mobileSchoolTab === 'list' ? THEME.primary : 'transparent',
+                        color: mobileSchoolTab === 'list' ? '#FFFFFF' : THEME.textDark,
+                        fontWeight: 700,
+                        fontSize: 12.5,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}>
+                      Maktablar Ro‘yxati ({filteredSchools.length})
+                    </button>
+                  </div>
+
+                  {mobileSchoolTab === 'details' && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '10px 14px',
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: 10,
+                      border: `1px solid ${THEME.border}`,
+                    }}>
+                      <Building2 size={16} color={THEME.primary} />
+                      <select
+                        value={selectedSchoolId || ''}
+                        onChange={e => setSelectedSchoolId(e.target.value)}
+                        style={{
+                          flex: 1,
+                          border: 'none',
+                          outline: 'none',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: THEME.textDark,
+                          backgroundColor: 'transparent',
+                        }}>
+                        {filteredSchools.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} (#{s.id}) • {s.status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+                {(!isMobile || mobileSchoolTab === 'list') && (
+                  <aside className="sa-card" style={{ width: isMobile ? '100%' : 320, flexShrink: 0, ...cardBoxStyle, padding: isMobile ? 12 : 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ fontWeight: 800, fontSize: 14, color: THEME.textDark, paddingBottom: 8, borderBottom: `1px solid ${THEME.border}` }}>
                     Muassasalar Ro‘yxati ({filteredSchools.length})
                   </div>
@@ -2384,7 +2566,7 @@ export default function SuperAdminDashboardView({
                       <button
                         key={sc.id}
                         className="sa-btn"
-                        onClick={() => setSelectedSchoolId(sc.id)}
+                        onClick={() => { setSelectedSchoolId(sc.id); if (isMobile) setMobileSchoolTab('details'); }}
                         style={{
                           width: '100%',
                           padding: '12px 14px',
@@ -2407,6 +2589,47 @@ export default function SuperAdminDashboardView({
                           <div style={{ fontSize: 11, color: isSel ? 'rgba(255,255,255,0.82)' : THEME.textMuted, marginTop: 2 }}>
                             INN: {sc.inn || '309182736'} • {sc.plan || 'Standart'}
                           </div>
+                          {/* Login va Parol Ko'rinishi (Doimiy) */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 8px',
+                            borderRadius: 6,
+                            marginTop: 6,
+                            backgroundColor: isSel && !isMobile ? 'rgba(255,255,255,0.18)' : '#F8F9FE',
+                            fontSize: 11,
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                              <Key size={12} color={isSel && !isMobile ? '#FFFFFF' : THEME.primary} />
+                              <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>{sc.username || `maktab${sc.id}`}</span>
+                              <span>/</span>
+                              <span style={{
+                                fontWeight: 700,
+                                fontFamily: 'monospace',
+                                color: isSel && !isMobile ? '#FFFFFF' : THEME.primary,
+                              }}>
+                                {sc.password || 'school123'}
+                              </span>
+                            </div>
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingSchool(sc);
+                              }}
+                              title="Parolni o'zgartirish"
+                              style={{
+                                color: isSel && !isMobile ? '#FFFFFF' : THEME.primary,
+                                cursor: 'pointer',
+                                fontSize: 11,
+                                fontWeight: 800,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 2,
+                              }}>
+                              <Edit size={11} /> O'zgartirish
+                            </span>
+                          </div>
                         </div>
                         <ChevronRight size={15} color={isSel ? '#FFFFFF' : THEME.textMuted} />
                       </button>
@@ -2414,7 +2637,9 @@ export default function SuperAdminDashboardView({
                   })}
                 </aside>
 
-                {currentSelectedSchool && (() => {
+                )}
+
+                {(!isMobile || mobileSchoolTab === 'details') && currentSelectedSchool && (() => {
                   const schoolDbStudents = dbStudents.filter(st => String(st.school_id) === String(currentSelectedSchool.id));
                   const schoolDbTeachers = dbTeachers.filter(tc => String(tc.school_id) === String(currentSelectedSchool.id));
                   const schoolDbClasses = dbClasses.filter(cl => String(cl.school_id) === String(currentSelectedSchool.id));
@@ -4445,6 +4670,112 @@ export default function SuperAdminDashboardView({
       </main>
 
       {/* ================================================================= */}
+      {/* MOBIL QALQIB CHIQAR TUGMA (FAB) VA QUYI NAVIGATSIYA (BOTTOM NAV)   */}
+      {/* ================================================================= */}
+      {isMobile && (superTab === 'schools' || superTab === 'overview') && (
+        <button
+          onClick={() => setShowOnboardingWizard(true)}
+          style={{
+            position: 'fixed',
+            bottom: 74,
+            right: 16,
+            backgroundColor: THEME.primary,
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 24,
+            padding: '11px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 7,
+            boxShadow: '0 8px 24px rgba(108, 92, 231, 0.45)',
+            cursor: 'pointer',
+            fontWeight: 800,
+            fontSize: 12.5,
+            zIndex: 980,
+            animation: 'fadeIn 0.2s ease-out',
+          }}>
+          <Plus size={17} />
+          <span>Yangi Maktab</span>
+        </button>
+      )}
+
+      {isMobile && (
+        <nav
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 60,
+            backgroundColor: 'rgba(255, 255, 255, 0.96)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            borderTop: `1px solid ${THEME.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-around',
+            zIndex: 990,
+            boxShadow: '0 -2px 12px rgba(0, 0, 0, 0.05)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          }}>
+          {[
+            { id: 'overview', label: 'Asosiy', icon: LayoutDashboard },
+            { id: 'schools', label: 'Maktablar', icon: Building2 },
+            { id: 'billing', label: 'Moliya', icon: CreditCard },
+            { id: 'config', label: 'Sozlama', icon: Sliders },
+            { id: 'more', label: 'Barchasi', icon: Menu },
+          ].map(item => {
+            const isMore = item.id === 'more';
+            const isActive = !isMore && superTab === item.id;
+            const IconC = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  if (isMore) {
+                    setMobileMenuOpen(prev => !prev);
+                  } else {
+                    setSuperTab(item.id);
+                    setMobileMenuOpen(false);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2,
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  padding: 0,
+                  WebkitTapHighlightColor: 'transparent',
+                  color: isActive ? THEME.primary : '#8A90A2',
+                }}>
+                <div
+                  style={{
+                    padding: '3px 12px',
+                    borderRadius: 10,
+                    backgroundColor: isActive ? THEME.primaryLight : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background-color 0.15s ease',
+                  }}>
+                  <IconC size={18} color={isActive ? THEME.primary : '#8A90A2'} />
+                </div>
+                <span style={{ fontSize: 10.5, fontWeight: isActive ? 800 : 500 }}>
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      {/* ================================================================= */}
       {/* MODALLAR                                                          */}
       {/* ================================================================= */}
       {showOnboardingWizard && (
@@ -5278,7 +5609,19 @@ function EditTenantModal({ school, onClose, onSave }) {
               <input required value={form.username} onChange={e => setForm({ ...form, username: e.target.value.trim() })} style={inputFieldStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Parol</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={labelStyle}>Parol</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+                    const autoPwd = "sch_" + Array.from({length: 6}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+                    setForm(prev => ({ ...prev, password: autoPwd }));
+                  }}
+                  style={{ border: 'none', background: 'transparent', color: THEME.primary, fontSize: 11, cursor: 'pointer', fontWeight: 700, padding: 0 }}>
+                  ⚡ Avto-generatsiya
+                </button>
+              </div>
               <input required value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={inputFieldStyle} />
             </div>
           </div>
@@ -5661,7 +6004,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
             <span style={{ fontSize: 12.5, fontWeight: 800, color: THEME.textDark, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
               2. Narxlar va To‘lov Modeli
             </span>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
               <div>
                 <label style={labelStyle}>Oylik Obuna To‘lovi *</label>
                 <input
