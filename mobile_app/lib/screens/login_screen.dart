@@ -5,6 +5,8 @@ import '../services/network_service.dart';
 import '../theme.dart';
 import 'face_verify_screen.dart';
 import 'checkpoint/guard_checkpoint_screen.dart';
+import 'student/student_dashboard.dart';
+import 'teacher/teacher_dashboard.dart';
 
 class PassportInputFormatter extends TextInputFormatter {
   @override
@@ -75,7 +77,32 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
-      if (res['require_face_id'] == true) {
+      if (res['access'] != null) {
+        if (!mounted) return;
+        final role = res['role'] ?? res['user']?['role'];
+        if (role == 'GUARD') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const GuardCheckpointScreen()),
+            (route) => false,
+          );
+          return;
+        } else if (role == 'TEACHER') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const TeacherDashboard()),
+            (route) => false,
+          );
+          return;
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const StudentDashboard()),
+            (route) => false,
+          );
+          return;
+        }
+      } else if (res['require_face_id'] == true) {
         if (!mounted) return;
         Navigator.push(
           context,
@@ -92,8 +119,8 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         setState(() => _error = res['detail'] ?? "Kirishda xatolik yuz berdi");
       }
-    } catch (e) {
-      setState(() => _error = "Server bilan bog'lanishda xatolik yuz berdi");
+    } catch (e, stack) {
+      debugPrint("LOGIN_EXACT_ERROR: $e\n$stack"); setState(() => _error = "Xatolik: $e");
     } finally {
       if (mounted) setState(() => _loading = false);
     }

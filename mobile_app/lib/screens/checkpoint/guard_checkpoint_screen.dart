@@ -178,7 +178,7 @@ class _GuardCheckpointScreenState extends State<GuardCheckpointScreen> with Sing
                     width: 90,
                     height: 110,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 70, color: Colors.grey),
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 70, color: Colors.grey),
                   ),
                 )
               else
@@ -292,11 +292,39 @@ class _GuardCheckpointScreenState extends State<GuardCheckpointScreen> with Sing
             tooltip: "Chiqish",
             icon: const Icon(Icons.logout_rounded, color: Colors.black54),
             onPressed: () {
-              ApiService.logout();
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: const Row(
+                    children: [
+                      Icon(Icons.logout_rounded, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text("Chiqish"),
+                    ],
+                  ),
+                  content: const Text("Haqiqatan ham nazorat kabinetidan chiqmoqchimisiz?"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text("Bekor qilish"),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await ApiService.logout();
+                        if (!context.mounted) return;
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          (route) => false,
+                        );
+                      },
+                      child: const Text("Chiqish", style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
               );
             },
           ),
@@ -310,7 +338,7 @@ class _GuardCheckpointScreenState extends State<GuardCheckpointScreen> with Sing
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
             Tab(icon: Icon(Icons.qr_code_scanner_rounded), text: "QR Skaner"),
-            Tab(icon: Icon(Icons.person_search_rounded), text: "Qidiruv & Yuz ID"),
+            Tab(icon: Icon(Icons.person_search_rounded), text: "Qidiruv & Yuz"),
             Tab(icon: Icon(Icons.history_rounded), text: "Tarix"),
           ],
         ),
@@ -598,84 +626,102 @@ class _GuardCheckpointScreenState extends State<GuardCheckpointScreen> with Sing
                               ),
                             ],
                           ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            leading: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: fullPhoto != null
-                                      ? Image.network(
-                                          fullPhoto,
-                                          width: 50,
-                                          height: 50,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => _avatarFallback(),
-                                        )
-                                      : _avatarFallback(),
-                                ),
-                                if (hasEntered)
-                                  Positioned(
-                                    right: -2,
-                                    bottom: -2,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(2),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => _openFaceVerificationFlow(student),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                children: [
+                                  Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: fullPhoto != null
+                                            ? Image.network(
+                                                fullPhoto,
+                                                width: 50,
+                                                height: 50,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) => _avatarFallback(),
+                                              )
+                                            : _avatarFallback(),
                                       ),
-                                      child: const Icon(Icons.check_circle, color: AppTheme.success, size: 18),
+                                      if (hasEntered)
+                                        Positioned(
+                                          right: -2,
+                                          bottom: -2,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.white,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.check_circle, color: AppTheme.success, size: 18),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          student['full_name'] ?? "Noma'lum",
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.primaryLight,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                student['class_name'] ?? 'Sinfsiz',
+                                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              "ID: ${student['student_id'] ?? ''}",
+                                              style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                                            ),
+                                          ],
+                                        ),
+                                        if (hasEntered) ...[
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            "Kirdi: ${todayEntry['time']} (${todayEntry['method'] ?? 'Face ID'}) ✅",
+                                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Colors.green.shade700),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ),
-                              ],
-                            ),
-                            title: Text(
-                              student['full_name'] ?? 'Noma\'lum',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryLight,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        student['class_name'] ?? 'Sinfsiz',
-                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary),
-                                      ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: () => _openFaceVerificationFlow(student),
+                                    icon: const Icon(Icons.camera_alt_rounded, size: 14),
+                                    label: Text(hasEntered ? "Qayta" : "Yuz ID", style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: hasEntered ? Colors.grey.shade200 : AppTheme.primary,
+                                      foregroundColor: hasEntered ? Colors.grey.shade800 : Colors.white,
+                                      elevation: 0,
+                                      visualDensity: VisualDensity.compact,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      "ID: ${student['student_id'] ?? ''}",
-                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                    ),
-                                  ],
-                                ),
-                                if (hasEntered) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "Kirdi: ${todayEntry['time']} (${todayEntry['method'] ?? 'Face ID'}) ✅",
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.green.shade700),
                                   ),
                                 ],
-                              ],
-                            ),
-                            trailing: ElevatedButton.icon(
-                              onPressed: () => _openFaceVerificationFlow(student),
-                              icon: const Icon(Icons.camera_alt_rounded, size: 16),
-                              label: const Text("Yuzni tekshirish", style: TextStyle(fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: hasEntered ? Colors.grey.shade200 : AppTheme.primary,
-                                foregroundColor: hasEntered ? Colors.grey.shade800 : Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                               ),
                             ),
                           ),
@@ -754,7 +800,7 @@ class _GuardCheckpointScreenState extends State<GuardCheckpointScreen> with Sing
                         width: 44,
                         height: 44,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _avatarFallback(),
+                        errorBuilder: (context, error, stackTrace) => _avatarFallback(),
                       )
                     : _avatarFallback(),
               ),
@@ -1012,239 +1058,357 @@ class _FaceVerifyModalState extends State<FaceVerifyModal> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // Ikkala surat solishtiruvi (Bazadagi rasm vs Olingan surat)
-                  Row(
-                    children: [
-                      // 1. Bazadagi 3x4 rasm
-                      Expanded(
-                        child: Column(
-                          children: [
-                            const Text(
-                              "Bazadagi 3x4 rasm",
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              height: 160,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(15),
-                                child: fullRefPhoto != null
-                                    ? Image.network(
-                                        fullRefPhoto,
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                        errorBuilder: (_, __, ___) => const Center(
-                                          child: Icon(Icons.person, size: 60, color: Colors.grey),
-                                        ),
-                                      )
-                                    : const Center(
-                                        child: Text(
-                                          "Surat yo'q",
-                                          style: TextStyle(color: Colors.red, fontSize: 12),
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-
-                      // 2. Kameradan olingan jonli surat
-                      Expanded(
-                        child: Column(
-                          children: [
-                            const Text(
-                              "Kameradan olingan surat",
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              height: 160,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: _capturedImage != null
-                                      ? (_isMatched == true
-                                          ? AppTheme.success
-                                          : (_isMatched == false ? Colors.red : AppTheme.primary))
-                                      : Colors.grey.shade300,
-                                  width: _capturedImage != null ? 2 : 1,
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(15),
-                                child: _capturedImage != null
-                                    ? FutureBuilder<List<int>>(
-                                        future: _capturedImage!.readAsBytes(),
-                                        builder: (ctx, snap) {
-                                          if (snap.hasData) {
-                                            return Image.memory(
-                                              Uint8List.fromList(snap.data!),
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                            );
-                                          }
-                                          return const Center(child: CircularProgressIndicator());
-                                        },
-                                      )
-                                    : Center(
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.camera_alt_outlined, size: 36, color: Colors.grey.shade400),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              "Surat olinmadi",
-                                              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Natija xabari (Agar mavjud bo'lsa)
-                  if (_verificationResultMsg != null) ...[
+                  if (_capturedImage == null) ...[
+                    // 1. O'quvchi ma'lumoti va namuna 3x4 surat
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: _isMatched == true ? Colors.green.shade50 : Colors.red.shade50,
+                        color: Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: _isMatched == true ? Colors.green.shade300 : Colors.red.shade300,
-                        ),
+                        border: Border.all(color: Colors.grey.shade200),
                       ),
-                      child: Column(
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _isMatched == true ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                                color: _isMatched == true ? AppTheme.success : Colors.red.shade700,
-                                size: 28,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  _verificationResultMsg!,
-                                  style: TextStyle(
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              width: 54,
+                              height: 68,
+                              color: Colors.grey.shade200,
+                              child: fullRefPhoto != null
+                                  ? Image.network(
+                                      fullRefPhoto,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) =>
+                                          const Icon(Icons.person, color: Colors.grey),
+                                    )
+                                  : const Icon(Icons.person, color: Colors.grey),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Solishtirish uchun namuna",
+                                  style: TextStyle(fontSize: 11, color: Colors.black54),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  widget.student['full_name'] ?? 'O\'quvchi',
+                                  style: const TextStyle(
+                                    fontSize: 15,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: _isMatched == true ? Colors.green.shade900 : Colors.red.shade900,
+                                    color: Colors.black87,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  "Yuzni pastdagi oval ramkaga to'g'rilab rasmga oling",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.primary,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          if (_confidence != null) ...[
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                "Biometrik aniqlik: ${_confidence!.toStringAsFixed(1)}%",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: _isMatched == true ? Colors.green.shade800 : Colors.red.shade800,
-                                ),
-                              ),
+                              ],
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
-                  ],
 
-                  // Jonli Kamera oynasi (agar hali rasm olinmagan bo'lsa yoki qayta olish bosilsa)
-                  if (_capturedImage == null) ...[
-                    Container(
-                      height: 240,
-                      decoration: BoxDecoration(
+                    // 2. Jonli Kamera oynasi (Tabiiy, cho'zilmagan proporsiyada)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        height: 340,
+                        width: double.infinity,
                         color: Colors.black,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
                         child: Stack(
-                          fit: StackFit.expand,
+                          alignment: Alignment.center,
                           children: [
-                            if (_isCameraReady && _cameraController != null)
-                              CameraPreview(_cameraController!)
+                            if (_isCameraReady &&
+                                _cameraController != null &&
+                                _cameraController!.value.isInitialized)
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final double rawRatio = _cameraController!.value.aspectRatio;
+                                  // Portrait orientatsiyada en/bo'y nisbati:
+                                  final double portraitRatio =
+                                      rawRatio > 1.0 ? (1.0 / rawRatio) : rawRatio;
+                                  return SizedBox(
+                                    width: constraints.maxWidth,
+                                    height: constraints.maxHeight,
+                                    child: FittedBox(
+                                      fit: BoxFit.cover,
+                                      clipBehavior: Clip.hardEdge,
+                                      child: SizedBox(
+                                        width: constraints.maxWidth,
+                                        height: constraints.maxWidth / portraitRatio,
+                                        child: CameraPreview(_cameraController!),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
                             else
                               Center(
                                 child: _cameraError != null
-                                    ? Text(_cameraError!, style: const TextStyle(color: Colors.white70))
-                                    : const CircularProgressIndicator(color: Colors.white),
+                                    ? Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Text(
+                                          _cameraError!,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(color: Colors.white70),
+                                        ),
+                                      )
+                                    : const Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          CircularProgressIndicator(color: Colors.white),
+                                          SizedBox(height: 12),
+                                          Text(
+                                            "Kamera ishga tushmoqda...",
+                                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
                               ),
-                            // Yuz yo'naltiruvchi oval ramka
+
+                            // Yuz yo'naltiruvchi chiroyli oval ramka
                             Center(
                               child: Container(
-                                width: 140,
-                                height: 180,
+                                width: 170,
+                                height: 230,
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2),
-                                  borderRadius: BorderRadius.circular(90),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    width: 2.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(115),
                                 ),
                               ),
                             ),
+
                             // Kamera almashtirish tugmasi
                             Positioned(
-                              top: 10,
-                              right: 10,
-                              child: IconButton(
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.black54,
+                              top: 12,
+                              right: 12,
+                              child: Material(
+                                color: Colors.black54,
+                                shape: const CircleBorder(),
+                                child: IconButton(
+                                  icon: const Icon(Icons.cameraswitch_rounded, color: Colors.white, size: 22),
+                                  onPressed: _switchCamera,
+                                  tooltip: "Kamerani almashtirish",
                                 ),
-                                icon: const Icon(Icons.cameraswitch, color: Colors.white, size: 20),
-                                onPressed: _switchCamera,
+                              ),
+                            ),
+
+                            // Pastki maslahat yozuvi
+                            Positioned(
+                              bottom: 12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Text(
+                                  "Yuzni oval ichiga to'g'rilang",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
 
-                    // Suratga olish tugmasi
+                    // 3. Suratga olish tugmasi
                     SizedBox(
                       width: double.infinity,
+                      height: 52,
                       child: ElevatedButton.icon(
                         onPressed: _isCameraReady ? _takePhoto : null,
-                        icon: const Icon(Icons.camera_rounded),
-                        label: const Text("Suratga olish"),
+                        icon: const Icon(Icons.camera_alt_rounded, size: 22),
+                        label: const Text(
+                          "Suratga olish",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 2,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
                       ),
                     ),
                   ] else ...[
-                    // Rasm olindi: Tasdiqlash yoki Qayta suratga olish
+                    // Rasm olindi: Bazadagi rasm bilan olingan surat solishtiruvi
+                    Row(
+                      children: [
+                        // 1. Bazadagi 3x4 rasm
+                        Expanded(
+                          child: Column(
+                            children: [
+                              const Text(
+                                "Bazadagi 3x4 rasm",
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                height: 190,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: fullRefPhoto != null
+                                      ? Image.network(
+                                          fullRefPhoto,
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          errorBuilder: (context, error, stackTrace) => const Center(
+                                            child: Icon(Icons.person, size: 60, color: Colors.grey),
+                                          ),
+                                        )
+                                      : const Center(
+                                          child: Text(
+                                            "Surat yo'q",
+                                            style: TextStyle(color: Colors.red, fontSize: 12),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+
+                        // 2. Kameradan olingan jonli surat
+                        Expanded(
+                          child: Column(
+                            children: [
+                              const Text(
+                                "Kameradan olingan",
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                height: 190,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _isMatched == true
+                                        ? AppTheme.success
+                                        : (_isMatched == false ? Colors.red : AppTheme.primary),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: FutureBuilder<List<int>>(
+                                    future: _capturedImage!.readAsBytes(),
+                                    builder: (ctx, snap) {
+                                      if (snap.hasData) {
+                                        return Image.memory(
+                                          Uint8List.fromList(snap.data!),
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                        );
+                                      }
+                                      return const Center(child: CircularProgressIndicator());
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Natija xabari (Agar mavjud bo'lsa)
+                    if (_verificationResultMsg != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _isMatched == true ? Colors.green.shade50 : Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _isMatched == true ? Colors.green.shade300 : Colors.red.shade300,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  _isMatched == true ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                                  color: _isMatched == true ? AppTheme.success : Colors.red.shade700,
+                                  size: 28,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _verificationResultMsg!,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: _isMatched == true ? Colors.green.shade900 : Colors.red.shade900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_confidence != null) ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  "Biometrik aniqlik: ${_confidence!.toStringAsFixed(1)}%",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: _isMatched == true ? Colors.green.shade800 : Colors.red.shade800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Boshqaruv tugmalari (Qayta olish yoki Tasdiqlash / Yopish)
                     if (_isMatched == true) ...[
                       SizedBox(
                         width: double.infinity,
+                        height: 50,
                         child: ElevatedButton.icon(
                           onPressed: () => Navigator.pop(context),
                           icon: const Icon(Icons.done_all_rounded),
-                          label: const Text("Bajarildi (Yopish)"),
+                          label: const Text(
+                            "Bajarildi (Yopish)",
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.success,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
                         ),
@@ -1253,40 +1417,47 @@ class _FaceVerifyModalState extends State<FaceVerifyModal> {
                       Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _capturedImage = null;
-                                  _verificationResultMsg = null;
-                                  _isMatched = null;
-                                });
-                              },
-                              icon: const Icon(Icons.refresh_rounded),
-                              label: const Text("Qayta olish"),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            child: SizedBox(
+                              height: 50,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _capturedImage = null;
+                                    _verificationResultMsg = null;
+                                    _isMatched = null;
+                                  });
+                                },
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text("Qayta olish"),
+                                style: OutlinedButton.styleFrom(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             flex: 2,
-                            child: ElevatedButton.icon(
-                              onPressed: _isVerifying ? null : _submitVerification,
-                              icon: _isVerifying
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.fingerprint_rounded),
-                              label: Text(_isVerifying ? "Tekshirilmoqda..." : "Tasdiqlash (Face ID)"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            child: SizedBox(
+                              height: 50,
+                              child: ElevatedButton.icon(
+                                onPressed: _isVerifying ? null : _submitVerification,
+                                icon: _isVerifying
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.fingerprint_rounded),
+                                label: Text(
+                                  _isVerifying ? "Tekshirilmoqda..." : "Tasdiqlash (Face ID)",
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
                               ),
                             ),
                           ),

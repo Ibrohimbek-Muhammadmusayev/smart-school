@@ -159,6 +159,11 @@ class CheckpointVerifyQRView(views.APIView):
         # 1. DynamicQRToken orqali qidirish
         d_token = DynamicQRToken.objects.filter(token=qr_token).select_related('student').first()
         if d_token and d_token.is_valid():
+            if str(d_token.student.school_id) != str(school_id):
+                return Response({
+                    'success': False,
+                    'detail': f"Bu o'quvchi boshqa maktabga tegishli! Begona maktab hududiga kirish taqiqlanadi."
+                }, status=status.HTTP_403_FORBIDDEN)
             student = d_token.student
 
         # 2. Agar student_id yoki username yoki ID bo'lsa

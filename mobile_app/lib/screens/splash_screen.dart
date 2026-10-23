@@ -80,6 +80,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // Birinchi marta kirganda Onboarding sahifasiga yo'naltirish
       _navigate(const OnboardingScreen());
     } else {
+      // Token va sessiyani xotiradan tiklash
+      await ApiService.restoreSession();
+
       // Agar token va foydalanuvchi mavjud bo'lsa, to'g'ridan-to'g'ri dashboardga
       if (ApiService.accessToken != null && ApiService.currentUser != null) {
         final role = ApiService.currentUser!['role'];

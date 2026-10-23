@@ -5,14 +5,12 @@ import '../../services/api_service.dart';
 import '../../theme.dart';
 import '../../features/board/board_connect_screen.dart';
 import '../../features/board/board_control_screen.dart';
-import 'teacher_universal_scan_screen.dart';
 import 'teacher_lesson_room_screen.dart';
 import 'teacher_passwords_screen.dart';
 import '../student/profile_identity_modal.dart';
 import '../student/profile_screen.dart';
 import '../notifications_screen.dart';
 import '../login_screen.dart';
-import '../checkpoint/guard_checkpoint_screen.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -38,8 +36,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   bool _isInsideBuilding = true;
   String _buildingEntryTime = "08:05";
 
-  // Test sinov ssenariysi override (null bo'lsa real vaqt rejimi)
-  int? _scenarioModeOverride;
 
   // Real-time timers
   Timer? _clockTicker;
@@ -142,7 +138,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   // Pull-to-refresh
   Future<void> _handleUserPullToRefresh() async {
-    _scenarioModeOverride = null;
     await _fetchDashboardSummary(silent: true);
     await _fetchBoardStatus();
     HapticFeedback.lightImpact();
@@ -171,63 +166,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     }
   }
 
-  int _parseTimeToMinutes(dynamic timeStr) {
-    if (timeStr == null) return 0;
-    final s = timeStr.toString().trim();
-    final parts = s.split(':');
-    if (parts.length >= 2) {
-      final h = int.tryParse(parts[0]) ?? 0;
-      final m = int.tryParse(parts[1]) ?? 0;
-      return h * 60 + m;
-    }
-    return 0;
-  }
-
-  // Real-vaqt holatini aniqlash (0: Dars ketmoqda, 1: Tanaffus, 2: Tashqarida, 3: Yakunlangan)
-  int _computeCurrentScenario() {
-    if (_scenarioModeOverride != null) {
-      return _scenarioModeOverride!;
-    }
-
-    if (!_isInsideBuilding) {
-      return 2; // Tashqarida
-    }
-
-    if (_lessons.isEmpty || (_dashboardData != null && _dashboardData!['is_weekend'] == true)) {
-      return 3; // Dam olish kuni yoki dars yo'q
-    }
-
-    final now = DateTime.now();
-    final nowMin = now.hour * 60 + now.minute;
-
-    for (final l in _lessons) {
-      final sMin = _parseTimeToMinutes(l['start_time']);
-      final eMin = _parseTimeToMinutes(l['end_time']);
-      if (nowMin >= sMin && nowMin < eMin) {
-        return 0; // Dars ketmoqda
-      }
-    }
-
-    final firstStart = _parseTimeToMinutes(_lessons.first['start_time']);
-    if (nowMin < firstStart) {
-      return 1; // Dars boshlanishini kutish / Tanaffus
-    }
-
-    for (int i = 0; i < _lessons.length - 1; i++) {
-      final curEnd = _parseTimeToMinutes(_lessons[i]['end_time']);
-      final nextStart = _parseTimeToMinutes(_lessons[i + 1]['start_time']);
-      if (nowMin >= curEnd && nowMin < nextStart) {
-        return 1; // Paralar orasidagi tanaffus
-      }
-    }
-
-    final lastEnd = _parseTimeToMinutes(_lessons.last['end_time']);
-    if (nowMin >= lastEnd) {
-      return 3; // Barcha darslar tugagan
-    }
-
-    return 0;
-  }
 
   void _openProfileModal() {
     showModalBottomSheet(
@@ -540,96 +478,73 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.primary,
-        elevation: 4,
-        shape: const CircleBorder(),
-        onPressed: () async {
-          final lessonId = _lessons.isNotEmpty ? _lessons.first['id'] as int? : null;
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TeacherUniversalScanScreen(lessonId: lessonId),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
             ),
-          );
-          _fetchDashboardSummary(silent: true);
-        },
-        child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 6,
-        color: Colors.white,
-        elevation: 12,
-        height: 64,
-        padding: EdgeInsets.zero,
-        child: Row(
-          children: [
-            _buildBottomNavItem(0, Icons.home_rounded, "Bosh sahifa"),
-            _buildBottomNavItem(1, Icons.tv_rounded, "IdrokBoard", hasBadge: _boardSession != null),
-            const SizedBox(width: 56), // Markaziy QR Skaner tugmasi uchun joy
-            _buildBottomNavItem(2, Icons.groups_rounded, ApiService.myGroupsTitle),
-            _buildBottomNavItem(3, Icons.grid_view_rounded, "Menu"),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _tabIndex,
+          onTap: (index) {
+            setState(() => _tabIndex = index);
+            if (index == 0 || index == 1) _fetchBoardStatus();
+            if (index == 0 || index == 2) _fetchDashboardSummary(silent: true);
+          },
+          selectedItemColor: AppTheme.primary,
+          unselectedItemColor: AppTheme.textMuted,
+          backgroundColor: Colors.white,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          selectedFontSize: 11.5,
+          unselectedFontSize: 11,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          items: [
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: "Bosh sahifa",
+            ),
+            BottomNavigationBarItem(
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.tv_rounded),
+                  if (_boardSession != null)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.success,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              label: "IdrokBoard",
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.groups_rounded),
+              label: ApiService.myGroupsTitle,
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_rounded),
+              label: "Menu",
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBottomNavItem(int index, IconData icon, String label, {bool hasBadge = false}) {
-    final isSelected = _tabIndex == index;
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() => _tabIndex = index);
-          if (index == 0 || index == 1) _fetchBoardStatus();
-          if (index == 0 || index == 2) _fetchDashboardSummary(silent: true);
-        },
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
-                  icon,
-                  color: isSelected ? AppTheme.primary : AppTheme.textMuted,
-                  size: 24,
-                ),
-                if (hasBadge)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.success,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppTheme.primary : AppTheme.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // =========================================================================
   // 1. 🏠 BOSH SAHIFA (TeacherHomeScreen — Dashboard)
@@ -661,9 +576,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             _buildHeader(fullName, "O'qituvchi", teacherId: teacherId),
             const SizedBox(height: 16),
 
-            // Ssenariy almashtirish (Test / Namoyish uchun tezkor switcher)
-            _buildScenarioSwitcher(),
-            const SizedBox(height: 14),
 
             // 1.2. Darslar Dinamik Bloki
             if (_loading)
@@ -869,57 +781,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  // Ssenariy almashtirish (Namoyish va test uchun)
-  Widget _buildScenarioSwitcher() {
-    final current = _computeCurrentScenario();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          const Text("Holat: ", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
-          _buildScenarioChip(0, "Dars", current == 0),
-          _buildScenarioChip(1, "Tanaffus", current == 1),
-          _buildScenarioChip(2, "Tashqarida", current == 2),
-          _buildScenarioChip(3, "Yakunlangan", current == 3),
-          if (_scenarioModeOverride != null)
-            IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              icon: const Icon(Icons.refresh_rounded, size: 16, color: AppTheme.primary),
-              onPressed: () => setState(() => _scenarioModeOverride = null),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScenarioChip(int mode, String label, bool isSelected) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: InkWell(
-        onTap: () => setState(() => _scenarioModeOverride = mode),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: isSelected ? AppTheme.primary : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.bold,
-              color: isSelected ? Colors.white : AppTheme.textDark,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   // 1.2 ⚪ [Bo'sh holat kartasi]
   Widget _buildEmptyStateCard() {
@@ -1283,7 +1144,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     final bool isConnected = _boardSession != null;
     final String entryTime = _stats['turnstile_entry'] ?? '08:05';
     final String exitTime = _stats['turnstile_exit'] ?? '--:--';
-    final String attRate = _stats['overall_attendance_rate'] ?? '96%';
+    final String attRate = _stats['overall_attendance_rate'] ?? (_dashboardData?['attendance_rate']?.toString()) ?? '96%';
     final int todayLessonsCount = _stats['today_lessons_count'] ?? _lessons.length;
     final int completedLessons = _stats['today_completed_lessons'] ?? 0;
 

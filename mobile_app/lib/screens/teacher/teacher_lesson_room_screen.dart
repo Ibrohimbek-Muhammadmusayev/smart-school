@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../theme.dart';
-import 'teacher_universal_scan_screen.dart';
+import 'teacher_scan_screen.dart';
 import '../../features/board/board_control_screen.dart';
 import '../../features/board/board_connect_screen.dart';
 
@@ -421,7 +421,7 @@ class _TeacherLessonRoomScreenState extends State<TeacherLessonRoomScreen> with 
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => TeacherUniversalScanScreen(lessonId: widget.lessonId),
+                  builder: (_) => TeacherScanScreen(lessonId: widget.lessonId),
                 ),
               );
               _fetchLessonDetails(silent: true);
@@ -515,13 +515,13 @@ class _TeacherLessonRoomScreenState extends State<TeacherLessonRoomScreen> with 
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => TeacherUniversalScanScreen(lessonId: widget.lessonId),
+                        builder: (_) => TeacherScanScreen(lessonId: widget.lessonId),
                       ),
                     );
                     _fetchLessonDetails(silent: true);
                   },
                   icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-                  label: const Text("Tezkor Skaner", style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: const Text("Davomat Skaneri", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -975,7 +975,6 @@ class _TeacherLessonRoomScreenState extends State<TeacherLessonRoomScreen> with 
               final s = attendedStudents[i];
               final id = s['id'] as int;
               final currentScore = _scores[id] ?? 5;
-              final currentType = _gradeTypes[id] ?? 'ACTIVITY';
               final isSaved = _savedGradeIds.contains(id);
 
               return Container(

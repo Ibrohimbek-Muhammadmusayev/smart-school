@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static const String serverUrl = 'https://epinions-charlotte-theories-exec.trycloudflare.com';
@@ -95,6 +96,48 @@ class ApiService {
     return map;
   }
 
+  static Future<void> saveSession(
+    String access,
+    String? refresh,
+    Map<String, dynamic>? user,
+    Map<String, dynamic>? config,
+  ) async {
+    accessToken = access;
+    refreshToken = refresh;
+    currentUser = user;
+    if (config != null) schoolConfig = config;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_access_token', access);
+      if (refresh != null) await prefs.setString('auth_refresh_token', refresh);
+      if (user != null) await prefs.setString('auth_current_user', jsonEncode(user));
+      if (schoolConfig != null) await prefs.setString('auth_school_config', jsonEncode(schoolConfig));
+    } catch (_) {}
+  }
+
+  static Future<bool> restoreSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final access = prefs.getString('auth_access_token');
+      final userJson = prefs.getString('auth_current_user');
+      final configJson = prefs.getString('auth_school_config');
+      if (access != null && userJson != null) {
+        accessToken = access;
+        refreshToken = prefs.getString('auth_refresh_token');
+        try {
+          currentUser = jsonDecode(userJson);
+        } catch (_) {}
+        if (configJson != null) {
+          try {
+            schoolConfig = jsonDecode(configJson);
+          } catch (_) {}
+        }
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   // 1.1 Login (5 xonali ID, Username yoki Pasport)
   static Future<Map<String, dynamic>> login(String loginId, String password) async {
     final response = await http.post(
@@ -103,8 +146,18 @@ class ApiService {
       body: jsonEncode({'login_id': loginId, 'passport_series': loginId, 'password': password}),
     );
     final data = jsonDecode(utf8.decode(response.bodyBytes));
-    if (data is Map<String, dynamic> && data['school_config'] != null) {
-      schoolConfig = Map<String, dynamic>.from(data['school_config']);
+    if (data is Map<String, dynamic>) {
+      if (data['school_config'] != null) {
+        schoolConfig = Map<String, dynamic>.from(data['school_config']);
+      }
+      if (data['access'] != null) {
+        await saveSession(
+          data['access'],
+          data['refresh'],
+          data['user'] is Map<String, dynamic> ? data['user'] : null,
+          data['school_config'] is Map<String, dynamic> ? data['school_config'] : null,
+        );
+      }
     }
     return data;
   }
@@ -125,14 +178,18 @@ class ApiService {
     );
     final data = jsonDecode(utf8.decode(response.bodyBytes));
     if (response.statusCode == 200) {
-      accessToken = data['access'];
-      refreshToken = data['refresh'];
-      currentUser = data['user'];
+      Map<String, dynamic>? cfg;
       if (data['school_config'] != null) {
-        schoolConfig = Map<String, dynamic>.from(data['school_config']);
-      } else if (currentUser != null && currentUser!['school_config'] != null) {
-        schoolConfig = Map<String, dynamic>.from(currentUser!['school_config']);
+        cfg = Map<String, dynamic>.from(data['school_config']);
+      } else if (data['user'] != null && data['user']['school_config'] != null) {
+        cfg = Map<String, dynamic>.from(data['user']['school_config']);
       }
+      await saveSession(
+        data['access'],
+        data['refresh'],
+        data['user'] is Map<String, dynamic> ? data['user'] : null,
+        cfg,
+      );
     }
     return data;
   }
@@ -622,11 +679,18 @@ class ApiService {
   }
 
   // 3.8 Tizimdan chiqish (Logout)
-  static void logout() {
+  static Future<void> logout() async {
     accessToken = null;
     refreshToken = null;
     currentUser = null;
     schoolConfig = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_access_token');
+      await prefs.remove('auth_refresh_token');
+      await prefs.remove('auth_current_user');
+      await prefs.remove('auth_school_config');
+    } catch (_) {}
   }
 }
 

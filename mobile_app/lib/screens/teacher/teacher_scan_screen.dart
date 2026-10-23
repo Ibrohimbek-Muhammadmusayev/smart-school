@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/api_service.dart';
 import '../../theme.dart';
 import 'teacher_grade_screen.dart';
@@ -13,10 +16,16 @@ class TeacherScanScreen extends StatefulWidget {
 }
 
 class _TeacherScanScreenState extends State<TeacherScanScreen> {
+  final MobileScannerController _scannerController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
+  final TextEditingController _manualTokenController = TextEditingController();
+
   bool _loading = true;
+  bool _isProcessing = false;
   Map<String, dynamic>? _summary;
-  final _manualTokenController = TextEditingController();
   String? _lastScannedMessage;
+  final Set<String> _recentlyScannedTokens = {};
 
   @override
   void initState() {
@@ -24,42 +33,69 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
     _fetchSummary();
   }
 
+  @override
+  void dispose() {
+    _scannerController.dispose();
+    _manualTokenController.dispose();
+    super.dispose();
+  }
+
   void _fetchSummary() async {
     try {
       final res = await ApiService.getTeacherLiveLesson(widget.lessonId);
-      setState(() {
-        _summary = res;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _summary = res;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _scanCode(String token) async {
+  void _onDetect(BarcodeCapture capture) {
+    if (_isProcessing) return;
+    final barcodes = capture.barcodes;
+    for (final barcode in barcodes) {
+      final code = barcode.rawValue?.trim();
+      if (code != null && code.isNotEmpty) {
+        if (_recentlyScannedTokens.contains(code)) continue;
+        _recentlyScannedTokens.add(code);
+        Timer(const Duration(seconds: 3), () {
+          if (mounted) _recentlyScannedTokens.remove(code);
+        });
+        _scanCode(code);
+        break;
+      }
+    }
+  }
+
+  Future<void> _scanCode(String token) async {
     if (token.isEmpty) return;
+    setState(() => _isProcessing = true);
     try {
       final res = await ApiService.scanAttendance(lessonId: widget.lessonId, qrToken: token);
       if (res['status'] == 'success') {
-        setState(() {
-          _lastScannedMessage = res['message'];
-        });
-        _manualTokenController.clear();
-        _fetchSummary();
-
-        // Audio bip simulyatsiyasi va xabar
+        HapticFeedback.mediumImpact();
         if (mounted) {
+          setState(() {
+            _lastScannedMessage = res['message'];
+          });
+          _manualTokenController.clear();
+          _fetchSummary();
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
+                  const Icon(Icons.check_circle_rounded, color: Colors.white),
                   const SizedBox(width: 8),
                   Expanded(child: Text(res['message'] ?? 'Davomat qayd etildi!')),
                 ],
               ),
               backgroundColor: AppTheme.success,
-              duration: const Duration(seconds: 3),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -70,19 +106,22 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
           );
         }
       }
-    } catch (e) {
+    } catch (_) {
       //
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
-  void _markManually(int studentId, String name) async {
+  Future<void> _markManually(int studentId, String name) async {
     try {
       final res = await ApiService.scanAttendance(lessonId: widget.lessonId, studentId: studentId);
       if (res['status'] == 'success') {
+        HapticFeedback.lightImpact();
         _fetchSummary();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("$name qo'lda belgilandi ✅"), backgroundColor: AppTheme.success),
+            SnackBar(content: Text("$name qo'lda keldi deb belgilandi ✅"), backgroundColor: AppTheme.success),
           );
         }
       }
@@ -103,7 +142,10 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("${lesson['subject_name']} (${lesson['class_name']})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text(
+          "${lesson['subject_name'] ?? 'Fan'} (${lesson['class_name'] ?? ''})",
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: AppTheme.textDark,
         elevation: 0,
@@ -116,13 +158,15 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Yuqori panel: Dars hisoblagichi (Jami, Keldi, Kelmadi)
+            // 1. Yuqori panel: Dars hisoblagichi (Jami, Keldi, Kelmadi)
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10),
+                ],
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -135,104 +179,150 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
-            // Tezkor Uzluksiz Kamera Skaneri bloki
+            // 2. Kamera QR Davomat Skaneri (MobileScanner)
             Container(
-              padding: const EdgeInsets.all(20),
+              height: 270,
               decoration: BoxDecoration(
                 color: const Color(0xFF1E2022),
                 borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppTheme.primary, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              child: Column(
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.videocam_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text("Kamera Davomat Skaneri", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ],
+                  MobileScanner(
+                    controller: _scannerController,
+                    onDetect: _onDetect,
                   ),
-                  const SizedBox(height: 16),
-                  // Kamera oynasi simulyatsiyasi (Web va mobil uchun)
+                  // Ramka
                   Container(
-                    height: 160,
-                    width: double.infinity,
+                    width: 190,
+                    height: 190,
                     decoration: BoxDecoration(
-                      color: Colors.black45,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.primary, width: 2),
-                    ),
-                    child: const Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Icon(Icons.qr_code_scanner, color: AppTheme.primary, size: 70),
-                        Positioned(
-                          bottom: 12,
-                          child: Text(
-                            "O'quvchi QR kodini kameraga tuting",
-                            style: TextStyle(color: Colors.white70, fontSize: 12),
-                          ),
-                        )
-                      ],
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.85), width: 2.5),
                     ),
                   ),
-                  const SizedBox(height: 14),
-
-                  // QR token qo'lda kiritish yoki tezkor test skaner
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _manualTokenController,
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
-                          decoration: InputDecoration(
-                            hintText: "Skaner kodi yoki token...",
-                            hintStyle: const TextStyle(color: Colors.white54, fontSize: 12),
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.08),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  // Chiroq va Kamera almashtirish tugmalari
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.flash_on_rounded, color: Colors.white, size: 20),
+                            onPressed: () => _scannerController.toggleTorch(),
                           ),
-                        ),
+                          IconButton(
+                            icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white, size: 20),
+                            onPressed: () => _scannerController.switchCamera(),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          backgroundColor: AppTheme.primary,
-                        ),
-                        onPressed: () => _scanCode(_manualTokenController.text.trim()),
-                        child: const Text("Qabul qilish"),
+                    ),
+                  ),
+                  // Pastki yordam yozuvi
+                  Positioned(
+                    bottom: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.qr_code_scanner_rounded, color: Colors.white70, size: 14),
+                          SizedBox(width: 6),
+                          Text(
+                            "O'quvchi QR kodini kameraga tuting",
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
-            // Pastki tasdiq kartasi (Pop-up yoki Oxirgi skanerlangan o'quvchi)
+            // 3. Qo'lda kod kiritish (Zaxira usul)
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _manualTokenController,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: "Skaner kodi yoki token...",
+                      hintStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    backgroundColor: AppTheme.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () => _scanCode(_manualTokenController.text.trim()),
+                  child: const Text("Kiritish", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // 4. Oxirgi skanerlangan xabar
             if (_lastScannedMessage != null)
               Container(
-                margin: const EdgeInsets.only(bottom: 18),
-                padding: const EdgeInsets.all(14),
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.green.shade300),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded, color: Colors.green, size: 24),
+                    const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22),
                     const SizedBox(width: 10),
-                    Expanded(child: Text(_lastScannedMessage!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green))),
+                    Expanded(
+                      child: Text(
+                        _lastScannedMessage!,
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 13),
+                      ),
+                    ),
                   ],
                 ),
               ),
 
-            // O'quvchilar ro'yxati va qo'lda belgilash
+            // 5. Sinf o'quvchilari ro'yxati va qo'lda belgilash
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -250,6 +340,8 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
               itemBuilder: (ctx, i) {
                 final s = students[i];
                 final isPresent = s['is_present'] == true;
+                final studentId = s['id'] as int? ?? 0;
+                final studentName = (s['name'] ?? '').toString();
 
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -264,7 +356,7 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
                         radius: 18,
                         backgroundColor: isPresent ? AppTheme.primaryLight : Colors.grey.shade100,
                         child: Icon(
-                          isPresent ? Icons.check : Icons.person_outline,
+                          isPresent ? Icons.check_rounded : Icons.person_outline_rounded,
                           size: 18,
                           color: isPresent ? AppTheme.primary : AppTheme.textMuted,
                         ),
@@ -274,29 +366,44 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(s['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text(studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                             Text(s['passport_series'] ?? '', style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
                           ],
                         ),
                       ),
                       if (isPresent)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.qr_code_2_rounded, size: 14, color: Colors.green),
+                              Icon(Icons.check_circle_rounded, size: 14, color: Colors.green),
                               SizedBox(width: 4),
-                              Text("QR bilan keldi ✅", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                              Text("Keldi ✅", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
                             ],
                           ),
                         )
                       else
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-                          child: const Text("Kelmadi (Kutilmoqda)", style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                        InkWell(
+                          onTap: () => _markManually(studentId, studentName),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.touch_app_rounded, size: 13, color: Colors.redAccent),
+                                SizedBox(width: 4),
+                                Text("Qo'lda belgilash", style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -305,7 +412,7 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
             ),
             const SizedBox(height: 24),
 
-            // 🔥 [DAVOMATNI YAKUNLASH VA DARSNI BOSHLASH] TUGMASI
+            // 6. Davomatni yakunlash va darsni boshlash tugmasi
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
@@ -317,18 +424,20 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text("Davomat yakunlandi! Dars jarayoni va materiallari barcha o'quvchilarga ochildi ✅"),
+                    content: Text("Davomat yakunlandi! Dars jarayoni boshlandi ✅"),
                     backgroundColor: AppTheme.success,
                   ),
                 );
-                // Dars boshlandi -> Baholash sahifasiga o'tish
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (_) => TeacherGradeScreen(lessonId: widget.lessonId)),
                 );
               },
-              icon: const Icon(Icons.check_circle_outline_rounded, size: 22),
-              label: const Text("Davomatni Yakunlash & Darsni Boshlash ➔", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              icon: const Icon(Icons.check_circle_outline_rounded, size: 22, color: Colors.white),
+              label: const Text(
+                "Davomatni Yakunlash & Darsni Boshlash ➔",
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
             ),
             const SizedBox(height: 20),
           ],

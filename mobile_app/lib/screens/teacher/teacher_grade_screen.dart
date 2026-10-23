@@ -108,8 +108,7 @@ class _TeacherGradeScreenState extends State<TeacherGradeScreen> {
                 final s = _attendedStudents[i];
                 final id = s['id'] as int;
                 final currentScore = _scores[id] ?? 5;
-                final currentType = _gradeTypes[id] ?? 'ACTIVITY';
-
+  
                 return Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
