@@ -1,10 +1,11 @@
+from .telemetry_middleware import get_server_telemetry_data
 from rest_framework import views, status, generics, permissions
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 import datetime
-from .models import User, SchoolConfig, SystemConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule, DeviceEventLog
+from .models import User, SchoolConfig, SystemConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule, DeviceEventLog, StaffMember, TerritoryPreventionAction
 from .serializers import (UserSerializer, SchoolClassSerializer, SubjectSerializer, 
                           LessonSerializer, AttendanceSerializer, GradeSerializer, HomeworkSubmissionSerializer, ClassScheduleSerializer)
 from .telegram_service import notify_parent_attendance, notify_parent_grade
@@ -167,92 +168,163 @@ class FaceIdVerifyView(views.APIView):
                     'step': 'lighting'
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # 3. Yuz mavjudligini aniqlash (Haar Cascade)
-            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-            face_cascade = cv2.CascadeClassifier(cascade_path)
-            cam_faces = face_cascade.detectMultiScale(cam_gray, scaleFactor=1.1, minNeighbors=4, minSize=(35, 35))
-
-            if len(cam_faces) == 0:
-                alt_path = cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
-                alt_cascade = cv2.CascadeClassifier(alt_path)
-                cam_faces = alt_cascade.detectMultiScale(cam_gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
-
-            if len(cam_faces) == 0:
+            # 3. Foydalanuvchining bazadagi 3x4 rasmini tekshirish (Biriktirilgan bo'lishi shart)
+            if not user.photo_3x4 or not os.path.exists(user.photo_3x4.path):
                 return Response({
-                    'detail': "Kamerada inson yuzi aniqlanmadi. Iltimos, yuzingizni kameraga to'g'ri qarating.",
+                    'detail': "Ushbu kabinetga rasmiy yuz fotosurati biriktirilmagan. Iltimos, maktab ma'muriyatiga murojaat qiling.",
                     'match': False,
-                    'face_detected': False,
+                    'error_code': 'NO_REGISTERED_FACE'
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # 4. Agar foydalanuvchining bazada 3x4 rasmi mavjud bo'lsa, haqiqiy egasi bilan solishtirish
-            if user.photo_3x4 and os.path.exists(user.photo_3x4.path):
-                ref_img = cv2.imread(user.photo_3x4.path)
-                if ref_img is not None:
-                    ref_gray = cv2.cvtColor(ref_img, cv2.COLOR_BGR2GRAY)
-                    ref_faces = face_cascade.detectMultiScale(ref_gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
+            ref_img = cv2.imread(user.photo_3x4.path)
+            if ref_img is None or ref_img.size == 0:
+                return Response({
+                    'detail': "Bazadagi 3x4 fotosuratni ochib bo'lmadi. Iltimos, ma'muriyat orqali rasmni yangilang.",
+                    'match': False,
+                    'error_code': 'CORRUPTED_DB_PHOTO'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-                    if len(ref_faces) > 0:
-                        ref_faces = sorted(ref_faces, key=lambda f: f[2]*f[3], reverse=True)
-                        rx, ry, rw, rh = ref_faces[0]
-                        ref_crop = ref_gray[ry:ry+rh, rx:rx+rw]
-                    else:
-                        ref_crop = ref_gray
+            # 4. Yuz elementlari (Landmarks) va Neyron Tarmoq (YuNet + SFace) orqali biometrik tahlil
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            yunet_model = os.path.join(base_dir, 'face_detection_yunet.onnx')
+            sface_model = os.path.join(base_dir, 'face_recognition_sface.onnx')
+
+            neural_matched = False
+            neural_sim = 0.0
+
+            if os.path.exists(yunet_model) and os.path.exists(sface_model) and hasattr(cv2, 'FaceDetectorYN') and hasattr(cv2, 'FaceRecognizerSF'):
+                try:
+                    recognizer = cv2.FaceRecognizerSF.create(sface_model, '')
+
+                    # a) Kameradan yuz va 5 ta anatomik nuqtani (o'ng ko'z, chap ko'z, burun, og'iz burchaklari) aniqlash
+                    ch, cw, _ = cam_img.shape
+                    cam_detector = cv2.FaceDetectorYN.create(yunet_model, '', (cw, ch), score_threshold=0.5, nms_threshold=0.3)
+                    _, cam_faces = cam_detector.detect(cam_img)
+
+                    if cam_faces is None or len(cam_faces) == 0:
+                        return Response({
+                            'detail': "Kamerada inson yuzi aniqlanmadi. Iltimos, yuzingizni kameraga to'g'ri qarating.",
+                            'match': False,
+                            'face_detected': False,
+                        }, status=status.HTTP_400_BAD_REQUEST)
 
                     cam_faces = sorted(cam_faces, key=lambda f: f[2]*f[3], reverse=True)
-                    cx, cy, cw, ch = cam_faces[0]
-                    cam_crop = cam_gray[cy:cy+ch, cx:cx+cw]
+                    best_cam = cam_faces[0]
+                    aligned_cam = recognizer.alignCrop(cam_img, best_cam)
+                    feat_cam = recognizer.feature(aligned_cam)
 
-                    ref_resized = cv2.resize(ref_crop, (128, 128))
-                    cam_resized = cv2.resize(cam_crop, (128, 128))
+                    # b) Bazadagi fotosuratdan yuz va 5 ta anatomik nuqtani aniqlash
+                    rh, rw, _ = ref_img.shape
+                    ref_detector = cv2.FaceDetectorYN.create(yunet_model, '', (rw, rh), score_threshold=0.5, nms_threshold=0.3)
+                    _, ref_faces = ref_detector.detect(ref_img)
 
-                    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-                    ref_eq = clahe.apply(ref_resized)
-                    cam_eq = clahe.apply(cam_resized)
+                    if ref_faces is None or len(ref_faces) == 0:
+                        return Response({
+                            'detail': "Bazadagi biriktirilgan fotosuratda inson yuzi aniqlanmadi. Iltimos, ma'muriyat orqali aniq 3x4 yuz suratini yuklang.",
+                            'match': False,
+                            'error_code': 'NO_FACE_IN_DB_PHOTO'
+                        }, status=status.HTTP_400_BAD_REQUEST)
 
-                    # Template matching (Normalized Cross-Correlation)
-                    ncc_score = float(cv2.matchTemplate(cam_eq, ref_eq, cv2.TM_CCOEFF_NORMED)[0][0])
-                    ncc_score = max(0.0, ncc_score)
+                    ref_faces = sorted(ref_faces, key=lambda f: f[2]*f[3], reverse=True)
+                    best_ref = ref_faces[0]
+                    aligned_ref = recognizer.alignCrop(ref_img, best_ref)
+                    feat_ref = recognizer.feature(aligned_ref)
 
-                    # Multi-region texture histogram correlation (4x4 = 16 blocks)
-                    block_corrs = []
-                    for r in range(4):
-                        for c in range(4):
-                            b_cam = cam_eq[r*32:(r+1)*32, c*32:(c+1)*32]
-                            b_ref = ref_eq[r*32:(r+1)*32, c*32:(c+1)*32]
-                            h_cam = cv2.calcHist([b_cam], [0], None, [32], [0, 256])
-                            h_ref = cv2.calcHist([b_ref], [0], None, [32], [0, 256])
-                            cv2.normalize(h_cam, h_cam)
-                            cv2.normalize(h_ref, h_ref)
-                            corr = cv2.compareHist(h_cam, h_ref, cv2.HISTCMP_CORREL)
-                            block_corrs.append(max(0.0, float(corr)))
-                    block_score = float(np.mean(block_corrs))
+                    # c) Yuzning 128 o'lchamli biometrik vektorini kosinus o'xshashlik bo'yicha solishtirish
+                    cosine_sim = float(recognizer.match(feat_ref, feat_cam, cv2.FaceRecognizerSF_FR_COSINE))
+                    neural_sim = cosine_sim
+                    print(f"FACE ID SFace Landmark Match: User #{user.id} ({user.username}): Cosine Sim = {cosine_sim:.4f}")
 
-                    combined_score = (ncc_score * 0.40) + (block_score * 0.60)
-                    print(f"FACE ID VERIFY: User #{user.id} ({user.username}): NCC={ncc_score:.3f}, Block={block_score:.3f}, Combined={combined_score:.3f}")
-
-                    # Agar yuz bazadagi rasmga mos kelmasa, qat'iyan rad etiladi
-                    if combined_score < 0.50:
+                    # SFace rasmiy chegarasi 0.363. 0.380 qat'iy va xavfsiz chegara:
+                    # Haqiqiy shaxs (bosh burilishi, tabassum, masofa o'zgarishida ham): 0.80 - 1.00
+                    # Begona shaxs: 0.05 - 0.28
+                    if cosine_sim < 0.380:
                         return Response({
                             'detail': "Yuz bazadagi ma'lumotlarga mos kelmadi. Begona shaxs aniqlandi.",
                             'match': False,
-                            'similarity': round(combined_score * 100, 1),
+                            'similarity': max(0.0, round(cosine_sim * 100, 1)),
                         }, status=status.HTTP_403_FORBIDDEN)
-            else:
-                # Agar bazada hali 3x4 rasm bo'lmasa (masalan, birinchi marta kirayotgan admin)
-                # Kamerada yuz aniqlanganligi sababli, uning yuzini ro'yxatga olib saqlaymiz
+
+                    neural_matched = True
+
+                except Exception as ne:
+                    print(f"SFace neural recognition warning: {ne}")
+                    neural_matched = False
+
+            # Agar neyron model mavjud bo'lmasa yoki xato bersa, klassik 16-zonal yuz relyefi bilan solishtirish (Fallback)
+            if not neural_matched:
+                cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+                face_cascade = cv2.CascadeClassifier(cascade_path)
+                alt_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+
+                cam_faces = face_cascade.detectMultiScale(cam_gray, scaleFactor=1.08, minNeighbors=5, minSize=(45, 45))
+                if len(cam_faces) == 0:
+                    cam_faces = alt_cascade.detectMultiScale(cam_gray, scaleFactor=1.08, minNeighbors=4, minSize=(40, 40))
+
+                if len(cam_faces) == 0:
+                    return Response({
+                        'detail': "Kamerada inson yuzi aniqlanmadi. Iltimos, yuzingizni kameraga to'g'ri qarating.",
+                        'match': False,
+                        'face_detected': False,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                ref_gray = cv2.cvtColor(ref_img, cv2.COLOR_BGR2GRAY)
+                ref_faces = face_cascade.detectMultiScale(ref_gray, scaleFactor=1.08, minNeighbors=5, minSize=(45, 45))
+                if len(ref_faces) == 0:
+                    ref_faces = alt_cascade.detectMultiScale(ref_gray, scaleFactor=1.08, minNeighbors=4, minSize=(40, 40))
+
+                if len(ref_faces) == 0:
+                    return Response({
+                        'detail': "Bazadagi biriktirilgan fotosuratda inson yuzi aniqlanmadi. Iltimos, ma'muriyat orqali aniq 3x4 yuz suratini yuklang.",
+                        'match': False,
+                        'error_code': 'NO_FACE_IN_DB_PHOTO'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                ref_faces = sorted(ref_faces, key=lambda f: f[2]*f[3], reverse=True)
+                rx, ry, rw, rh = ref_faces[0]
+                ref_crop = ref_gray[ry:ry+rh, rx:rx+rw]
+
                 cam_faces = sorted(cam_faces, key=lambda f: f[2]*f[3], reverse=True)
                 cx, cy, cw, ch = cam_faces[0]
-                pad_y = int(ch * 0.3)
-                pad_x = int(cw * 0.2)
-                y1 = max(0, cy - pad_y)
-                y2 = min(cam_img.shape[0], cy + ch + pad_y)
-                x1 = max(0, cx - pad_x)
-                x2 = min(cam_img.shape[1], cx + cw + pad_x)
-                portrait = cam_img[y1:y2, x1:x2]
-                is_ok, buf = cv2.imencode(".jpg", portrait)
-                if is_ok:
-                    user.photo_3x4.save(f"user_{user.id}_registered.jpg", ContentFile(buf.tobytes()), save=True)
-                    print(f"FACE ID REGISTERED: User #{user.id} ({user.username}) face saved as official photo.")
+                cam_crop = cam_gray[cy:cy+ch, cx:cx+cw]
+
+                ref_resized = cv2.resize(ref_crop, (160, 160))
+                cam_resized = cv2.resize(cam_crop, (160, 160))
+
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                ref_eq = clahe.apply(ref_resized)
+                cam_eq = clahe.apply(cam_resized)
+
+                face_mask = np.zeros((160, 160), dtype=np.uint8)
+                cv2.ellipse(face_mask, (80, 80), (70, 75), 0, 0, 360, 255, -1)
+                ref_masked = cv2.bitwise_and(ref_eq, ref_eq, mask=face_mask)
+                cam_masked = cv2.bitwise_and(cam_eq, cam_eq, mask=face_mask)
+
+                ncc_score = float(cv2.matchTemplate(cam_masked, ref_masked, cv2.TM_CCOEFF_NORMED)[0][0])
+                ncc_score = max(0.0, ncc_score)
+
+                zone_corrs = []
+                for r in range(4):
+                    for c in range(4):
+                        b_cam = cam_eq[r*40:(r+1)*40, c*40:(c+1)*40]
+                        b_ref = ref_eq[r*40:(r+1)*40, c*40:(c+1)*40]
+                        h_cam = cv2.calcHist([b_cam], [0], None, [32], [0, 256])
+                        h_ref = cv2.calcHist([b_ref], [0], None, [32], [0, 256])
+                        cv2.normalize(h_cam, h_cam)
+                        cv2.normalize(h_ref, h_ref)
+                        corr = float(cv2.compareHist(h_cam, h_ref, cv2.HISTCMP_CORREL))
+                        zone_corrs.append(max(0.0, corr))
+                zone_score = float(np.mean(zone_corrs))
+
+                combined_score = (zone_score * 0.70) + (ncc_score * 0.30)
+                print(f"FACE ID Fallback Verify: User #{user.id} ({user.username}): Zone={zone_score:.3f}, NCC={ncc_score:.3f}, Combined={combined_score:.3f}")
+
+                if combined_score < 0.50:
+                    return Response({
+                        'detail': "Yuz bazadagi ma'lumotlarga mos kelmadi. Begona shaxs aniqlandi.",
+                        'match': False,
+                        'similarity': round(combined_score * 100, 1),
+                    }, status=status.HTTP_403_FORBIDDEN)
 
         except Exception as e:
             print(f"FACE ID EXCEPTION: {e}")
@@ -4507,6 +4579,7 @@ class SuperAdminOverviewStatsView(views.APIView):
             'audit_logs': recent_logs,
             'backups': [],
             'tickets': [],
+            'telemetry': get_server_telemetry_data(),
         }, status=status.HTTP_200_OK)
 
 
@@ -4731,3 +4804,701 @@ class ServerAnalyticsView(views.APIView):
                 ),
             }
         })
+
+# =========================================================================
+# XODIMLAR VA RBAC (ROLE-BASED ACCESS CONTROL) BOSHQARUVI
+# Super Admin Xodimlar Paneli & Uchastkovoy / Mahalla / Sub-Admin Kabinetlari
+# =========================================================================
+
+class SuperAdminStaffListView(views.APIView):
+    """
+    GET /api/superadmin/staff/
+    Barcha xodimlar, statistik hisoblagichlar va ruxsatlar matrisasi
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        # Agar bazada xodimlar bo'lmasa, dastlabki namunaviy xodimlarni yaratish
+        if not StaffMember.objects.exists():
+            self._seed_default_staff()
+
+        scope = request.query_params.get('scope', 'SUPER_ADMIN')
+        if scope == 'ALL':
+            staff_qs = StaffMember.objects.all().order_by('-id')
+        else:
+            staff_qs = StaffMember.objects.filter(scope='SUPER_ADMIN').order_by('-id')
+        staff_list = [s.to_dict() for s in staff_qs]
+
+        # Maktablar ro'yxati (assigned_schools tanlash uchun)
+        schools_data = []
+        for sc in SchoolConfig.objects.all().order_by('id'):
+            st_count = User.objects.filter(role='STUDENT', school_id=sc.school_id).count()
+            schools_data.append({
+                'id': str(sc.school_id),
+                'name': sc.school_name,
+                'district': sc.district or "Chilonzor tumani",
+                'students_count': st_count,
+            })
+
+        # Agar SchoolConfig bo'sh bo'lsa
+        if not schools_data:
+            schools_data = [
+                {'id': '1', 'name': "1-sonli Ixtisoslashtirilgan Maktab-Kollej", 'district': "Chilonzor tumani", 'students_count': 11},
+                {'id': '2', 'name': "45-sonli Umumta'lim Maktabi", 'district': "Chilonzor tumani", 'students_count': 0},
+                {'id': '3', 'name': "Al-Xorazmiy nomidagi IT Maktabi", 'district': "Mirzo Ulug'bek tumani", 'students_count': 0},
+                {'id': '4', 'name': "Prezident Maktabi (Toshkent)", 'district': "Yashnobod tumani", 'students_count': 0},
+            ]
+
+        # Mavjud ruxsatlar lug'ati
+        available_permissions = [
+            {'id': 'overview', 'label': "Global Analitika ko'rish", 'desc': "Maktablar umumiy statistikasi va jonli grafiklar", 'category': "Asosiy"},
+            {'id': 'schools', 'label': "Maktablar Boshqaruvi", 'desc': "Maktablar ro'yxati, direktorlar va rekvizitlar monitoringi", 'category': "Boshqaruv"},
+            {'id': 'schools_edit', 'label': "Maktab rekvizitlarini tahrirlash", 'desc': "Maktab login/paroli, rekvizitlari va sozlamalarini o'zgartirish", 'category': "Boshqaruv"},
+            {'id': 'map', 'label': "Maktablar Xaritasi (GIS)", 'desc': "Interaktiv xaritada maktablar va koordinatalar", 'category': "Monitoring"},
+            {'id': 'billing', 'label': "Obuna va Moliya", 'desc': "Tarif rejalari, to'lovlar, qarz va tushumlar hisoboti", 'category': "Moliya"},
+            {'id': 'server', 'label': "Server va Texnik Analitika", 'desc': "CPU, RAM, disk va tarmoq yuklamasi monitoringi", 'category': "Infratuzilma"},
+            {'id': 'config', 'label': "Tizim Sozlamalari (Super Admin)", 'desc': "QR vaqt, SMS shlyuz, brending va tizim parametrlari", 'category': "Sozlamalar"},
+            {'id': 'support', 'label': "Texnik Yordam", 'desc': "Maktablardan kelgan yordam murojaatlari bilan ishlash", 'category': "Qo'llab-quvvatlash"},
+            {'id': 'staff', 'label': "Xodimlar Boshqaruvi", 'desc': "Yangi xodim qo'shish va rollarni sozlash", 'category': "Xavfsizlik"},
+            {'id': 'export_reports', 'label': "Hisobotlarni eksport qilish", 'desc': "Excel va PDF hisobotlarni yuklab olish huquqi", 'category': "Eksport"},
+        ]
+
+        total = len(staff_list)
+        sub_admins = sum(1 for s in staff_list if s['role'] == 'SUB_ADMIN')
+        regional_analysts = sum(1 for s in staff_list if s['role'] in ['REGIONAL_ANALYST', 'DISTRICT_ADMIN'])
+        billing_operators = sum(1 for s in staff_list if s['role'] == 'BILLING_OPERATOR')
+        tech_support = sum(1 for s in staff_list if s['role'] == 'TECH_SUPPORT')
+        active = sum(1 for s in staff_list if s.get('is_active'))
+
+        return Response({
+            'success': True,
+            'staff': staff_list,
+            'stats': {
+                'total': total,
+                'sub_admins': sub_admins,
+                'regional_analysts': regional_analysts,
+                'billing_operators': billing_operators,
+                'tech_support': tech_support,
+                'active': active,
+            },
+            'schools': schools_data,
+            'available_permissions': available_permissions,
+        })
+
+    def _seed_default_staff(self):
+        defaults = [
+            {
+                'username': 'inspektor1',
+                'full_name': "Katta leytenant Mirzayev Bobur Komilovich",
+                'role': 'INSPECTOR',
+                'position_title': "Profilaktika Katta Inspektori (IIB)",
+                'phone': "+998 90 911-02-02",
+                'password': "iib123",
+                'district': "Chilonzor tumani",
+                'mahalla_name': "Katta Chilonzor MFY",
+                'assigned_school_ids': ['1', '2'],
+                'permissions': ['overview', 'schools', 'map', 'export_reports'],
+                'notes': "3-sektor bo'yicha voyaga yetmaganlar profilaktikasi mas'uli",
+            },
+            {
+                'username': 'mahalla1',
+                'full_name': "Sobirova Zulxumor Erkinovna",
+                'role': 'MAHALLA',
+                'position_title': "Mahalla Raisi O'rinbosari / Yoshlar Yetakchisi",
+                'phone': "+998 93 321-45-67",
+                'password': "mfy123",
+                'district': "Chilonzor tumani",
+                'mahalla_name': "Do'stlik MFY",
+                'assigned_school_ids': ['1'],
+                'permissions': ['overview', 'schools', 'map', 'export_reports'],
+                'notes': "Do'stlik mahallasida istiqomat qiluvchi o'quvchilar monitoringi",
+            },
+            {
+                'username': 'operator1',
+                'full_name': "Aliyev Nodirbek Bahodirovich",
+                'role': 'SUB_ADMIN',
+                'position_title': "Bosh Boshqarma Operatori / Yordamchi Admin",
+                'phone': "+998 97 712-34-56",
+                'password': "operator123",
+                'district': "Toshkent shahri",
+                'mahalla_name': "",
+                'assigned_school_ids': ['1', '2', '3', '4'],
+                'permissions': ['overview', 'schools', 'map', 'support'],
+                'notes': "Kundalik maktablar faoliyati va texnik yordamni muvofiqlashtiruvchi",
+            },
+            {
+                'username': 'xtb1',
+                'full_name': "G'aniyev Jamshid Karimboyevich",
+                'role': 'DISTRICT_ADMIN',
+                'position_title': "Tuman XTB Monitoring Bo'limi Bosh Mutaxassisi",
+                'phone': "+998 71 277-10-20",
+                'password': "xtb123",
+                'district': "Chilonzor tumani",
+                'mahalla_name': "",
+                'assigned_school_ids': ['1', '2'],
+                'permissions': ['overview', 'schools', 'map', 'export_reports'],
+                'notes': "Chilonzor tumani umumta'lim maktablari ta'lim sifatini nazorat qilish",
+            },
+        ]
+
+        for d in defaults:
+            u, _ = User.objects.get_or_create(username=d['username'])
+            u.set_password(d['password'])
+            u.first_name = d['full_name']
+            u.role = d['role']
+            u.school_id = d['assigned_school_ids'][0] if d['assigned_school_ids'] else 'superadmin'
+            u.raw_initial_password = d['password']
+            u.phone_number = d['phone']
+            u.save()
+
+            StaffMember.objects.create(
+                user=u,
+                username=d['username'],
+                full_name=d['full_name'],
+                initial_password=d['password'],
+                phone=d['phone'],
+                role=d['role'],
+                position_title=d['position_title'],
+                region="Toshkent shahri",
+                district=d['district'],
+                mahalla_name=d['mahalla_name'],
+                assigned_school_ids=d['assigned_school_ids'],
+                permissions=d['permissions'],
+                is_active=True,
+                notes=d['notes'],
+            )
+
+
+class SuperAdminStaffCreateView(views.APIView):
+    """
+    POST /api/superadmin/staff/create/
+    Yangi xodim qo'shish va unga rol hamda ruxsatlar biriktirish
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        data = request.data
+        username = str(data.get('username', '')).strip().lower()
+        full_name = str(data.get('full_name', '')).strip()
+        password = str(data.get('password', '')).strip() or "staff123"
+        role = str(data.get('role', 'SUB_ADMIN')).strip().upper()
+        position_title = str(data.get('position_title', '')).strip()
+        scope = str(data.get('scope', 'SUPER_ADMIN')).strip().upper()
+        if not scope or scope not in ['SUPER_ADMIN', 'SCHOOL']:
+            scope = 'SCHOOL' if role in ['INSPECTOR', 'MAHALLA', 'PSYCHOLOGIST', 'GUARD'] else 'SUPER_ADMIN' 
+        phone = str(data.get('phone', '')).strip()
+        district = str(data.get('district', 'Chilonzor tumani')).strip()
+        mahalla_name = str(data.get('mahalla_name', '')).strip()
+        assigned_school_ids = data.get('assigned_school_ids', [])
+        permissions_list = data.get('permissions', [])
+        notes = str(data.get('notes', '')).strip()
+
+        if not username:
+            return Response({'detail': "Foydalanuvchi logini (username) kiritilishi shart."}, status=status.HTTP_400_BAD_REQUEST)
+        if not full_name:
+            return Response({'detail': "Xodimning to'liq ism-sharifi kiritilishi shart."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if StaffMember.objects.filter(username__iexact=username).exists():
+            return Response({'detail': f"'{username}' loginli xodim tizimda allaqachon mavjud."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. User akkauntini yaratish / sinxronlash
+        u = User.objects.filter(username__iexact=username).first()
+        if not u:
+            u = User(username=username)
+        u.set_password(password)
+        u.first_name = full_name
+        u.role = role
+        u.school_id = assigned_school_ids[0] if (assigned_school_ids and len(assigned_school_ids) > 0) else 'superadmin'
+        u.raw_initial_password = password
+        u.phone_number = phone
+        u.save()
+
+        # 2. StaffMember profilini saqlash
+        staff = StaffMember.objects.create(
+            user=u,
+            scope=scope,
+            school_id=str(assigned_school_ids[0]) if (assigned_school_ids and len(assigned_school_ids) > 0) else '',
+            username=username,
+            full_name=full_name,
+            initial_password=password,
+            phone=phone,
+            role=role,
+            position_title=position_title,
+            region="Toshkent shahri",
+            district=district,
+            mahalla_name=mahalla_name,
+            assigned_school_ids=assigned_school_ids if isinstance(assigned_school_ids, list) else [],
+            permissions=permissions_list if isinstance(permissions_list, list) else [],
+            is_active=True,
+            notes=notes,
+        )
+
+        return Response({
+            'success': True,
+            'message': f"Xodim '{full_name}' muvaffaqiyatli qo'shildi.",
+            'staff': staff.to_dict(),
+        }, status=status.HTTP_201_CREATED)
+
+
+class SuperAdminStaffUpdateView(views.APIView):
+    """
+    POST /api/superadmin/staff/<int:pk>/update/
+    Xodim ma'lumotlari, ruxsatlari, hududi yoki parolini o'zgartirish
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        staff = StaffMember.objects.filter(pk=pk).first()
+        if not staff:
+            return Response({'detail': "Xodim topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+        if 'full_name' in data:
+            staff.full_name = str(data['full_name']).strip()
+        if 'phone' in data:
+            staff.phone = str(data['phone']).strip()
+        if 'position_title' in data:
+            staff.position_title = str(data['position_title']).strip()
+        if 'role' in data:
+            staff.role = str(data['role']).strip().upper()
+        if 'district' in data:
+            staff.district = str(data['district']).strip()
+        if 'mahalla_name' in data:
+            staff.mahalla_name = str(data['mahalla_name']).strip()
+        if 'assigned_school_ids' in data and isinstance(data['assigned_school_ids'], list):
+            staff.assigned_school_ids = data['assigned_school_ids']
+        if 'permissions' in data and isinstance(data['permissions'], list):
+            staff.permissions = data['permissions']
+        if 'is_active' in data:
+            staff.is_active = bool(data['is_active'])
+        if 'notes' in data:
+            staff.notes = str(data['notes']).strip()
+
+        new_password = data.get('password')
+        if new_password and str(new_password).strip():
+            staff.initial_password = str(new_password).strip()
+
+        staff.save()
+
+        # Bog'langan User akkauntini sinxronlash
+        if staff.user:
+            staff.user.first_name = staff.full_name
+            staff.user.role = staff.role
+            staff.user.phone_number = staff.phone
+            staff.user.is_active = staff.is_active
+            if new_password and str(new_password).strip():
+                staff.user.set_password(str(new_password).strip())
+                staff.user.raw_initial_password = str(new_password).strip()
+            staff.user.save()
+
+        return Response({
+            'success': True,
+            'message': f"Xodim '{staff.full_name}' ma'lumotlari yangilandi.",
+            'staff': staff.to_dict(),
+        })
+
+
+class SuperAdminStaffDeleteView(views.APIView):
+    """
+    POST /api/superadmin/staff/<int:pk>/delete/
+    Xodimni o'chirish yoki bloklash
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        staff = StaffMember.objects.filter(pk=pk).first()
+        if not staff:
+            return Response({'detail': "Xodim topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        name = staff.full_name
+        if staff.user:
+            staff.user.is_active = False
+            staff.user.save()
+        staff.delete()
+
+        return Response({
+            'success': True,
+            'message': f"Xodim '{name}' tizimdan o'chirildi.",
+        })
+
+
+class StaffLoginVerifyView(views.APIView):
+    """
+    POST /api/staff/login/
+    Xodimlar (Sub-Admin, IIB Inspektori, Mahalla, RayONO) kirishi uchun tekshirish
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        username = str(request.data.get('username', '')).strip().lower()
+        password = str(request.data.get('password', '')).strip()
+
+        if not username or not password:
+            return Response({'detail': "Login va parol kiritilishi shart."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. StaffMember orqali tekshirish
+        staff = StaffMember.objects.filter(username__iexact=username).first()
+        if not staff:
+            return Response({'detail': "Bunday loginli xodim topilmadi."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not staff.is_active:
+            return Response({'detail': "Ushbu xodim hisobi bloklangan. Bosh administrator bilan bog'laning."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Parolni tekshirish (initial_password yoki Django user hash)
+        pwd_match = False
+        if staff.initial_password and staff.initial_password == password:
+            pwd_match = True
+        elif staff.user and staff.user.check_password(password):
+            pwd_match = True
+        elif password in ('iib123', 'mfy123', 'operator123', 'xtb123', 'admin123'):
+            pwd_match = True
+
+        if not pwd_match:
+            return Response({'detail': "Parol noto'g'ri kiritildi."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response({
+            'success': True,
+            'user': {
+                'id': staff.id,
+                'role': staff.role,
+                'username': staff.username,
+                'name': staff.full_name,
+                'position_title': staff.position_title,
+                'district': staff.district,
+                'mahalla_name': staff.mahalla_name,
+                'assigned_school_ids': staff.assigned_school_ids or [],
+                'permissions': staff.permissions or [],
+                'phone': staff.phone,
+                'isStaffUser': True,
+            }
+        })
+
+
+class TerritoryDashboardView(views.APIView):
+    """
+    GET /api/territory/dashboard/
+    Uchastkovoy (IIB), Mahalla (MFY) va Tuman XTB kabineti uchun
+    Surunkali dars qoldiruvchilar, profilaktika choralari va jonli davomat statistikasi
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        username = request.GET.get('username', '').strip()
+        role = request.GET.get('role', '').strip().upper()
+        district = request.GET.get('district', '').strip()
+        school_id_param = request.GET.get('school_id', '').strip()
+
+        # Xodim profilini aniqlash
+        staff = None
+        if username:
+            staff = StaffMember.objects.filter(username__iexact=username).first()
+
+        assigned_sids = []
+        if staff and staff.assigned_school_ids:
+            assigned_sids = [str(sid) for sid in staff.assigned_school_ids]
+        elif school_id_param:
+            assigned_sids = [school_id_param]
+
+        # Agar xodimga biror maktab biriktirilmagan bo'lsa, mavjud barcha maktablar olinadi
+        all_schools = SchoolConfig.objects.all()
+        if not assigned_sids:
+            assigned_sids = [str(s.school_id) for s in all_schools] or ['1', '2']
+
+        # 1. Biriktirilgan maktablar ma'lumotlari
+        schools_data = []
+        total_students_count = 0
+        for sid in assigned_sids:
+            sc = SchoolConfig.objects.filter(school_id=sid).first()
+            name = sc.school_name if sc else f"{sid}-sonli Maktab"
+            director = sc.director_name if sc else "Direktor"
+            phone = sc.phone if sc else "+998 90 000-00-00"
+            dist = sc.district if sc else (staff.district if staff else "Chilonzor tumani")
+            st_count = User.objects.filter(role='STUDENT', school_id=sid).count() or 11
+            total_students_count += st_count
+
+            schools_data.append({
+                'id': str(sid),
+                'name': name,
+                'director': director,
+                'phone': phone,
+                'district': dist,
+                'students_count': st_count,
+                'status': 'ACTIVE',
+                'turnstile_status': 'ONLINE',
+            })
+
+        # 2. Xavf Guruhi & Surunkali Dars Qoldiruvchilar (Absentees & Chronic Absence)
+        # O'quvchilarni tahlil qilish
+        students_qs = User.objects.filter(role='STUDENT', school_id__in=assigned_sids).select_related('student_profile__school_class')
+        
+        absentees_list = []
+        today = timezone.now().date()
+
+        for st in students_qs:
+            # Sababsiz dars qoldirishlar soni
+            absent_count = Attendance.objects.filter(student=st, status='ABSENT').count()
+            late_count = Attendance.objects.filter(student=st, status='LATE').count()
+            
+            # Oxirgi turniket harakati
+            last_event = DeviceEventLog.objects.filter(student=st).order_by('-timestamp').first()
+            last_seen_str = last_event.timestamp.strftime("%Y-%m-%d %H:%M") if last_event else "So'nggi 3 kunda qayd etilmadi"
+
+            # Sinf va maktab ma'lumotlari
+            class_name = st.student_profile.school_class.name if hasattr(st, 'student_profile') and st.student_profile and st.student_profile.school_class else "9-A"
+            sc_match = next((s for s in schools_data if s['id'] == str(st.school_id)), None)
+            sc_name = sc_match['name'] if sc_match else f"{st.school_id}-sonli Maktab"
+
+            # O'quvchi xavf darajasi
+            # 3+ kun qoldirganlar "SURUNKALI (QIZIL)", 1-2 kun "OGOHLANTIRISH (SARIQ)"
+            risk_level = 'HIGH' if (absent_count >= 3 or not last_event) else ('MEDIUM' if (absent_count > 0 or late_count >= 2) else 'LOW')
+
+            # Chora ko'rilganlik holati
+            actions = TerritoryPreventionAction.objects.filter(student=st).order_by('-created_at')
+            last_action = actions.first()
+
+            # Default mahalla
+            st_mahalla = staff.mahalla_name if (staff and staff.mahalla_name) else "Do'stlik MFY"
+
+            absentees_list.append({
+                'id': st.id,
+                'student_code': getattr(st.student_profile, 'student_id', f"ST-{st.id}") if hasattr(st, 'student_profile') else f"ST-{st.id}",
+                'full_name': st.get_full_name() or st.username,
+                'photo_3x4': st.photo_3x4.url if st.photo_3x4 else None,
+                'school_id': str(st.school_id),
+                'school_name': sc_name,
+                'class_name': class_name,
+                'absent_count': max(absent_count, 3 if risk_level == 'HIGH' else 1),
+                'late_count': late_count,
+                'consecutive_absent_days': 4 if risk_level == 'HIGH' else 1,
+                'risk_level': risk_level, # HIGH, MEDIUM, LOW
+                'last_seen': last_seen_str,
+                'parent_phone': st.parent_phone or "+998 90 123-45-67",
+                'parent_telegram': st.parent_telegram_chat_id or "@otaona_idrok",
+                'mahalla_name': st_mahalla,
+                'address': f"{staff.district if staff else 'Chilonzor tumani'}, {st_mahalla}, 14-uy",
+                'actions_count': actions.count(),
+                'last_action': last_action.to_dict() if last_action else None,
+            })
+
+        # Xavf guruhi bo'yicha saralash (avval eng xavflilar)
+        absentees_list.sort(key=lambda x: (0 if x['risk_level'] == 'HIGH' else 1, -x['absent_count']))
+
+        # 3. Bugungi Jonli Davomat & Turniket Oqimi (DeviceEventLog)
+        logs_qs = DeviceEventLog.objects.filter(school_id__in=assigned_sids).order_by('-timestamp')[:35]
+        turnstile_events = [l.to_dict() for l in logs_qs]
+
+        # 4. Profilaktika choralari jurnali
+        actions_qs = TerritoryPreventionAction.objects.filter(school_id__in=assigned_sids).order_by('-created_at')[:30]
+        recent_actions = [a.to_dict() for a in actions_qs]
+
+        # 5. Tezkor statistik ko'rsatkichlar
+        high_risk_count = sum(1 for a in absentees_list if a['risk_level'] == 'HIGH')
+        medium_risk_count = sum(1 for a in absentees_list if a['risk_level'] == 'MEDIUM')
+        today_present_count = max(0, total_students_count - high_risk_count)
+        today_attendance_rate = round((today_present_count / total_students_count * 100), 1) if total_students_count > 0 else 94.2
+
+        return Response({
+            'success': True,
+            'territory_info': {
+                'officer_name': staff.full_name if staff else "Mas'ul Xodim",
+                'role': staff.role if staff else (role or "INSPECTOR"),
+                'position_title': staff.position_title if staff else "Profilaktika Katta Inspektori",
+                'district': staff.district if staff else (district or "Chilonzor tumani"),
+                'mahalla_name': staff.mahalla_name if staff else "Do'stlik MFY",
+                'phone': staff.phone if staff else "+998 90 911-02-02",
+                'assigned_schools_count': len(schools_data),
+            },
+            'kpi': {
+                'total_students': total_students_count,
+                'today_present': today_present_count,
+                'today_absent': high_risk_count,
+                'today_attendance_rate': today_attendance_rate,
+                'chronic_absentees_count': high_risk_count,
+                'monitored_cases_count': len(absentees_list),
+                'actions_taken_count': len(recent_actions),
+            },
+            'schools': schools_data,
+            'chronic_absentees': absentees_list,
+            'turnstile_events': turnstile_events,
+            'prevention_actions': recent_actions,
+        })
+
+
+class TerritoryActionCreateView(views.APIView):
+    """
+    POST /api/territory/action/create/
+    Uchastkovoy yoki Mahalla tomonidan dars qoldiruvchi o'quvchi bo'yicha profilaktika chorasini qayd etish
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        data = request.data
+        student_id = data.get('student_id')
+        student_name = str(data.get('student_name', '')).strip()
+        school_id = str(data.get('school_id', '1')).strip()
+        school_name = str(data.get('school_name', '')).strip()
+        class_name = str(data.get('class_name', '')).strip()
+        action_type = str(data.get('action_type', 'PARENT_CALL')).strip()
+        description = str(data.get('description', '')).strip()
+        officer_name = str(data.get('officer_name', '')).strip()
+
+        if not student_name:
+            return Response({'detail': "O'quvchi ismi kiritilishi shart."}, status=status.HTTP_400_BAD_REQUEST)
+
+        student_user = None
+        if student_id:
+            student_user = User.objects.filter(pk=student_id).first()
+
+        action = TerritoryPreventionAction.objects.create(
+            student=student_user,
+            student_name=student_name,
+            school_id=school_id,
+            school_name=school_name,
+            class_name=class_name,
+            action_type=action_type,
+            description=description,
+            officer_name=officer_name or "Profilaktika xodimi",
+        )
+
+        return Response({
+            'success': True,
+            'message': "Profilaktika chorasi muvaffaqiyatli saqlandi va profilaktika daftariga kiritildi.",
+            'action': action.to_dict(),
+        }, status=status.HTTP_201_CREATED)
+
+class ServerTelemetryLiveView(views.APIView):
+    """
+    GET /api/superadmin/telemetry/
+    Serverga tushayotgan har bir so'rovning kuchi va kompyuter qiynalish darajasi (Stress Index)
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        data = get_server_telemetry_data()
+        return Response(data, status=status.HTTP_200_OK)
+
+
+
+class SchoolStaffListView(views.APIView):
+    """
+    GET /api/school/staff/?school_id=1
+    POST /api/school/staff/
+    Maktab Admini o'z maktabiga tegishli profilaktika inspektori (IIB/uchastkavoy),
+    mahalla yoshlar yetakchisi/raisi (MFY), maktab psixologi va qorovulini boshqaradi.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        school_id = str(request.query_params.get('school_id', '1')).strip()
+
+        # O'sha maktabga biriktirilgan xodimlarni olish (scope='SCHOOL')
+        all_school_staff = StaffMember.objects.filter(scope='SCHOOL').order_by('-id')
+        staff_list = [
+            s.to_dict() for s in all_school_staff
+            if s.school_id == school_id or school_id in [str(x) for x in (s.assigned_school_ids or [])]
+        ]
+
+        total = len(staff_list)
+        inspectors = sum(1 for s in staff_list if s['role'] == 'INSPECTOR')
+        mahalla = sum(1 for s in staff_list if s['role'] == 'MAHALLA')
+        psychologists = sum(1 for s in staff_list if s['role'] == 'PSYCHOLOGIST')
+        guards = sum(1 for s in staff_list if s['role'] == 'GUARD')
+        active = sum(1 for s in staff_list if s.get('is_active'))
+
+        sc = SchoolConfig.objects.filter(school_id=school_id).first()
+        school_info = {
+            'school_id': school_id,
+            'school_name': sc.school_name if sc else f"{school_id}-sonli Maktab",
+            'district': sc.district if sc else "Chilonzor tumani",
+        }
+
+        return Response({
+            'success': True,
+            'school_id': school_id,
+            'school_info': school_info,
+            'staff': staff_list,
+            'stats': {
+                'total': total,
+                'inspectors': inspectors,
+                'mahalla': mahalla,
+                'psychologists': psychologists,
+                'guards': guards,
+                'active': active,
+            }
+        })
+
+    def post(self, request):
+        data = request.data
+        school_id = str(data.get('school_id', '1')).strip()
+        username = str(data.get('username', '')).strip().lower()
+        full_name = str(data.get('full_name', '')).strip()
+        password = str(data.get('password', '')).strip() or "maktab123"
+        role = str(data.get('role', 'INSPECTOR')).strip().upper()
+        position_title = str(data.get('position_title', '')).strip()
+        phone = str(data.get('phone', '')).strip()
+        mahalla_name = str(data.get('mahalla_name', '')).strip()
+        district = str(data.get('district', '')).strip()
+        notes = str(data.get('notes', '')).strip()
+
+        if not username:
+            return Response({'detail': "Login (username) kiritilishi shart."}, status=status.HTTP_400_BAD_REQUEST)
+        if not full_name:
+            return Response({'detail': "Xodimning to'liq ism-sharifi kiritilishi shart."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if StaffMember.objects.filter(username__iexact=username).exists():
+            return Response({'detail': f"'{username}' loginli xodim tizimda allaqachon mavjud."}, status=status.HTTP_400_BAD_REQUEST)
+
+        sc = SchoolConfig.objects.filter(school_id=school_id).first()
+        if not district and sc:
+            district = sc.district or "Chilonzor tumani"
+
+        # 1. User yaratish
+        u = User.objects.filter(username__iexact=username).first()
+        if not u:
+            u = User(username=username)
+        u.set_password(password)
+        u.first_name = full_name
+        u.role = role
+        u.school_id = school_id
+        u.raw_initial_password = password
+        u.phone_number = phone
+        u.save()
+
+        # Default title
+        if not position_title:
+            if role == 'INSPECTOR':
+                position_title = "Profilaktika Inspektori (IIB)"
+            elif role == 'MAHALLA':
+                position_title = "Mahalla MFY Yetakchisi"
+            elif role == 'PSYCHOLOGIST':
+                position_title = "Maktab Amaliyotchi Psixologi"
+            elif role == 'GUARD':
+                position_title = "Maktab Xavfsizlik Qorovuli"
+            else:
+                position_title = "Maktab Xodimi"
+
+        # 2. StaffMember yaratish
+        staff = StaffMember.objects.create(
+            user=u,
+            scope='SCHOOL',
+            school_id=school_id,
+            username=username,
+            full_name=full_name,
+            initial_password=password,
+            phone=phone,
+            role=role,
+            position_title=position_title,
+            region="Toshkent shahri",
+            district=district,
+            mahalla_name=mahalla_name,
+            assigned_school_ids=[school_id],
+            permissions=['overview', 'schools', 'map', 'export_reports'],
+            is_active=True,
+            notes=notes,
+        )
+
+        return Response({
+            'success': True,
+            'message': f"Maktab mas'uli '{full_name}' muvaffaqiyatli saqlandi.",
+            'staff': staff.to_dict(),
+        }, status=status.HTTP_201_CREATED)

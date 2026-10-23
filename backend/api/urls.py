@@ -1,3 +1,7 @@
+from .application_views import (
+    SchoolApplicationCreateView, SchoolApplicationListView,
+    SchoolApplicationApproveView, SchoolApplicationRejectView
+)
 from .checkpoint_views import (
     CheckpointSearchStudentsView, CheckpointVerifyQRView,
     CheckpointVerifyFaceView, CheckpointTodayStatsView
@@ -12,10 +16,26 @@ from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView,
                     StudentProfileView,
                     DeviceEventIngestionView, DeviceLogsListView, DeviceSimulateView,
                     HikvisionTestConnectionView, HikvisionSyncStudentsView, SchoolDashboardAnalyticsView,
-                    SystemConfigView, SchoolStatusActionView, SchoolAccessCheckView, SuperAdminOverviewStatsView, TelegramBotStatusView, ServerAnalyticsView, SuperAdminSchoolUpdateView, SuperAdminSchoolCreateView, TeacherDashboardSummaryView, TeacherClassJournalView, BulkAttendanceMarkView, TeacherLessonContentUpdateView)
+                    SystemConfigView, SchoolStatusActionView, SchoolAccessCheckView, SuperAdminOverviewStatsView, ServerTelemetryLiveView, TelegramBotStatusView, ServerAnalyticsView, SuperAdminSchoolUpdateView, SuperAdminSchoolCreateView, TeacherDashboardSummaryView, TeacherClassJournalView, BulkAttendanceMarkView, TeacherLessonContentUpdateView,
+                    SuperAdminStaffListView, SuperAdminStaffCreateView, SuperAdminStaffUpdateView,
+                    SuperAdminStaffDeleteView, SchoolStaffListView, StaffLoginVerifyView, TerritoryDashboardView, TerritoryActionCreateView)
 
 urlpatterns = [
+    # Xodimlar va RBAC Boshqaruvi
+    path('superadmin/staff/', SuperAdminStaffListView.as_view(), name='superadmin_staff_list'),
+    path('superadmin/staff/create/', SuperAdminStaffCreateView.as_view(), name='superadmin_staff_create'),
+    path('superadmin/staff/<int:pk>/update/', SuperAdminStaffUpdateView.as_view(), name='superadmin_staff_update'),
+        path('superadmin/staff/<int:pk>/delete/', SuperAdminStaffDeleteView.as_view(), name='superadmin_staff_delete'),
+    # Maktab Admini Xodimlari (Profilaktika, Mahalla, Psixolog)
+    path('school/staff/', SchoolStaffListView.as_view(), name='school_staff_list'),
+    path('school/staff/<int:pk>/update/', SuperAdminStaffUpdateView.as_view(), name='school_staff_update'),
+    path('school/staff/<int:pk>/delete/', SuperAdminStaffDeleteView.as_view(), name='school_staff_delete'),
+    path('staff/login/', StaffLoginVerifyView.as_view(), name='staff_login_verify'),
+    path('territory/dashboard/', TerritoryDashboardView.as_view(), name='territory_dashboard'),
+    path('territory/action/create/', TerritoryActionCreateView.as_view(), name='territory_action_create'),
+
     path('superadmin/overview-stats/', SuperAdminOverviewStatsView.as_view(), name='superadmin_overview_stats'),
+    path('superadmin/telemetry/', ServerTelemetryLiveView.as_view(), name='superadmin_telemetry'),
     path('superadmin/server-analytics/', ServerAnalyticsView.as_view(), name='superadmin_server_analytics'),
     path('superadmin/schools/create/', SuperAdminSchoolCreateView.as_view(), name='superadmin_school_create'),
     path('superadmin/schools/<str:school_id>/update/', SuperAdminSchoolUpdateView.as_view(), name='superadmin_school_update'),
@@ -65,4 +85,8 @@ path('student/dashboard-summary/', StudentDashboardSummaryView.as_view(), name='
     path('checkpoint/verify-qr/', CheckpointVerifyQRView.as_view(), name='checkpoint_verify_qr'),
     path('checkpoint/verify-face/', CheckpointVerifyFaceView.as_view(), name='checkpoint_verify_face'),
     path('checkpoint/today-stats/', CheckpointTodayStatsView.as_view(), name='checkpoint_today_stats'),
+    path('school-applications/', SchoolApplicationCreateView.as_view(), name='school_application_create'),
+    path('superadmin/school-applications/', SchoolApplicationListView.as_view(), name='school_applications_list'),
+    path('superadmin/school-applications/<int:pk>/approve/', SchoolApplicationApproveView.as_view(), name='school_application_approve'),
+    path('superadmin/school-applications/<int:pk>/reject/', SchoolApplicationRejectView.as_view(), name='school_application_reject'),
 ]

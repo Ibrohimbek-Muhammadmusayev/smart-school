@@ -10,8 +10,16 @@ class User(AbstractUser):
         ('TEACHER', 'Teacher'),
         ('STUDENT', 'Student'),
         ('GUARD', 'Qorovul / Kirish Nazoratchisi'),
+        ('SUB_ADMIN', 'Operator / Yordamchi Admin'),
+        ('INSPECTOR', 'Profilaktika Inspektori (IIB)'),
+        ('MAHALLA', "Mahalla Fuqarolar Yig'ini (MFY)"),
+        ('DISTRICT_ADMIN', "Tuman XTB (RayONO)"),
+        ('PSYCHOLOGIST', 'Maktab Psixologi'),
+        ('REGIONAL_ANALYST', 'Tizim Analitigi'),
+        ('BILLING_OPERATOR', 'Moliya / Billing Xodimi'),
+        ('TECH_SUPPORT', "Texnik Qo'llab-quvvatlash"),
     )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='STUDENT')
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='STUDENT')
     passport_series = models.CharField(max_length=20, unique=True, null=True, blank=True) # e.g. "AA 1234567"
     photo_3x4 = models.ImageField(upload_to='photos_3x4/', null=True, blank=True)
     face_embedding = models.TextField(null=True, blank=True) # Vector or hash for face verification
@@ -773,4 +781,191 @@ class DeviceEventLog(models.Model):
             'date': self.timestamp.strftime("%Y-%m-%d"),
         }
 
+class StaffMember(models.Model):
+    ROLE_CHOICES = (
+        ('SUB_ADMIN', 'Operator / Yordamchi Admin'),
+        ('REGIONAL_ANALYST', 'Tizim Analitigi / Monitoringchi'),
+        ('BILLING_OPERATOR', 'Moliya / Billing Xodimi'),
+        ('TECH_SUPPORT', "Texnik Qo'llab-quvvatlash"),
+        ('INSPECTOR', 'Profilaktika Inspektori (IIB)'),
+        ('MAHALLA', "Mahalla Fuqarolar Yig'ini (MFY)"),
+        ('DISTRICT_ADMIN', "Tuman XTB (RayONO)"),
+        ('PSYCHOLOGIST', 'Maktab Psixologi'),
+        ('GUARD', 'Qorovul / Xavfsizlik'),
+    )
+    SCOPE_CHOICES = (
+        ('SUPER_ADMIN', 'Super Admin Boshqarma'),
+        ('SCHOOL', 'Maktab Hamkor Mas\'uli'),
+    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='staff_member', null=True, blank=True)
+    scope = models.CharField(max_length=30, choices=SCOPE_CHOICES, default='SUPER_ADMIN')
+    school_id = models.CharField(max_length=64, blank=True, default='')
+    full_name = models.CharField(max_length=255)
+    username = models.CharField(max_length=150, unique=True)
+    initial_password = models.CharField(max_length=128, blank=True, default='')
+    phone = models.CharField(max_length=40, blank=True, default='')
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='SUB_ADMIN')
+    position_title = models.CharField(max_length=200, blank=True, default='')
+    region = models.CharField(max_length=150, blank=True, default='Toshkent shahri')
+    district = models.CharField(max_length=150, blank=True, default='Chilonzor tumani')
+    mahalla_name = models.CharField(max_length=150, blank=True, default='')
+    assigned_school_ids = models.JSONField(default=list, blank=True)
+    permissions = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ['-id']
+
+    def __str__(self):
+        return f"{self.full_name} ({self.role} - {self.district})"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'full_name': self.full_name,
+            'username': self.username,
+            'initial_password': self.initial_password,
+            'phone': self.phone,
+            'role': self.role,
+            'scope': self.scope,
+            'school_id': self.school_id,
+            'position_title': self.position_title,
+            'region': self.region,
+            'district': self.district,
+            'mahalla_name': self.mahalla_name,
+            'assigned_school_ids': self.assigned_school_ids or [],
+            'permissions': self.permissions or [],
+            'is_active': self.is_active,
+            'notes': self.notes,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else '',
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M') if self.updated_at else '',
+        }
+
+
+class TerritoryPreventionAction(models.Model):
+    ACTION_CHOICES = (
+        ('PARENT_CALL', 'Ota-ona bilan telefon suhbati'),
+        ('HOME_VISIT', "Xonadonga tashrif va o'rganish"),
+        ('PROTOCOL', 'Profilaktika dalolatnomasi tuzildi'),
+        ('WARNING_LETTER', 'Rasmiy ogohlantirish xati berildi'),
+        ('EXCUSED_ILLNESS', "Sababli: Kasallik ma'lumotnomasi taqdim etildi"),
+        ('OTHER', 'Boshqa chora-tadbir'),
+    )
+    staff_member = models.ForeignKey(StaffMember, on_delete=models.SET_NULL, null=True, blank=True, related_name='actions')
+    student = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='prevention_actions')
+    student_name = models.CharField(max_length=200)
+    school_id = models.CharField(max_length=64, db_index=True)
+    school_name = models.CharField(max_length=255, blank=True, default='')
+    class_name = models.CharField(max_length=100, blank=True, default='')
+    action_type = models.CharField(max_length=100, choices=ACTION_CHOICES, default='PARENT_CALL')
+    description = models.TextField(blank=True, default='')
+    officer_name = models.CharField(max_length=200, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'student_name': self.student_name,
+            'school_id': self.school_id,
+            'school_name': self.school_name,
+            'class_name': self.class_name,
+            'action_type': self.action_type,
+            'action_type_display': self.get_action_type_display(),
+            'description': self.description,
+            'officer_name': self.officer_name,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else '',
+        }
+
+
+
+class SchoolApplication(models.Model):
+    APPLICATION_STATUS_CHOICES = (
+        ('PENDING', 'Kutilmoqda'),
+        ('APPROVED', 'Tasdiqlangan va Maktab Yaratilgan'),
+        ('REJECTED', 'Rad etilgan'),
+    )
+
+    SCHOOL_TYPE_CHOICES = (
+        ('PUBLIC', 'Davlat umumta\'lim maktabi'),
+        ('PRIVATE', 'Xususiy maktab'),
+        ('SPECIALIZED', 'Ixtisoslashtirilgan / Prezident maktabi'),
+        ('COLLEGE', 'Texnikum / Kollej / Litsey'),
+        ('LEARNING_CENTER', 'O\'quv markazi / Kurs'),
+    )
+
+    TURNSTILE_CHOICES = (
+        ('EQUIPPED', 'Face ID turniket mavjud (Hikvision va b.)'),
+        ('MOBILE_KIOSK', 'Turniketsiz — Mobil Kiosk va QR orqali'),
+        ('NEED_INSTALLATION', 'Yangi turniket o\'rnatish kerak (Maslahat)'),
+    )
+
+    school_name = models.CharField(max_length=255)
+    school_type = models.CharField(max_length=30, choices=SCHOOL_TYPE_CHOICES, default='PUBLIC')
+    region = models.CharField(max_length=100)
+    district = models.CharField(max_length=150)
+    address = models.CharField(max_length=255, blank=True, default='')
+
+    # Mas\'ul shaxs (Direktor / Ta\'sischi)
+    contact_name = models.CharField(max_length=200)
+    contact_role = models.CharField(max_length=100, default='Direktor')
+    phone = models.CharField(max_length=40)
+    telegram_username = models.CharField(max_length=100, blank=True, default='')
+
+    # Hajm
+    estimated_students = models.IntegerField(default=0)
+    estimated_teachers = models.IntegerField(default=0)
+
+    # Uskunalar va modullar
+    turnstile_status = models.CharField(max_length=30, choices=TURNSTILE_CHOICES, default='MOBILE_KIOSK')
+    desired_modules = models.JSONField(default=list, blank=True)
+    notes = models.TextField(blank=True, default='')
+
+    # Holat va yaratilgan maktab
+    status = models.CharField(max_length=20, choices=APPLICATION_STATUS_CHOICES, default='PENDING')
+    created_school_id = models.CharField(max_length=64, blank=True, default='')
+    admin_credentials = models.JSONField(default=dict, blank=True)
+    rejection_reason = models.TextField(blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'[{self.get_status_display()}] {self.school_name} ({self.contact_name} - {self.phone})'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'school_name': self.school_name,
+            'school_type': self.school_type,
+            'school_type_label': self.get_school_type_display(),
+            'region': self.region,
+            'district': self.district,
+            'address': self.address,
+            'contact_name': self.contact_name,
+            'contact_role': self.contact_role,
+            'phone': self.phone,
+            'telegram_username': self.telegram_username,
+            'estimated_students': self.estimated_students,
+            'estimated_teachers': self.estimated_teachers,
+            'turnstile_status': self.turnstile_status,
+            'turnstile_status_label': self.get_turnstile_status_display(),
+            'desired_modules': self.desired_modules or [],
+            'notes': self.notes or '',
+            'status': self.status,
+            'status_label': self.get_status_display(),
+            'created_school_id': self.created_school_id or '',
+            'admin_credentials': self.admin_credentials or {},
+            'rejection_reason': self.rejection_reason or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+            'date': self.created_at.strftime('%Y-%m-%d') if self.created_at else '',
+            'time': self.created_at.strftime('%H:%M') if self.created_at else '',
+        }

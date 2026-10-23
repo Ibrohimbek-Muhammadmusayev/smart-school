@@ -14,9 +14,11 @@ import {
   Star, Zap, FlaskConical, ShieldCheck, CheckSquare, Square, Wrench, LayoutDashboard, HelpCircle
 } from 'lucide-react';
 import SuperAdminDashboardView from './SuperAdminDashboard';
+import TerritoryCabinet from './components/TerritoryCabinet';
 import SchoolMapPicker from './components/SchoolMapPicker';
 import { MaintenanceScreen, SchoolSuspendedScreen, TeacherSuspendedScreen } from './components/MaintenanceScreens';
 import SchoolHelpSupportSection from './components/SchoolHelpSupportSection';
+import LandingPage from './LandingPage';
 
 // Easy Learn Palette Constants
 // Helper to safely get cached global system branding across components
@@ -567,6 +569,15 @@ function AuthTransitionScreen({ user }) {
 export default function App() {
   const [appInitializing, setAppInitializing] = useState(true);
   const [authTransitionUser, setAuthTransitionUser] = useState(null);
+  const [publicView, setPublicView] = useState(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('view') === 'login' || window.location.hash === '#login') {
+        return 'login';
+      }
+    } catch (_) {}
+    return 'landing';
+  });
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -817,16 +828,25 @@ export default function App() {
   }
 
   if (!currentUser) {
+    if (publicView === 'login') {
+      return (
+        <LoginPage 
+          onLoginSuccess={handleTriggerLogin} 
+          schoolsList={schoolsList} 
+          systemMaintenance={systemMaintenance}
+          onBackToLanding={() => setPublicView('landing')}
+        />
+      );
+    }
     return (
-      <LoginPage 
-        onLoginSuccess={handleTriggerLogin} 
-        schoolsList={schoolsList} 
-        systemMaintenance={systemMaintenance}
+      <LandingPage
+        onGoToLogin={() => setPublicView('login')}
+        systemConfig={systemMaintenance}
       />
     );
   }
 
-  if (currentUser.role === 'SUPER_ADMIN') {
+  if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'SUB_ADMIN') {
     if (impersonatedSchool) {
       const latestSchool = schoolsList.find(s => String(s.id) === String(impersonatedSchool.id)) || impersonatedSchool || DEFAULT_SCHOOLS[0];
       return (
@@ -868,6 +888,16 @@ export default function App() {
         onUpdateAnnouncement={handleUpdateAnnouncement}
         systemConfigProp={systemMaintenance}
         onSystemConfigUpdated={fetchSystemMaintenance}
+      />
+    );
+  }
+
+    if (currentUser.role === 'INSPECTOR' || currentUser.role === 'MAHALLA' || currentUser.role === 'DISTRICT_ADMIN') {
+    return (
+      <TerritoryCabinet
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        systemConfig={systemMaintenance}
       />
     );
   }
@@ -953,7 +983,7 @@ export default function App() {
 // =========================================================================
 // 1. UNIVERSAL LOGIN SAHIFASI (EASY LEARN PURPLE THEME)
 // =========================================================================
-function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMaintenance }) {
+function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMaintenance, onBackToLanding }) {
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
   const [loginError, setLoginError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -1062,12 +1092,127 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
       return;
     }
 
+        // 4. Xodimlar va Maxsus Kabinetlar (Sub-Admin, IIB Inspektori, Mahalla MFY, Tuman XTB)
+    setLoading(true);
+    try {
+      const staffRes = await fetch('/api/staff/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (staffRes.ok) {
+        const staffData = await staffRes.json();
+        if (staffData.success && staffData.user) {
+          onLoginSuccess(staffData.user);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Staff login check error:", err);
+    } finally {
+      setLoading(false);
+    }
+
+    // Offline demo xodimlar hisobi
+    if (username === 'inspektor1' && (password === 'iib123' || password === 'admin123')) {
+      onLoginSuccess({
+        id: 1,
+        role: 'INSPECTOR',
+        username: 'inspektor1',
+        name: "Katta leytenant Mirzayev Bobur Komilovich",
+        position_title: "Profilaktika Katta Inspektori (IIB)",
+        district: "Chilonzor tumani",
+        mahalla_name: "Katta Chilonzor MFY",
+        assigned_school_ids: ['1', '2'],
+        permissions: ['overview', 'schools', 'map', 'export_reports'],
+        phone: "+998 90 911-02-02",
+        isStaffUser: true,
+      });
+      return;
+    }
+
+    if (username === 'mahalla1' && (password === 'mfy123' || password === 'admin123')) {
+      onLoginSuccess({
+        id: 2,
+        role: 'MAHALLA',
+        username: 'mahalla1',
+        name: "Sobirova Zulxumor Erkinovna",
+        position_title: "Mahalla Raisi O'rinbosari / Yoshlar Yetakchisi",
+        district: "Chilonzor tumani",
+        mahalla_name: "Do'stlik MFY",
+        assigned_school_ids: ['1'],
+        permissions: ['overview', 'schools', 'map', 'export_reports'],
+        phone: "+998 93 321-45-67",
+        isStaffUser: true,
+      });
+      return;
+    }
+
+    if (username === 'operator1' && (password === 'operator123' || password === 'admin123')) {
+      onLoginSuccess({
+        id: 3,
+        role: 'SUB_ADMIN',
+        username: 'operator1',
+        name: "Aliyev Nodirbek Bahodirovich",
+        position_title: "Bosh Boshqarma Operatori / Yordamchi Admin",
+        district: "Toshkent shahri",
+        mahalla_name: "",
+        assigned_school_ids: ['1', '2', '3', '4'],
+        permissions: ['overview', 'schools', 'map', 'support'],
+        phone: "+998 97 712-34-56",
+        isStaffUser: true,
+      });
+      return;
+    }
+
+    if (username === 'xtb1' && (password === 'xtb123' || password === 'admin123')) {
+      onLoginSuccess({
+        id: 4,
+        role: 'DISTRICT_ADMIN',
+        username: 'xtb1',
+        name: "G'aniyev Jamshid Karimboyevich",
+        position_title: "Tuman XTB Monitoring Bo'limi Bosh Mutaxassisi",
+        district: "Chilonzor tumani",
+        mahalla_name: "",
+        assigned_school_ids: ['1', '2'],
+        permissions: ['overview', 'schools', 'map', 'export_reports'],
+        phone: "+998 71 277-10-20",
+        isStaffUser: true,
+      });
+      return;
+    }
+
     setLoginError("Login yoki parol noto'g'ri! O'qituvchilar maktab dashbordida ko'rsatilgan 5 xonali unikal ID (masalan: 20101) va parolidan foydalanishi kerak.");
   };
 
   return (
     <div style={{ display: 'flex', width: '100vw', minHeight: '100vh', backgroundColor: THEME.bgSoft, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ width: '100%', maxWidth: 460, backgroundColor: '#FFFFFF', borderRadius: 10, padding: 36, boxShadow: '0 20px 40px -15px rgba(108, 92, 231, 0.15)', border: `1px solid ${THEME.border}` }}>
+        {onBackToLanding && (
+          <button
+            type="button"
+            onClick={onBackToLanding}
+            style={{
+              marginBottom: 16,
+              background: 'transparent',
+              border: 'none',
+              color: THEME.primary,
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 10px',
+              borderRadius: 6,
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F1F0FF'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <ChevronLeft size={15} /> Asosiy Sahifa (Landing Page)
+          </button>
+        )}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <img 
             src="/idrok_logo.png" 
@@ -1184,6 +1329,36 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
               <b>O'qituvchi (5 xonali ID):</b>
             </span>
             <code>20101 / teacher123</code>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLoginForm({ username: 'inspektor1', password: 'iib123' })}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 6, border: `1px solid ${loginForm.username === 'inspektor1' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Shield size={16} color="#1E40AF" />
+              <b>IIB Profilaktika Inspektori:</b>
+            </span>
+            <code>inspektor1 / iib123</code>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLoginForm({ username: 'mahalla1', password: 'mfy123' })}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 6, border: `1px solid ${loginForm.username === 'mahalla1' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Building2 size={16} color="#065F46" />
+              <b>Mahalla Fuqarolar Yig'ini (MFY):</b>
+            </span>
+            <code>mahalla1 / mfy123</code>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLoginForm({ username: 'operator1', password: 'operator123' })}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 6, border: `1px solid ${loginForm.username === 'operator1' ? THEME.primary : 'transparent'}`, backgroundColor: '#FFFFFF', color: THEME.textDark, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Sliders size={16} color="#7E22CE" />
+              <b>Sub-Admin / Operator:</b>
+            </span>
+            <code>operator1 / operator123</code>
           </button>
         </div>
       </div>

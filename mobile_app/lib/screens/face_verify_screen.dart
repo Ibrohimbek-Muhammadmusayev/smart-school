@@ -163,11 +163,20 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
 
   void _onFailed(String? message) {
     if (!mounted) return;
+    bool shouldRetry = true;
     setState(() {
       _isVerifying = false;
       if (message != null && (message.contains("Begona") || message.contains("mos kelmadi"))) {
         _rimColor = Colors.red.shade600;
         _hintText = "Begona shaxs aniqlandi!";
+      } else if (message != null && message.contains("biriktirilmagan")) {
+        _rimColor = Colors.red.shade600;
+        _hintText = "Yuz rasmi biriktirilmagan!";
+        shouldRetry = false;
+      } else if (message != null && message.contains("Bazadagi")) {
+        _rimColor = Colors.red.shade600;
+        _hintText = "Bazadagi rasmda yuz yo'q!";
+        shouldRetry = false;
       } else if (message != null && (message.contains("aniqlanmadi") || message.contains("yuzi"))) {
         _rimColor = Colors.orange.shade600;
         _hintText = "Kamerada inson yuzi ko'rinmadi";
@@ -181,7 +190,9 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
     });
 
     // Avtomatik yana tekshirish (2.2 soniyadan keyin)
-    _scheduleAutoCapture(2200);
+    if (shouldRetry) {
+      _scheduleAutoCapture(2200);
+    }
   }
 
   @override
