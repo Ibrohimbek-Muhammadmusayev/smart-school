@@ -3709,6 +3709,25 @@ class SuperAdminSchoolUpdateView(views.APIView):
             cfg.phone = str(data.get('phone') or '').strip()
         if 'inn' in data:
             cfg.inn = str(data.get('inn') or '').strip()
+        if 'latitude' in data:
+            try:
+                lat = data.get('latitude')
+                cfg.latitude = float(lat) if lat not in (None, '', 'null') else None
+            except (ValueError, TypeError):
+                pass
+        if 'longitude' in data:
+            try:
+                lng = data.get('longitude')
+                cfg.longitude = float(lng) if lng not in (None, '', 'null') else None
+            except (ValueError, TypeError):
+                pass
+        if 'location_address' in data:
+            cfg.location_address = str(data.get('location_address') or '').strip()
+        if 'radius_meters' in data:
+            try:
+                cfg.radius_meters = max(20, min(5000, int(data.get('radius_meters') or 150)))
+            except (ValueError, TypeError):
+                pass
 
         uname = data.get('username') or data.get('admin_username')
         if uname:
@@ -3735,6 +3754,12 @@ class SuperAdminSchoolUpdateView(views.APIView):
                 'name': cfg.school_name,
                 'inn': getattr(cfg, 'inn', '') or '309481023',
                 'district': cfg.district,
+                'address': cfg.address,
+                'location_address': cfg.location_address,
+                'latitude': cfg.latitude,
+                'longitude': cfg.longitude,
+                'radius_meters': cfg.radius_meters,
+                'is_location_set': bool(cfg.latitude is not None and cfg.longitude is not None),
                 'director': cfg.director_name,
                 'phone': cfg.phone,
                 'username': cfg.admin_username,
@@ -3774,11 +3799,30 @@ class SuperAdminSchoolCreateView(views.APIView):
         uname = str(data.get('username') or data.get('admin_username') or f"maktab_{sid.lower()}").strip()
         pwd = str(data.get('password') or data.get('admin_password') or 'school123').strip()
 
+        lat = None
+        lng = None
+        if 'latitude' in data:
+            try:
+                lat_v = data.get('latitude')
+                lat = float(lat_v) if lat_v not in (None, '', 'null') else None
+            except (ValueError, TypeError):
+                pass
+        if 'longitude' in data:
+            try:
+                lng_v = data.get('longitude')
+                lng = float(lng_v) if lng_v not in (None, '', 'null') else None
+            except (ValueError, TypeError):
+                pass
+
         cfg = SchoolConfig.objects.create(
             school_id=sid,
             school_name=name,
             district=str(data.get('district') or 'Toshkent shahri').strip(),
             address=str(data.get('address') or '').strip(),
+            location_address=str(data.get('location_address') or data.get('address') or '').strip(),
+            latitude=lat,
+            longitude=lng,
+            radius_meters=max(20, min(5000, int(data.get('radius_meters') or 150))),
             director_name=str(data.get('director') or data.get('director_name') or "Maktab Direktori").strip(),
             phone=str(data.get('phone') or "+998 71 200-00-00").strip(),
             admin_username=uname,
@@ -3798,6 +3842,12 @@ class SuperAdminSchoolCreateView(views.APIView):
                 'name': cfg.school_name,
                 'inn': getattr(cfg, 'inn', '') or '309481023',
                 'district': cfg.district,
+                'address': cfg.address,
+                'location_address': cfg.location_address,
+                'latitude': cfg.latitude,
+                'longitude': cfg.longitude,
+                'radius_meters': cfg.radius_meters,
+                'is_location_set': bool(cfg.latitude is not None and cfg.longitude is not None),
                 'director': cfg.director_name,
                 'phone': cfg.phone,
                 'username': cfg.admin_username,
@@ -4194,6 +4244,12 @@ class SuperAdminOverviewStatsView(views.APIView):
                 'name': cfg.school_name,
                 'inn': getattr(cfg, 'inn', '') or '309481023',
                 'district': cfg.district or "Toshkent shahri",
+                'address': cfg.address or "Amir Temur shoh ko'chasi, 14-uy",
+                'location_address': cfg.location_address or cfg.address or '',
+                'latitude': cfg.latitude,
+                'longitude': cfg.longitude,
+                'radius_meters': cfg.radius_meters or 150,
+                'is_location_set': bool(cfg.latitude is not None and cfg.longitude is not None),
                 'director': cfg.director_name or "Noma'lum",
                 'phone': cfg.phone or "+998 71 200-00-00",
                 'username': uname,
@@ -4414,10 +4470,17 @@ class TelegramBotStatusView(views.APIView):
             except Exception:
                 pass
 
+        from api.telegram_bot_daemon import is_bot_running, start_bot_in_background
+        bot_running = is_bot_running()
+        if not bot_running and is_token_valid:
+            start_bot_in_background()
+            bot_running = is_bot_running()
+
         return Response({
             'success': True,
             'has_bot_token': bool(token),
             'is_token_valid': is_token_valid,
+            'bot_is_running': bot_running,
             'bot_info': bot_info,
             'has_gemini_key': bool(gemini_key),
             'telegram_admin_id': admin_id,

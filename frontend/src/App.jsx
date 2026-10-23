@@ -91,110 +91,152 @@ export const normalizeMediaUrl = (url) => {
 
 const DEFAULT_SCHOOLS = [
   {
-    id: 1,
-    name: "1-sonli Ixtisoslashtirilgan Maktab-Kollej",
-    inn: "309481023",
-    district: "Toshkent sh., Yunusobod tumani",
-    director: "Rahimov Jamshid",
-    phone: "+998 90 100-11-22",
-    username: "maktab1",
-    password: "school123",
-    plan: "Litsenziyali Pro",
-    paymentStatus: "PAID",
-    studentsCount: 420,
-    capacity: 800,
-    roomsLimit: 55,
-    storageGb: 200,
-    teachersCount: 34,
-    attendanceRate: 96.4,
-    turnstileStatus: "ONLINE",
-    status: "ACTIVE",
-    warningBanner: "",
+    "id": "1",
+    "name": "Quva Tuman 1-son Texnikum",
+    "inn": "309481023",
+    "district": "Quva tumani",
+    "director": "Rahimov Jamshid",
+    "phone": "+998 90 123-45-67",
+    "username": "maktab1",
+    "password": "school123",
+    "plan": "1 000 000 so'm/oy",
+    "paymentStatus": "PAID",
+    "studentsCount": 11,
+    "capacity": 800,
+    "roomsLimit": 55,
+    "storageGb": 200,
+    "teachersCount": 3,
+    "attendanceRate": 95.1,
+    "turnstileStatus": "ONLINE",
+    "status": "ACTIVE",
+    "warningBanner": ""
   },
   {
-    id: 2,
-    name: "24-sonli Prezident va IT Maktabi",
-    inn: "309551842",
-    district: "Toshkent sh., Mirzo Ulug'bek tumani",
-    director: "Karimov Ulug'bek",
-    phone: "+998 90 240-22-33",
-    username: "maktab2",
-    password: "school123",
-    plan: "Litsenziyali Pro",
-    paymentStatus: "PAID",
-    studentsCount: 640,
-    capacity: 1000,
-    roomsLimit: 65,
-    storageGb: 250,
-    teachersCount: 48,
-    attendanceRate: 98.4,
-    turnstileStatus: "ONLINE",
-    status: "ACTIVE",
-    warningBanner: "",
+    "id": "2",
+    "name": "45-sonli Umumta'lim Maktabi",
+    "inn": "309551842",
+    "district": "Chilonzor tumani",
+    "director": "Karimova Dilnoza",
+    "phone": "+998 93 456-78-90",
+    "username": "maktab2",
+    "password": "school123",
+    "plan": "1 000 000 so'm/oy",
+    "paymentStatus": "PAID",
+    "studentsCount": 0,
+    "capacity": 1000,
+    "roomsLimit": 65,
+    "storageGb": 250,
+    "teachersCount": 0,
+    "attendanceRate": 0.0,
+    "turnstileStatus": "STANDBY",
+    "status": "ACTIVE",
+    "warningBanner": ""
   },
   {
-    id: 3,
-    name: "45-sonli IDUM (Aniq fanlar maktabi)",
-    inn: "309772190",
-    district: "Toshkent sh., Chilonzor tumani",
-    director: "Xoliqova Dilnoza",
-    phone: "+998 93 450-33-44",
-    username: "maktab3",
-    password: "school123",
-    plan: "Standart",
-    paymentStatus: "PENDING",
-    studentsCount: 820,
-    capacity: 1200,
-    roomsLimit: 60,
-    storageGb: 100,
-    teachersCount: 62,
-    attendanceRate: 95.1,
-    turnstileStatus: "ONLINE",
-    status: "TRIAL",
-    warningBanner: "",
+    "id": "3",
+    "name": "Al-Xorazmiy nomidagi IT Maktabi",
+    "inn": "309772190",
+    "district": "Mirzo Ulug'bek tumani",
+    "director": "Usmonov Sardor",
+    "phone": "+998 99 777-88-99",
+    "username": "maktab3",
+    "password": "school123",
+    "plan": "1 000 000 so'm/oy",
+    "paymentStatus": "PAID",
+    "studentsCount": 0,
+    "capacity": 1200,
+    "roomsLimit": 60,
+    "storageGb": 100,
+    "teachersCount": 0,
+    "attendanceRate": 0.0,
+    "turnstileStatus": "STANDBY",
+    "status": "ACTIVE",
+    "warningBanner": ""
   },
   {
-    id: 4,
-    name: "112-sonli Umumta'lim Maktabi",
-    inn: "309883411",
-    district: "Toshkent sh., Sergeli tumani",
-    director: "Mirzayev Otabek",
-    phone: "+998 97 112-44-55",
-    username: "maktab4",
-    password: "school123",
-    plan: "BoshlangвЂich",
-    paymentStatus: "OVERDUE",
-    studentsCount: 1150,
-    capacity: 1500,
-    roomsLimit: 70,
-    storageGb: 50,
-    teachersCount: 76,
-    attendanceRate: 91.8,
-    turnstileStatus: "ONLINE",
-    status: "ACTIVE",
-    warningBanner: "вљ пёЏ Diqqat: Maktab obuna to'lov muddati tugagan. Iltimos, hisob-fakturani to'lang!",
+    "id": "4",
+    "name": "Prezident Maktabi (Toshkent)",
+    "inn": "309481023",
+    "district": "Yashnobod tumani",
+    "director": "Tursunov Alisher",
+    "phone": "+998 97 111-22-33",
+    "username": "maktab4",
+    "password": "school123",
+    "plan": "1 000 000 so'm/oy",
+    "paymentStatus": "PAID",
+    "studentsCount": 0,
+    "capacity": 800,
+    "roomsLimit": 70,
+    "storageGb": 50,
+    "teachersCount": 0,
+    "attendanceRate": 0.0,
+    "turnstileStatus": "STANDBY",
+    "status": "ACTIVE",
+    "warningBanner": ""
   },
   {
-    id: 5,
-    name: "8-sonli Xorijiy Tillar va Texnologiya Litseyi",
-    inn: "309619044",
-    district: "Samarqand sh., Markaziy tuman",
-    director: "Jo'rayev Farrux",
-    phone: "+998 91 508-55-66",
-    username: "maktab5",
-    password: "school123",
-    plan: "Standart",
-    paymentStatus: "PAID",
-    studentsCount: 490,
-    capacity: 750,
-    roomsLimit: 40,
-    storageGb: 100,
-    teachersCount: 38,
-    attendanceRate: 97.2,
-    turnstileStatus: "ONLINE",
-    status: "ACTIVE",
-    warningBanner: "",
+    "id": "1792460614062",
+    "name": "1792460614062-sonli Maktab",
+    "inn": "309619044",
+    "district": "Toshkent shahri",
+    "director": "Maktab Direktori",
+    "phone": "+998 71 200-00-00",
+    "username": "maktab1792460614062",
+    "password": "school123",
+    "plan": "1 000 000 so'm/oy",
+    "paymentStatus": "PAID",
+    "studentsCount": 0,
+    "capacity": 800,
+    "roomsLimit": 40,
+    "storageGb": 100,
+    "teachersCount": 0,
+    "attendanceRate": 0.0,
+    "turnstileStatus": "STANDBY",
+    "status": "ACTIVE",
+    "warningBanner": ""
   },
+  {
+    "id": "SCH-001",
+    "name": "SCH-001-sonli Maktab",
+    "inn": "309883411",
+    "district": "Toshkent shahri",
+    "director": "Maktab Direktori",
+    "phone": "+998 71 200-00-00",
+    "username": "maktabSCH-001",
+    "password": "school123",
+    "plan": "1 000 000 so'm/oy",
+    "paymentStatus": "PAID",
+    "studentsCount": 0,
+    "capacity": 800,
+    "roomsLimit": 40,
+    "storageGb": 100,
+    "teachersCount": 0,
+    "attendanceRate": 0.0,
+    "turnstileStatus": "STANDBY",
+    "status": "ACTIVE",
+    "warningBanner": ""
+  },
+  {
+    "id": "SCH-007",
+    "name": "12-maktab",
+    "inn": "309991200",
+    "district": "Samarqand viloyati",
+    "director": "Direktor",
+    "phone": "+998 90 000-00-00",
+    "username": "maktabSCH-007",
+    "password": "school123",
+    "plan": "1 000 000 so'm/oy",
+    "paymentStatus": "PAID",
+    "studentsCount": 0,
+    "capacity": 800,
+    "roomsLimit": 40,
+    "storageGb": 100,
+    "teachersCount": 0,
+    "attendanceRate": 0.0,
+    "turnstileStatus": "STANDBY",
+    "status": "ACTIVE",
+    "warningBanner": ""
+  }
 ];
 
 function buildSchoolTerms(cfg) {
@@ -786,31 +828,32 @@ export default function App() {
 
   if (currentUser.role === 'SUPER_ADMIN') {
     if (impersonatedSchool) {
-      const latestSchool = schoolsList.find(s => String(s.id) === String(impersonatedSchool.id)) || impersonatedSchool;
+      const latestSchool = schoolsList.find(s => String(s.id) === String(impersonatedSchool.id)) || impersonatedSchool || DEFAULT_SCHOOLS[0];
       return (
         <SchoolAdminDashboardView
-          key={`school-dash-${latestSchool.id}`}
+          key={`school-dash-${latestSchool?.id || '1'}`}
           currentUser={{
             role: 'SCHOOL_ADMIN',
-            schoolId: String(latestSchool.id),
-            username: latestSchool.username,
-            name: `${latestSchool.director} (Direktor)`,
-            directorName: latestSchool.director,
-            phone: latestSchool.phone,
-            schoolName: latestSchool.name,
-            district: latestSchool.district,
-            warningBanner: latestSchool.warningBanner,
-            groupTerm: latestSchool.groupTerm || 'SINF',
-            lessonTerm: latestSchool.lessonTerm || 'DARS',
-            studentTerm: latestSchool.studentTerm || 'OQUVCHI',
+            schoolId: String(latestSchool?.id || '1'),
+            username: latestSchool?.username || 'maktab1',
+            name: `${latestSchool?.director || 'Direktor'} (Direktor)`,
+            directorName: latestSchool?.director || 'Direktor',
+            phone: latestSchool?.phone || '',
+            schoolName: latestSchool?.name || "1-sonli Maktab",
+            district: latestSchool?.district || '',
+            warningBanner: latestSchool?.warningBanner || '',
+            groupTerm: latestSchool?.groupTerm || 'SINF',
+            lessonTerm: latestSchool?.lessonTerm || 'DARS',
+            studentTerm: latestSchool?.studentTerm || 'OQUVCHI',
             isSuperAdminImpersonating: true,
-            actorLabel: `Super Admin (${currentUser.name || 'Bosh Boshqarma'}) — ${latestSchool.name} dashbordi orqali`,
+            actorLabel: `Super Admin (${currentUser.name || 'Bosh Boshqarma'}) — ${latestSchool?.name || 'Maktab'} dashbordi orqali`,
             actorRole: 'SUPER_ADMIN',
           }}
           globalAnnouncement={globalAnnouncement}
           handleLogout={handleLogout}
           onReturnToSuperAdmin={() => setImpersonatedSchool(null)}
           onSchoolConfigSaved={handleSchoolConfigSaved}
+          systemMaintenance={systemMaintenance}
         />
       );
     }
@@ -844,7 +887,8 @@ export default function App() {
 
   const matchedUserSchool =
     schoolsList.find(s => String(s.id) === String(currentUser.schoolId) || s.username === currentUser.username) ||
-    schoolsList[0];
+    schoolsList[0] ||
+    DEFAULT_SCHOOLS[0];
 
   // Agar maktab xizmatlari to'xtatilgan yoki qarzdorlik sababli bloklangan bo'lsa
   if (matchedUserSchool && (matchedUserSchool.status === 'SUSPENDED' || matchedUserSchool.status === 'BLOCKED')) {
@@ -901,6 +945,7 @@ export default function App() {
       globalAnnouncement={globalAnnouncement}
       handleLogout={handleLogout}
       onSchoolConfigSaved={handleSchoolConfigSaved}
+      systemMaintenance={systemMaintenance}
     />
   );
 }
@@ -1149,7 +1194,14 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
 // =========================================================================
 // 2. MAKTAB ADMINI DASHBORDI (TO'LIQ IZOLYATSIYALANGAN MULTI-TENANT BAZA)
 // =========================================================================
-function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAdmin, globalAnnouncement, onSchoolConfigSaved }) {
+function SchoolAdminDashboardView({
+  currentUser,
+  handleLogout,
+  onReturnToSuperAdmin,
+  globalAnnouncement,
+  onSchoolConfigSaved,
+  systemMaintenance,
+}) {
   const schoolId = String(currentUser?.schoolId || '1');
   const [schoolConfig, setSchoolConfig] = useState({
     school_id: schoolId,
@@ -1184,7 +1236,9 @@ function SchoolAdminDashboardView({ currentUser, handleLogout, onReturnToSuperAd
 
   const [isTabLoading, setIsTabLoading] = useState(false);
   const [activeTab, setActiveTabState] = useState(() => {
-    return sessionStorage.getItem(`school_active_tab_${schoolId}`) || 'matrix';
+    const validTabs = ['matrix', 'schedule', 'groups', 'students', 'teachers', 'attendance', 'settings', 'help'];
+    const saved = sessionStorage.getItem(`school_active_tab_${schoolId}`);
+    return (saved && validTabs.includes(saved)) ? saved : 'matrix';
   });
 
   const setActiveTab = (tab) => {
@@ -5598,6 +5652,15 @@ function GroupsManagementSection({
 // 5.0 KATTALASHTIRILGAN RASM KO'RISH MODALI (LIGHTBOX MODAL)
 // =========================================================================
 function ImagePreviewModal({ image, onClose }) {
+  useEffect(() => {
+    if (!image) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [image, onClose]);
+
   if (!image) return null;
 
   const url = typeof image === 'string' ? image : image.url;
@@ -5606,14 +5669,6 @@ function ImagePreviewModal({ image, onClose }) {
   const badge = typeof image === 'string' ? "" : (image.badge || "");
   const idNumber = typeof image === 'string' ? "" : (image.idNumber || "");
   const schoolName = typeof image === 'string' ? "" : (image.schoolName || "");
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   return (
     <div
