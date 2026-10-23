@@ -112,83 +112,151 @@ class FaceIdVerifyView(views.APIView):
         if not liveness_verified:
             return Response({'detail': 'Biometrik tekshiruvdan o\'tmadingiz (jonlilik aniqlanmadi).'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. Agar foydalanuvchining bazada 3x4 rasmi mavjud bo'lsa, real solishtirish
-        if user.photo_3x4 and (face_image_b64 or face_file):
-            import io, base64
-            from PIL import Image
-            import numpy as np
+        # 1. Kameradan olingan tasvirni tekshirish va ochish
+        if not face_image_b64 and not face_file:
+            return Response({
+                'detail': "Kameradan yuz tasviri yuborilmadi. Iltimos, kameraga qarang.",
+                'match': False,
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-            try:
-                # Bazadagi ro'yxatdan o'tgan 3x4 rasmni ochish
-                ref_img = Image.open(user.photo_3x4.path).convert('RGB')
-                
-                # Kameradan yuborilgan rasmni ochish
-                if face_file:
-                    cam_img = Image.open(face_file).convert('RGB')
-                elif face_image_b64:
-                    if ',' in face_image_b64:
-                        face_image_b64 = face_image_b64.split(',', 1)[1]
-                    img_bytes = base64.b64decode(face_image_b64)
-                    cam_img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
-                else:
-                    cam_img = None
+        import io, base64, os
+        import cv2
+        import numpy as np
+        from django.core.files.base import ContentFile
 
-                if cam_img:
-                    # 1. Yorug'lik (Lighting) tahlili
-                    grayscale_cam = cam_img.convert('L')
-                    gray_arr = np.array(grayscale_cam)
-                    h, w = gray_arr.shape
-                    
-                    center_box = gray_arr[int(h*0.15):int(h*0.85), int(w*0.15):int(w*0.85)]
-                    center_brightness = float(np.mean(center_box))
-                    
-                    if center_brightness < 20:
-                        return Response({
-                            'detail': "Yorug'lik yetarli emas! Yuzingiz qorong'i ko'rinmoqda.",
-                            'match': False,
-                            'step': 'lighting'
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                    elif center_brightness > 248:
-                        return Response({
-                            'detail': "Yorug'lik juda kuchli! Kamerani nurlardan chetlashtiring.",
-                            'match': False,
-                            'step': 'lighting'
-                        }, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            if face_file:
+                img_bytes = face_file.read()
+            else:
+                b64_str = str(face_image_b64)
+                if ',' in b64_str:
+                    b64_str = b64_str.split(',', 1)[1]
+                img_bytes = base64.b64decode(b64_str)
 
-                    # 2. Bazadagi surat bilan solishtirish
-                    # Maxsus test simulyatsiyasi (wrong_face_data) bo'lsa rad etish
-                    if face_image_b64 == "wrong_face_data_test_security":
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            cam_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if cam_img is None or cam_img.size == 0:
+                return Response({
+                    'detail': "Kameradan olingan tasvirni ochib bo'lmadi.",
+                    'match': False,
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Maxsus test simulyatsiyasi (wrong_face_data) bo'lsa rad etish
+            if face_image_b64 == "wrong_face_data_test_security":
+                return Response({
+                    'detail': "Yuz bazadagi ma'lumotlarga mos kelmadi.",
+                    'match': False,
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 2. Yorug'lik (Lighting) tahlili
+            cam_gray = cv2.cvtColor(cam_img, cv2.COLOR_BGR2GRAY)
+            h, w = cam_gray.shape
+            center_box = cam_gray[int(h*0.15):int(h*0.85), int(w*0.15):int(w*0.85)]
+            center_brightness = float(np.mean(center_box))
+
+            if center_brightness < 20:
+                return Response({
+                    'detail': "Yorug'lik yetarli emas! Yuzingiz juda qorong'i ko'rinmoqda.",
+                    'match': False,
+                    'step': 'lighting'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            elif center_brightness > 248:
+                return Response({
+                    'detail': "Yorug'lik juda kuchli! Kamerani to'g'ridan-to'g'ri nurlardan chetlashtiring.",
+                    'match': False,
+                    'step': 'lighting'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 3. Yuz mavjudligini aniqlash (Haar Cascade)
+            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            face_cascade = cv2.CascadeClassifier(cascade_path)
+            cam_faces = face_cascade.detectMultiScale(cam_gray, scaleFactor=1.1, minNeighbors=4, minSize=(35, 35))
+
+            if len(cam_faces) == 0:
+                alt_path = cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
+                alt_cascade = cv2.CascadeClassifier(alt_path)
+                cam_faces = alt_cascade.detectMultiScale(cam_gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
+
+            if len(cam_faces) == 0:
+                return Response({
+                    'detail': "Kamerada inson yuzi aniqlanmadi. Iltimos, yuzingizni kameraga to'g'ri qarating.",
+                    'match': False,
+                    'face_detected': False,
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 4. Agar foydalanuvchining bazada 3x4 rasmi mavjud bo'lsa, haqiqiy egasi bilan solishtirish
+            if user.photo_3x4 and os.path.exists(user.photo_3x4.path):
+                ref_img = cv2.imread(user.photo_3x4.path)
+                if ref_img is not None:
+                    ref_gray = cv2.cvtColor(ref_img, cv2.COLOR_BGR2GRAY)
+                    ref_faces = face_cascade.detectMultiScale(ref_gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
+
+                    if len(ref_faces) > 0:
+                        ref_faces = sorted(ref_faces, key=lambda f: f[2]*f[3], reverse=True)
+                        rx, ry, rw, rh = ref_faces[0]
+                        ref_crop = ref_gray[ry:ry+rh, rx:rx+rw]
+                    else:
+                        ref_crop = ref_gray
+
+                    cam_faces = sorted(cam_faces, key=lambda f: f[2]*f[3], reverse=True)
+                    cx, cy, cw, ch = cam_faces[0]
+                    cam_crop = cam_gray[cy:cy+ch, cx:cx+cw]
+
+                    ref_resized = cv2.resize(ref_crop, (128, 128))
+                    cam_resized = cv2.resize(cam_crop, (128, 128))
+
+                    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                    ref_eq = clahe.apply(ref_resized)
+                    cam_eq = clahe.apply(cam_resized)
+
+                    # Template matching (Normalized Cross-Correlation)
+                    ncc_score = float(cv2.matchTemplate(cam_eq, ref_eq, cv2.TM_CCOEFF_NORMED)[0][0])
+                    ncc_score = max(0.0, ncc_score)
+
+                    # Multi-region texture histogram correlation (4x4 = 16 blocks)
+                    block_corrs = []
+                    for r in range(4):
+                        for c in range(4):
+                            b_cam = cam_eq[r*32:(r+1)*32, c*32:(c+1)*32]
+                            b_ref = ref_eq[r*32:(r+1)*32, c*32:(c+1)*32]
+                            h_cam = cv2.calcHist([b_cam], [0], None, [32], [0, 256])
+                            h_ref = cv2.calcHist([b_ref], [0], None, [32], [0, 256])
+                            cv2.normalize(h_cam, h_cam)
+                            cv2.normalize(h_ref, h_ref)
+                            corr = cv2.compareHist(h_cam, h_ref, cv2.HISTCMP_CORREL)
+                            block_corrs.append(max(0.0, float(corr)))
+                    block_score = float(np.mean(block_corrs))
+
+                    combined_score = (ncc_score * 0.40) + (block_score * 0.60)
+                    print(f"FACE ID VERIFY: User #{user.id} ({user.username}): NCC={ncc_score:.3f}, Block={block_score:.3f}, Combined={combined_score:.3f}")
+
+                    # Agar yuz bazadagi rasmga mos kelmasa, qat'iyan rad etiladi
+                    if combined_score < 0.50:
                         return Response({
-                            'detail': "Yuz bazadagi ma'lumotlarga mos kelmadi.",
+                            'detail': "Yuz bazadagi ma'lumotlarga mos kelmadi. Begona shaxs aniqlandi.",
                             'match': False,
+                            'similarity': round(combined_score * 100, 1),
                         }, status=status.HTTP_403_FORBIDDEN)
+            else:
+                # Agar bazada hali 3x4 rasm bo'lmasa (masalan, birinchi marta kirayotgan admin)
+                # Kamerada yuz aniqlanganligi sababli, uning yuzini ro'yxatga olib saqlaymiz
+                cam_faces = sorted(cam_faces, key=lambda f: f[2]*f[3], reverse=True)
+                cx, cy, cw, ch = cam_faces[0]
+                pad_y = int(ch * 0.3)
+                pad_x = int(cw * 0.2)
+                y1 = max(0, cy - pad_y)
+                y2 = min(cam_img.shape[0], cy + ch + pad_y)
+                x1 = max(0, cx - pad_x)
+                x2 = min(cam_img.shape[1], cx + cw + pad_x)
+                portrait = cam_img[y1:y2, x1:x2]
+                is_ok, buf = cv2.imencode(".jpg", portrait)
+                if is_ok:
+                    user.photo_3x4.save(f"user_{user.id}_registered.jpg", ContentFile(buf.tobytes()), save=True)
+                    print(f"FACE ID REGISTERED: User #{user.id} ({user.username}) face saved as official photo.")
 
-                    # Haqiqiy kameradan tushgan tasvirni tekshirish
-                    size = (64, 64)
-                    ref_resized = ref_img.resize(size)
-                    cam_resized = cam_img.resize(size)
-
-                    ref_hist = np.array(ref_resized.histogram(), dtype=np.float32)
-                    cam_hist = np.array(cam_resized.histogram(), dtype=np.float32)
-                    ref_norm = np.linalg.norm(ref_hist)
-                    cam_norm = np.linalg.norm(cam_hist)
-                    hist_sim = float(np.dot(ref_hist, cam_hist) / (ref_norm * cam_norm)) if (ref_norm > 0 and cam_norm > 0) else 0.0
-
-                    ref_g = np.array(ref_resized.convert('L'), dtype=np.float32).flatten()
-                    cam_g = np.array(cam_resized.convert('L'), dtype=np.float32).flatten()
-                    ref_g -= np.mean(ref_g)
-                    cam_g -= np.mean(cam_g)
-                    r_norm = np.linalg.norm(ref_g)
-                    c_norm = np.linalg.norm(cam_g)
-                    struct_sim = float(np.dot(ref_g, cam_g) / (r_norm * c_norm)) if (r_norm > 0 and c_norm > 0) else 0.0
-                    struct_sim = max(0.0, struct_sim)
-
-                    combined_score = (hist_sim * 0.40) + (struct_sim * 0.60)
-                    print(f"FACE ID VERIFIED: score={combined_score:.2f}")
-
-            except Exception as e:
-                print(f"FACE ID EXCEPTION: {e}")
-                return Response({'detail': f'Rasmni qayta ishlashda xatolik: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"FACE ID EXCEPTION: {e}")
+            return Response({'detail': f"Rasmni qayta ishlashda xatolik: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
         # 10 kunlik Refresh token yaratish
         refresh = RefreshToken.for_user(user)

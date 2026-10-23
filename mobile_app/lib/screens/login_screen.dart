@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/network_service.dart';
 import '../theme.dart';
 import 'face_verify_screen.dart';
+import 'checkpoint/guard_checkpoint_screen.dart';
 
 class PassportInputFormatter extends TextInputFormatter {
   @override
@@ -331,9 +332,39 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                           child: const Text("• O'qituvchi: ID: 20101 / teacher123", style: TextStyle(fontSize: 12, color: AppTheme.textDark)),
                         ),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _loginIdController.text = "guard1";
+                              _passwordController.text = "pass123";
+                            });
+                          },
+                          child: const Text("• Qorovul / Nazoratchi: guard1 / pass123", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                        ),
                       ],
                     ),
-                  )
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primary,
+                        side: const BorderSide(color: AppTheme.primary, width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const GuardCheckpointScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.shield_rounded, size: 20),
+                      label: const Text("Darvoza va Turniket Nazorati (Kiosk)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                    ),
+                  ),
                 ],
               ),
             ),

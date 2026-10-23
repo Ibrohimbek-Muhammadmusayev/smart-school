@@ -9,6 +9,7 @@ class User(AbstractUser):
         ('ADMIN', 'Administrator'),
         ('TEACHER', 'Teacher'),
         ('STUDENT', 'Student'),
+        ('GUARD', 'Qorovul / Kirish Nazoratchisi'),
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='STUDENT')
     passport_series = models.CharField(max_length=20, unique=True, null=True, blank=True) # e.g. "AA 1234567"

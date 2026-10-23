@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../theme.dart';
 import 'student/student_dashboard.dart';
 import 'teacher/teacher_dashboard.dart';
+import 'checkpoint/guard_checkpoint_screen.dart';
 
 class FaceVerifyScreen extends StatefulWidget {
   final int userId;
@@ -109,6 +110,11 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
       debugPrint("Kameradan surat olish xatosi: $e");
     }
 
+    if (base64Image == null || base64Image.isEmpty) {
+      _onFailed("Kameradan tasvir olinmadi");
+      return;
+    }
+
     try {
       final res = await ApiService.verifyFaceId(
         widget.userId,
@@ -134,6 +140,12 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
             MaterialPageRoute(builder: (_) => const TeacherDashboard()),
             (route) => false,
           );
+        } else if (widget.role == 'GUARD') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const GuardCheckpointScreen()),
+            (route) => false,
+          );
         } else {
           Navigator.pushAndRemoveUntil(
             context,
@@ -153,18 +165,23 @@ class _FaceVerifyScreenState extends State<FaceVerifyScreen> with SingleTickerPr
     if (!mounted) return;
     setState(() {
       _isVerifying = false;
-      _rimColor = Colors.orange.shade600;
-      if (message != null && message.contains("Yorug'lik")) {
+      if (message != null && (message.contains("Begona") || message.contains("mos kelmadi"))) {
+        _rimColor = Colors.red.shade600;
+        _hintText = "Begona shaxs aniqlandi!";
+      } else if (message != null && (message.contains("aniqlanmadi") || message.contains("yuzi"))) {
+        _rimColor = Colors.orange.shade600;
+        _hintText = "Kamerada inson yuzi ko'rinmadi";
+      } else if (message != null && message.contains("Yorug'lik")) {
+        _rimColor = Colors.orange.shade600;
         _hintText = "Yorug'roq joyga o'ting";
-      } else if (message != null && message.contains("to'g'riga")) {
-        _hintText = "Kameraga to'g'ri qarang";
       } else {
-        _hintText = "Yuzingizni doira ichida tuting";
+        _rimColor = Colors.orange.shade600;
+        _hintText = message ?? "Yuzingizni doira ichida tuting";
       }
     });
 
-    // Avtomatik yana tekshirish (1.8 soniyadan keyin)
-    _scheduleAutoCapture(1800);
+    // Avtomatik yana tekshirish (2.2 soniyadan keyin)
+    _scheduleAutoCapture(2200);
   }
 
   @override
@@ -345,7 +362,6 @@ class _FaceMaskPainter extends CustomPainter {
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
 
-    final double bLen = 22;
     // Yuqori markaz
     canvas.drawLine(Offset(center.dx - 15, ovalRect.top + 6), Offset(center.dx + 15, ovalRect.top + 6), bracketPaint);
     // Pastki markaz

@@ -12,6 +12,7 @@ import '../student/profile_identity_modal.dart';
 import '../student/profile_screen.dart';
 import '../notifications_screen.dart';
 import '../login_screen.dart';
+import '../checkpoint/guard_checkpoint_screen.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});

@@ -1,3 +1,7 @@
+from .checkpoint_views import (
+    CheckpointSearchStudentsView, CheckpointVerifyQRView,
+    CheckpointVerifyFaceView, CheckpointTodayStatsView
+)
 from django.urls import path
 from .views import (PassportLoginView, FaceIdVerifyView, GenerateDynamicQRView, 
                     ScanAttendanceView, TodayLessonsView, LessonRoomView, 
@@ -57,4 +61,8 @@ path('student/dashboard-summary/', StudentDashboardSummaryView.as_view(), name='
     path('devices/simulate/', DeviceSimulateView.as_view(), name='device_simulate'),
     path('devices/hikvision/test-connection/', HikvisionTestConnectionView.as_view(), name='hikvision_test_connection'),
     path('devices/hikvision/sync/', HikvisionSyncStudentsView.as_view(), name='hikvision_sync_students'),
+    path('checkpoint/search-students/', CheckpointSearchStudentsView.as_view(), name='checkpoint_search_students'),
+    path('checkpoint/verify-qr/', CheckpointVerifyQRView.as_view(), name='checkpoint_verify_qr'),
+    path('checkpoint/verify-face/', CheckpointVerifyFaceView.as_view(), name='checkpoint_verify_face'),
+    path('checkpoint/today-stats/', CheckpointTodayStatsView.as_view(), name='checkpoint_today_stats'),
 ]

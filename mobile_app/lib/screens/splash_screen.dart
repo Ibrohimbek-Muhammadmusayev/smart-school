@@ -8,6 +8,7 @@ import 'login_screen.dart';
 import 'onboarding_screen.dart';
 import 'student/student_dashboard.dart';
 import 'teacher/teacher_dashboard.dart';
+import 'checkpoint/guard_checkpoint_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -84,6 +85,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         final role = ApiService.currentUser!['role'];
         if (role == 'TEACHER') {
           _navigate(const TeacherDashboard());
+        } else if (role == 'GUARD') {
+          _navigate(const GuardCheckpointScreen());
         } else {
           _navigate(const StudentDashboard());
         }

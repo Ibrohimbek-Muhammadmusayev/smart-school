@@ -553,6 +553,74 @@ class ApiService {
     return [];
   }
 
+  // 4.1 Checkpoint Kiosk: O'quvchilarni F.I.SH yoki ID bo'yicha qidirish
+  static Future<List<dynamic>> searchCheckpointStudents(String query, {String? schoolId}) async {
+    final sid = schoolId ?? currentUser?['school_id']?.toString() ?? '1';
+    final url = Uri.parse('$baseUrl/checkpoint/search-students/?school_id=$sid&q=${Uri.encodeComponent(query)}');
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        return (data['results'] as List<dynamic>?) ?? [];
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // 4.2 Checkpoint Kiosk: QR kod orqali maktabga kiritish
+  static Future<Map<String, dynamic>> verifyCheckpointQR(String qrToken, {String? schoolId, String direction = 'IN'}) async {
+    final sid = schoolId ?? currentUser?['school_id']?.toString() ?? '1';
+    final url = Uri.parse('$baseUrl/checkpoint/verify-qr/');
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({
+          'qr_token': qrToken,
+          'school_id': sid,
+          'direction': direction,
+        }),
+      );
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } catch (e) {
+      return {'success': false, 'detail': 'Server bilan bog\'lanishda xatolik: $e'};
+    }
+  }
+
+  // 4.3 Checkpoint Kiosk: Olingan yuz rasmini 3x4 rasm bilan biometrik solishtirish
+  static Future<Map<String, dynamic>> verifyCheckpointFace(int studentId, String faceImageB64, {String? schoolId, String direction = 'IN'}) async {
+    final sid = schoolId ?? currentUser?['school_id']?.toString() ?? '1';
+    final url = Uri.parse('$baseUrl/checkpoint/verify-face/');
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({
+          'student_id': studentId,
+          'face_image': faceImageB64,
+          'school_id': sid,
+          'direction': direction,
+        }),
+      );
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } catch (e) {
+      return {'success': false, 'match': false, 'detail': 'Server bilan bog\'lanishda xatolik: $e'};
+    }
+  }
+
+  // 4.4 Checkpoint Kiosk: Bugungi statistika va oxirgi kirishlar logi
+  static Future<Map<String, dynamic>?> getCheckpointStats({String? schoolId}) async {
+    final sid = schoolId ?? currentUser?['school_id']?.toString() ?? '1';
+    final url = Uri.parse('$baseUrl/checkpoint/today-stats/?school_id=$sid');
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // 3.8 Tizimdan chiqish (Logout)
   static void logout() {
     accessToken = null;
