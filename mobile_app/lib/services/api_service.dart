@@ -76,7 +76,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>?> fetchSchoolConfig(String schoolId) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/school-config/?school_id=$schoolId'));
+      final response = await http.get(Uri.parse('$baseUrl/school-config/?school_id=$schoolId')).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (data is Map<String, dynamic> && data['school_id'] != null) {
@@ -144,7 +144,7 @@ class ApiService {
       Uri.parse('$baseUrl/auth/passport-login/'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'login_id': loginId, 'passport_series': loginId, 'password': password}),
-    );
+    ).timeout(const Duration(seconds: 12));
     final data = jsonDecode(utf8.decode(response.bodyBytes));
     if (data is Map<String, dynamic>) {
       if (data['school_config'] != null) {
@@ -215,7 +215,7 @@ class ApiService {
   // O'quvchining to'liq profil ma'lumotlari (baza bilan bog'langan)
   static Future<Map<String, dynamic>?> getStudentProfile() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/student/profile/'), headers: headers);
+      final response = await http.get(Uri.parse('$baseUrl/student/profile/'), headers: headers).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (data is Map<String, dynamic>) {
@@ -239,7 +239,7 @@ class ApiService {
   // 1.2 O'quvchi bosh sahifasi (Bugungi darslar, real vaqt statusi, statistika, haftalik jadval)
   static Future<Map<String, dynamic>?> getStudentDashboardSummary() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/student/dashboard-summary/'), headers: headers);
+      final response = await http.get(Uri.parse('$baseUrl/student/dashboard-summary/'), headers: headers).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (data is Map<String, dynamic>) {
@@ -327,7 +327,7 @@ class ApiService {
   // 2.0 O'qituvchi bosh sahifasi (Bugungi darslar, real davomat, statistika, haftalik jadval, sinflar)
   static Future<Map<String, dynamic>?> getTeacherDashboardSummary() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/teacher/dashboard-summary/'), headers: headers);
+      final response = await http.get(Uri.parse('$baseUrl/teacher/dashboard-summary/'), headers: headers).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (data is Map<String, dynamic>) {

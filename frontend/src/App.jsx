@@ -916,7 +916,7 @@ export default function App() {
 
   if (currentUser.role === 'TEACHER') {
     const teacherSchool = schoolsList.find(s => String(s.id) === String(currentUser.schoolId)) || schoolsList[0];
-    if (teacherSchool && (teacherSchool.status === 'SUSPENDED' || teacherSchool.status === 'BLOCKED')) {
+    if (teacherSchool && (teacherSchool.status === 'SUSPENDED' || teacherSchool.status === 'BLOCKED' || teacherSchool.status === 'ARCHIVED')) {
       return (
         <TeacherSuspendedScreen
           school={teacherSchool}
@@ -932,8 +932,8 @@ export default function App() {
     schoolsList[0] ||
     DEFAULT_SCHOOLS[0];
 
-  // Agar maktab xizmatlari to'xtatilgan yoki qarzdorlik sababli bloklangan bo'lsa
-  if (matchedUserSchool && (matchedUserSchool.status === 'SUSPENDED' || matchedUserSchool.status === 'BLOCKED')) {
+  // Agar maktab xizmatlari to'xtatilgan, arxivlangan yoki qarzdorlik sababli bloklangan bo'lsa
+  if (matchedUserSchool && (matchedUserSchool.status === 'SUSPENDED' || matchedUserSchool.status === 'BLOCKED' || matchedUserSchool.status === 'ARCHIVED')) {
     return (
       <SchoolSuspendedScreen
         school={matchedUserSchool}
@@ -1029,6 +1029,10 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
       (s) => s.username.toLowerCase() === username.toLowerCase() && s.password === password
     );
     if (matchedSchool) {
+      if (matchedSchool.status === 'ARCHIVED') {
+        setLoginError("Ushbu ta'lim muassasasi Super Admin tomonidan arxivga olingan va faoliyati muzlatilgan. Barcha ma'lumotlar saqlanmoqda. Qayta tiklash uchun Bosh Administrator bilan bog'laning.");
+        return;
+      }
       onLoginSuccess({
         role: 'SCHOOL_ADMIN',
         schoolId: String(matchedSchool.id),
@@ -1061,6 +1065,10 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
         );
         if (matchedTeacher) {
           const tSchool = schoolsList.find(s => String(s.id) === String(matchedTeacher.school_id || '1'));
+          if (tSchool && tSchool.status === 'ARCHIVED') {
+            setLoginError("Ushbu maktab arxivga olingan va tizim faoliyati to'xtatilgan. Qayta tiklash uchun Bosh Administrator (Super Admin) bilan bog'laning.");
+            return;
+          }
           if (tSchool && (tSchool.status === 'SUSPENDED' || tSchool.status === 'BLOCKED')) {
             setLoginError("Maktab tizimida xizmatlar vaqtincha to'xtatilgan. Iltimos, maktab ma'muriyati bilan bog'laning.");
             return;
@@ -1087,6 +1095,10 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
     // Offline / Standart Test O'qituvchi hisobi
     if ((username === 'teacher' || username === '20101') && (password === 'teacher123' || password === 'admin123')) {
       const tSchool = schoolsList.find(s => String(s.id) === '1');
+      if (tSchool && tSchool.status === 'ARCHIVED') {
+        setLoginError("Ushbu maktab arxivga olingan va tizim faoliyati to'xtatilgan. Qayta tiklash uchun Bosh Administrator (Super Admin) bilan bog'laning.");
+        return;
+      }
       if (tSchool && (tSchool.status === 'SUSPENDED' || tSchool.status === 'BLOCKED')) {
         setLoginError("Maktab tizimida xizmatlar vaqtincha to'xtatilgan. Iltimos, maktab ma'muriyati bilan bog'laning.");
         return;

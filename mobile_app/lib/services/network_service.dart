@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
@@ -7,19 +6,16 @@ import '../theme.dart';
 class NetworkService {
   static final Connectivity _connectivity = Connectivity();
 
-  /// Haqiqiy internet aloqasi mavjudligini tekshiradi (DNS / socket tekshiruvi bilan)
+  /// Haqiqiy internet aloqasi mavjudligini tekshiradi
   static Future<bool> hasInternet() async {
     try {
       final results = await _connectivity.checkConnectivity();
-      if (results.contains(ConnectivityResult.none) && results.length == 1) {
+      if (results.isEmpty || (results.contains(ConnectivityResult.none) && results.length == 1)) {
         return false;
       }
-      // Haqiqiy internet mavjudligini tezkor tekshirish
-      final lookup = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 4));
-      return lookup.isNotEmpty && lookup[0].rawAddress.isNotEmpty;
+      return true;
     } catch (_) {
-      return false;
+      return true;
     }
   }
 

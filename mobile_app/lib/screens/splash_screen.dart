@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import '../services/network_service.dart';
 import '../theme.dart';
 import 'login_screen.dart';
-import 'onboarding_screen.dart';
 import 'student/student_dashboard.dart';
 import 'teacher/teacher_dashboard.dart';
 import 'checkpoint/guard_checkpoint_screen.dart';
@@ -22,6 +19,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
   String _statusText = "Tizim tayyorlanmoqda...";
+  bool _navigated = false;
 
   @override
   void initState() {
@@ -44,47 +42,24 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _initializeApp() async {
-    // 1. Splash ko'rinishi uchun minimal 1.2 soniya pauza
-    await Future.delayed(const Duration(milliseconds: 1200));
-
-    if (!mounted) return;
-    setState(() => _statusText = "Internet aloqasi tekshirilmoqda...");
-
-    // 2. Internet borligini tekshirish (majburiy onlayn shart)
-    bool isOnline = await NetworkService.hasInternet();
-    while (!isOnline && mounted) {
-      if (!mounted) return;
-      final retry = await NetworkService.showOfflineDialog(context);
-      if (!mounted) return;
-      if (retry) {
-        isOnline = await NetworkService.hasInternet();
-      } else {
-        await Future.delayed(const Duration(seconds: 2));
-        if (!mounted) return;
-        isOnline = await NetworkService.hasInternet();
+    // 1. Favqulodda xavfsizlik taymeri: Splash hech qachon 3.5 soniyadan ortiq qotib qolmaydi!
+    Timer(const Duration(milliseconds: 3500), () {
+      if (mounted && !_navigated) {
+        _navigate(const LoginScreen());
       }
-    }
+    });
 
-    if (!mounted) return;
-    setState(() => _statusText = "Sozlamalar yuklanmoqda...");
+    try {
+      // 2. Minimal 1 soniya silliq animatsiya
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (!mounted || _navigated) return;
 
-    // 3. Onboarding holatini tekshirish (Bir martalik o'tish)
-    final prefs = await SharedPreferences.getInstance();
-    final bool onboardingDone = prefs.getBool('onboarding_completed') ?? false;
+      setState(() => _statusText = "Sozlamalar yuklanmoqda...");
 
-    await Future.delayed(const Duration(milliseconds: 400));
+      // 3. Sessiyani tiklash
+      final hasSession = await ApiService.restoreSession();
 
-    if (!mounted) return;
-
-    if (!onboardingDone) {
-      // Birinchi marta kirganda Onboarding sahifasiga yo'naltirish
-      _navigate(const OnboardingScreen());
-    } else {
-      // Token va sessiyani xotiradan tiklash
-      await ApiService.restoreSession();
-
-      // Agar token va foydalanuvchi mavjud bo'lsa, to'g'ridan-to'g'ri dashboardga
-      if (ApiService.accessToken != null && ApiService.currentUser != null) {
+      if (hasSession && ApiService.accessToken != null && ApiService.currentUser != null) {
         final role = ApiService.currentUser!['role'];
         if (role == 'TEACHER') {
           _navigate(const TeacherDashboard());
@@ -96,13 +71,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       } else {
         _navigate(const LoginScreen());
       }
+    } catch (e) {
+      debugPrint("SPLASH_INIT_ERROR: $e");
+      if (mounted && !_navigated) {
+        _navigate(const LoginScreen());
+      }
     }
   }
 
   void _navigate(Widget screen) {
+    if (_navigated || !mounted) return;
+    _navigated = true;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 700),
+        transitionDuration: const Duration(milliseconds: 600),
         pageBuilder: (context, anim, secAnim) => screen,
         transitionsBuilder: (context, animation, secAnim, child) {
           return FadeTransition(opacity: animation, child: child);

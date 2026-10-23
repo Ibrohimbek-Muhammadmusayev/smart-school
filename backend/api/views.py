@@ -5,13 +5,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 import datetime
-from .models import User, SchoolConfig, SystemConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule, DeviceEventLog, StaffMember, TerritoryPreventionAction
+from django.db import transaction
+from django.db.models import Q, Count, Sum, Avg
+from .models import User, SchoolConfig, SystemConfig, SchoolClass, StudentProfile, Subject, Lesson, DynamicQRToken, Attendance, Grade, HomeworkSubmission, ClassSchedule, DeviceEventLog, StaffMember, TerritoryPreventionAction, SchoolApplication
 from .serializers import (UserSerializer, SchoolClassSerializer, SubjectSerializer, 
                           LessonSerializer, AttendanceSerializer, GradeSerializer, HomeworkSubmissionSerializer, ClassScheduleSerializer)
 from .telegram_service import notify_parent_attendance, notify_parent_grade
 import secrets
 import random
-from django.db.models import Q, Count, Sum, Avg
 
 class PassportLoginView(views.APIView):
     """
@@ -65,15 +66,15 @@ class PassportLoginView(views.APIView):
                 'detail': sys_cfg.maintenance_message,
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        # 2. Maktab to'xtatilgan yoki bloklangan bo'lsa
+        # 2. Maktab to'xtatilgan, bloklangan yoki arxivlangan bo'lsa
         if school_cfg.status in ('SUSPENDED', 'BLOCKED', 'ARCHIVED') and not is_super:
-            if user.role != 'ADMIN':
-                access_info = school_cfg.get_access_info(client_type='MOBILE')
+            if school_cfg.status == 'ARCHIVED' or user.role != 'ADMIN':
+                access_info = school_cfg.get_access_info(client_type='MOBILE' if user.role != 'ADMIN' else 'DASHBOARD')
                 return Response({
                     'school_blocked': True,
                     'status': school_cfg.status,
                     'access_info': access_info,
-                    'detail': access_info['message']
+                    'detail': access_info.get('message', "Ushbu maktab arxivlangan va uning tizim faoliyati to'xtatilgan.")
                 }, status=status.HTTP_403_FORBIDDEN)
 
         # 3. QOROVUL / KIRISH NAZORATCHISI: Face ID talab etilmaydi, to'g'ridan-to'g'ri JWT token beriladi
@@ -3812,6 +3813,8 @@ class SchoolStatusActionView(views.APIView):
             st = str(data.get('status') or '').strip().upper()
             if st in ('ACTIVE', 'SUSPENDED', 'BLOCKED', 'TRIAL', 'ARCHIVED'):
                 cfg.status = st
+                if st == 'ACTIVE' and 'status_reason' not in data:
+                    cfg.status_reason = ''
 
         if 'status_reason' in data:
             cfg.status_reason = str(data.get('status_reason') or '').strip()
@@ -3832,9 +3835,15 @@ class SchoolStatusActionView(views.APIView):
 
         cfg.save()
 
+        msg = f"'{cfg.school_name}' holati muvaffaqiyatli yangilandi!"
+        if cfg.status == 'ARCHIVED':
+            msg = f"'{cfg.school_name}' maktabi o'chirildi va xavfsiz Arxivga o'tkazildi. Barcha ma'lumotlar saqlandi."
+        elif cfg.status == 'ACTIVE':
+            msg = f"'{cfg.school_name}' maktabi muvaffaqiyatli qayta tiklandi va faol holatga keltirildi!"
+
         return Response({
             'success': True,
-            'message': f"'{cfg.school_name}' holati muvaffaqiyatli yangilandi!",
+            'message': msg,
             'school_id': cfg.school_id,
             'school_name': cfg.school_name,
             'status': cfg.status,
@@ -3847,7 +3856,96 @@ class SchoolStatusActionView(views.APIView):
             'config': cfg.to_dict()
         }, status=status.HTTP_200_OK)
 
+    def delete(self, request, school_id):
+        """
+        Super Admin maktabni o'chirmoqchi bo'lganda ma'lumotlar BAZADAN BUTUNLAY O'CHIRILMAYDI!
+        Buning o'rniga status='ARCHIVED' qilinadi (Xavfsiz Soft-Delete / Arxiv).
+        Barcha o'quvchilar, o'qituvchilar, sinflar, davomat to'liq saqlanadi.
+        """
+        sid = str(school_id).strip() or '1'
+        cfg = SchoolConfig.get_or_create_for_school(sid)
+        cfg.status = 'ARCHIVED'
+        cfg.status_reason = str(request.data.get('status_reason') or "Super Admin tomonidan o'chirildi va arxivga o'tkazildi").strip()
+        cfg.updated_by = str(request.data.get('updated_by') or "Super Administrator").strip()
+        cfg.save()
+        return Response({
+            'success': True,
+            'message': f"'{cfg.school_name}' tizimdan xavfsiz o'chirildi va Arxivga o'tkazildi. Barcha ma'lumotlar to'liq saqlanib qoldi.",
+            'school_id': cfg.school_id,
+            'school_name': cfg.school_name,
+            'status': cfg.status,
+            'status_reason': cfg.status_reason,
+            'config': cfg.to_dict()
+        }, status=status.HTTP_200_OK)
 
+
+
+
+class SuperAdminSchoolPermanentDeleteView(views.APIView):
+    """
+    Super Admin tomonidan Arxivlangan maktabni va unga tegishli
+    BARCHA ma'lumotlarni bazadan BUTUNLAY va IZZSIZ o'chirish:
+    DELETE /api/superadmin/schools/<str:school_id>/permanent-delete/
+    POST /api/superadmin/schools/<str:school_id>/permanent-delete/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def delete(self, request, school_id):
+        return self._purge_school(request, school_id)
+
+    def post(self, request, school_id):
+        return self._purge_school(request, school_id)
+
+    def _purge_school(self, request, school_id):
+        sid = str(school_id).strip()
+        if not sid:
+            return Response({'detail': "Maktab ID raqami ko'rsatilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        cfg = SchoolConfig.objects.filter(school_id=sid).first()
+        school_name = cfg.school_name if cfg else f"{sid}-sonli Ta'lim Muassasasi"
+
+        with transaction.atomic():
+            # 1. Maktab darslari va bog'liq baho/davomat/topshiriqlarni o'chirish
+            classes_ids = list(SchoolClass.objects.filter(school_id=sid).values_list('id', flat=True))
+            Lesson.objects.filter(school_class_id__in=classes_ids).delete()
+
+            # 2. Maktab dars jadvallarini o'chirish
+            ClassSchedule.objects.filter(school_id=sid).delete()
+
+            # 3. Maktab sinflarini o'chirish
+            SchoolClass.objects.filter(school_id=sid).delete()
+
+            # 4. Maktab o'quvchilari, o'qituvchilari va direktor hisobini o'chirish
+            # Django CASCADE orqali StudentProfile, TeacherProfile, DynamicQRToken, Attendance, Grade lar ham to'liq o'chiriladi
+            User.objects.filter(school_id=sid).delete()
+
+            # 5. Qurilmalar va turniket hodisalarini (DeviceEventLog) o'chirish
+            DeviceEventLog.objects.filter(school_id=sid).delete()
+
+            # 6. Profilaktika choralari yozuvlarini o'chirish
+            TerritoryPreventionAction.objects.filter(school_id=sid).delete()
+
+            # 7. Maktab xodimlari va biriktirilgan hududiy inspektorlar bog'lanishini tozalash
+            StaffMember.objects.filter(school_id=sid).delete()
+            for sm in StaffMember.objects.all():
+                if sid in (sm.assigned_school_ids or []):
+                    sm.assigned_school_ids = [x for x in sm.assigned_school_ids if str(x) != sid]
+                    sm.save()
+
+            # 8. Maktab arizalarini tozalash
+            SchoolApplication.objects.filter(created_school_id=sid).delete()
+
+            # 9. Maktab konfiguratsiyasini (SchoolConfig) butunlay o'chirish
+            if cfg:
+                cfg.delete()
+            SchoolConfig.objects.filter(school_id=sid).delete()
+
+        return Response({
+            'success': True,
+            'message': f"'{school_name}' (ID: #{sid}) va unga tegishli barcha ma'lumotlar bazadan butunlay va izsiz o'chirildi.",
+            'deleted_school_id': sid,
+            'school_name': school_name
+        }, status=status.HTTP_200_OK)
 
 
 class SuperAdminSchoolUpdateView(views.APIView):
@@ -4407,6 +4505,8 @@ class SuperAdminOverviewStatsView(views.APIView):
             uname = cfg.admin_username or f"maktab{sid}"
             pwd = cfg.admin_password or "school123"
 
+            school_status = cfg.status if cfg.status in ('ARCHIVED', 'SUSPENDED', 'BLOCKED') else ('TRIAL' if is_trial else (cfg.status or 'ACTIVE'))
+
             schools.append({
                 'id': sid,
                 'name': cfg.school_name,
@@ -4424,7 +4524,7 @@ class SuperAdminOverviewStatsView(views.APIView):
                 'password': pwd,
                 'admin_username': uname,
                 'admin_password': pwd,
-                'status': ('TRIAL' if is_trial else (cfg.status or 'ACTIVE')),
+                'status': school_status,
                 'paymentStatus': ('TRIAL' if is_trial else (cfg.payment_status or 'PAID')),
                 'debtAmount': cfg.debt_amount or "0 so'm",
                 'monthlyPrice': m_price,
@@ -4438,6 +4538,9 @@ class SuperAdminOverviewStatsView(views.APIView):
                 'capacity': 800,
                 'turnstileStatus': 'ONLINE' if has_turnstile else 'STANDBY',
                 'warningBanner': cfg.warning_banner or '',
+                'statusReason': cfg.status_reason or '',
+                'archivedAt': cfg.updated_at.strftime('%Y-%m-%d %H:%M') if (cfg.status == 'ARCHIVED' and cfg.updated_at) else '',
+                'updated_at': cfg.updated_at.strftime('%Y-%m-%d %H:%M') if cfg.updated_at else '',
                 'statusReason': cfg.status_reason or '',
                 'plan': "Sinov (Bepul)" if is_trial else f"{m_price:,} so'm/oy".replace(',', ' '),
             })
@@ -4584,6 +4687,7 @@ class SuperAdminOverviewStatsView(views.APIView):
                 'total_schools': len(schools),
                 'active_schools': sum(1 for s in schools if s['status'] == 'ACTIVE'),
                 'suspended_schools': sum(1 for s in schools if s['status'] in ('SUSPENDED', 'BLOCKED')),
+                'archived_schools': sum(1 for s in schools if s['status'] == 'ARCHIVED'),
                 'trial_schools': trial_schools_count,
                 'total_students': total_st,
                 'total_teachers': total_tc,

@@ -15,7 +15,7 @@ import {
   FolderOpen, Sparkles, Smartphone, Check, Edit, Trash2,
   FileSpreadsheet, FileText, FileCode, Monitor, Cpu, ScanFace,
   Bot, Zap, CreditCard, Wrench, Star, Pause, Archive, Settings,
-  HelpCircle, MessageSquare, ShieldCheck, AlertCircle, CheckSquare, Square, DoorOpen
+  HelpCircle, MessageSquare, ShieldCheck, AlertCircle, CheckSquare, Square, DoorOpen, RotateCcw
 } from 'lucide-react';
 
 const THEME = {
@@ -227,6 +227,7 @@ function SuperAdminDashboardInner({
     if (!isSubAdmin) return true;
     if (tabId === 'overview') return subAdminPermissions.includes('overview');
     if (tabId === 'schools') return subAdminPermissions.includes('schools') || subAdminPermissions.includes('schools_edit');
+    if (tabId === 'archive') return subAdminPermissions.includes('schools') || subAdminPermissions.includes('archive');
     if (tabId === 'applications') return subAdminPermissions.includes('schools') || subAdminPermissions.includes('applications');
     if (tabId === 'map') return subAdminPermissions.includes('map');
     if (tabId === 'billing') return subAdminPermissions.includes('billing');
@@ -797,15 +798,29 @@ function SuperAdminDashboardInner({
         ? (schoolsList.reduce((acc, s) => acc + (Number(s.attendanceRate) || 0), 0) / schoolsList.length).toFixed(1)
         : '0.0');
 
-  const currentSelectedSchool =
-    schoolsList.find(s => s.id === selectedSchoolId) || schoolsList[0] || null;
+  const activeSchools = schoolsList.filter(s => s.status !== 'ARCHIVED');
+  const archivedSchools = schoolsList.filter(s => s.status === 'ARCHIVED');
 
-  const filteredSchools = schoolsList.filter(s => {
+  const [archiveSearchQuery, setArchiveSearchQuery] = useState('');
+  const [archiveRegionFilter, setArchiveRegionFilter] = useState('ALL');
+  const [selectedArchivedModalSchool, setSelectedArchivedModalSchool] = useState(null);
+
+  const currentSelectedSchool =
+    activeSchools.find(s => s.id === selectedSchoolId) || activeSchools[0] || schoolsList[0] || null;
+
+  const filteredSchools = activeSchools.filter(s => {
     if (statusFilter !== 'ALL' && s.status !== statusFilter) return false;
     if (regionFilter !== 'ALL' && !(s.district || '').toLowerCase().includes(regionFilter.toLowerCase())) return false;
     if (paymentFilter !== 'ALL' && (s.paymentStatus || 'PAID') !== paymentFilter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
+    return `${s.name} ${s.inn || ''} ${s.district} ${s.director} ${s.username}`.toLowerCase().includes(q);
+  });
+
+  const filteredArchivedSchools = archivedSchools.filter(s => {
+    if (archiveRegionFilter !== 'ALL' && !(s.district || '').toLowerCase().includes(archiveRegionFilter.toLowerCase())) return false;
+    if (!archiveSearchQuery.trim()) return true;
+    const q = archiveSearchQuery.toLowerCase();
     return `${s.name} ${s.inn || ''} ${s.district} ${s.director} ${s.username}`.toLowerCase().includes(q);
   });
 
@@ -1000,17 +1015,148 @@ function SuperAdminDashboardInner({
     }
   };
 
-  const handleHardDeleteSchool = (school) => {
-    if (!window.confirm(`DIQQAT!\n"${school.name}" maktabini tizimdan butunlay o'chirmoqchimisiz?`)) {
-      return;
+  const handleDeleteOrArchiveSchool = async (school) => {
+    if (!school) return;
+    const confirmed = window.confirm(
+      `DIQQAT!\n"${school.name}" maktabini o'chirib, Arxivga o'tkazmoqchimisiz?\n\n` +
+      `🔒 MA'LUMOTLAR XAVFSIZLIGI KAFOLATI:\n` +
+      `Maktabning barcha o'quvchilari (${school.studentsCount || 0} nafar), o'qituvchilari (${school.teachersCount || 0} nafar), sinflari (${school.classesCount || 0} ta) va barcha davomat/baholar ma'lumotlari 100% bazada to'liq saqlanadi.\n\n` +
+      `⚠️ Maktab tizimi muzlatiladi (ishlamaydi) va yangi "Arxiv" sahifasiga joylashtiriladi. Istalgan vaqtda "Arxiv" sahifasidan uni bir tugma bilan qayta tiklashingiz mumkin.\n\n` +
+      `Haqiqatan ham ushbu maktabni arxivga o'tkazasizmi?`
+    );
+    if (!confirmed) return;
+
+    try {
+      await fetch(`/api/schools/${school.id}/status/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN',
+        },
+        body: JSON.stringify({
+          status: 'ARCHIVED',
+          status_reason: "Super Admin tomonidan o'chirildi va arxivga o'tkazildi",
+          updated_by: `${currentUser?.name || 'Super Admin'}`,
+        }),
+      });
+
+      const updated = schoolsList.map(s =>
+        s.id === school.id
+          ? {
+              ...s,
+              status: 'ARCHIVED',
+              statusReason: "Super Admin tomonidan o'chirildi va arxivga o'tkazildi",
+              archivedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+            }
+          : s
+      );
+      onUpdateSchools(updated);
+      appendAuditLog('ARCHIVE_SCHOOL', school.name, `Maktab o'chirildi va xavfsiz Arxiv sahifasiga o'tkazildi (Barcha ma'lumotlar saqlangan)`);
+      
+      const remainingActive = updated.filter(s => s.status !== 'ARCHIVED');
+      if (selectedSchoolId === school.id && remainingActive.length > 0) {
+        setSelectedSchoolId(remainingActive[0].id);
+      }
+      showToast(`📦 "${school.name}" o'chirildi va ma'lumotlari Arxiv sahifasiga xavfsiz o'tkazildi!`);
+    } catch (err) {
+      showToast("Xatolik: " + err.message);
     }
-    const updated = schoolsList.filter(s => s.id !== school.id);
-    onUpdateSchools(updated);
-    appendAuditLog('HARD_DELETE_SCHOOL', school.name, `Maktab tizimdan butunlay o'chirildi`);
-    if (selectedSchoolId === school.id && updated.length > 0) {
-      setSelectedSchoolId(updated[0].id);
+  };
+
+  const handleRestoreSchool = async (school) => {
+    if (!school) return;
+    const confirmed = window.confirm(
+      `"${school.name}" maktabini arxivdan chiqarib, qayta tiklamoqchimisiz?\n\n` +
+      `✅ Maktab faoliyati to'liq tiklanadi: Direktor, o'qituvchilar va o'quvchilar yana tizimdan, mobil ilovadan va qurilmalardan to'liq foydalanishlari mumkin bo'ladi.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await fetch(`/api/schools/${school.id}/status/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN',
+        },
+        body: JSON.stringify({
+          status: 'ACTIVE',
+          status_reason: '',
+          payment_status: 'PAID',
+          debt_amount: "0 so'm",
+          updated_by: `${currentUser?.name || 'Super Admin'}`,
+        }),
+      });
+
+      const updated = schoolsList.map(s =>
+        s.id === school.id
+          ? {
+              ...s,
+              status: 'ACTIVE',
+              statusReason: '',
+              paymentStatus: 'PAID',
+              debtAmount: "0 so'm",
+            }
+          : s
+      );
+      onUpdateSchools(updated);
+      appendAuditLog('RESTORE_SCHOOL', school.name, `Maktab arxivdan muvaffaqiyatli qayta tiklandi`);
+      setSelectedSchoolId(school.id);
+      showToast(`✅ "${school.name}" muvaffaqiyatli qayta tiklandi va faol holatga keltirildi!`);
+      if (selectedArchivedModalSchool && selectedArchivedModalSchool.id === school.id) {
+        setSelectedArchivedModalSchool(null);
+      }
+    } catch (err) {
+      showToast("Tiklashda xatolik: " + err.message);
     }
-    showToast(`"${school.name}" tizimdan o'chirildi.`);
+  };
+
+  const handlePermanentDeleteSchool = async (school) => {
+    if (!school) return;
+    const confirmed = window.confirm(
+      `⚠️ O'TA JIDDIY OGOHLANTIRISH!\n\n` +
+      `"${school.name}" maktabini ARXIVDAN HAM BUTUNLAY O'CHIRIB YUBORMOQCHIMISIZ?\n\n` +
+      `❌ BU AMALNI ASLO ORTGA QAYTARIB BO'LMAYDI!\n\n` +
+      `Bunda maktabga tegishli barcha ma'lumotlar:\n` +
+      `• ${school.studentsCount || 0} nafar o'quvchi ma'lumotlari va Face ID profillari\n` +
+      `• ${school.teachersCount || 0} nafar o'qituvchi hisoblari\n` +
+      `• ${school.classesCount || 0} ta sinflar, darslar va jadvallar\n` +
+      `• Barcha baholar, jurnallar va davomat yozuvlari\n\n` +
+      `BAZADAN BUTUNLAY VA IZZSIZ O'CHIB KETADI!\n\n` +
+      `Haqiqatan ham ushbu maktabni bazadan butunlay o'chirmoqchimisiz?`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/superadmin/schools/${school.id}/permanent-delete/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Super-Admin': '1',
+          'X-User-Role': 'SUPER_ADMIN',
+        },
+        body: JSON.stringify({
+          school_id: school.id,
+          deleted_by: currentUser?.name || 'Super Admin',
+        }),
+      });
+
+      if (res.ok) {
+        const updated = schoolsList.filter(s => s.id !== school.id);
+        onUpdateSchools(updated);
+        appendAuditLog('PERMANENT_DELETE_SCHOOL', school.name, `Maktab arxivdan va butun tizimdan izsiz o'chirib yuborildi`);
+        showToast(`🗑️ "${school.name}" va uning barcha ma'lumotlari bazadan butunlay o'chirildi!`);
+        if (selectedArchivedModalSchool && selectedArchivedModalSchool.id === school.id) {
+          setSelectedArchivedModalSchool(null);
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast("Xatolik: " + (errData.detail || "O'chirishda xatolik yuz berdi"));
+      }
+    } catch (err) {
+      showToast("Tarmoq xatoligi: " + err.message);
+    }
   };
 
   const handleSaveWarningBanner = async (e) => {
@@ -1076,10 +1222,12 @@ function SuperAdminDashboardInner({
   const tabNames = {
     overview: "Global Analitika",
     schools: "Maktablar Boshqaruvi",
+    archive: "Arxiv",
     applications: "Maktab Arizalari",
     map: "Maktablar Xaritasi",
     billing: "Obuna & Moliya",
     server: "Server Analitikasi",
+    staff: "Xodimlar & Rollar",
     config: "Tizim Sozlamalari",
     support: "Texnik Yordam",
   };
@@ -1087,10 +1235,12 @@ function SuperAdminDashboardInner({
   const tabTitles = {
     overview: "Global Analitika va Jonli Monitoring",
     schools: "Maktablar Boshqaruvi",
+    archive: "Arxivlangan Maktablar va Muassasalar",
     applications: "Maktab Onboarding Arizalari va Qabul Markazi",
     map: "Respublika Maktablari Geografik Xaritasi va Monitoringi",
     billing: "Obuna va Moliya Tizimi",
     server: "Server Analitikasi",
+    staff: "Xodimlar va Huquqlar Boshqaruvi (RBAC)",
     config: `${systemConfig.projectName || "Idrok Edu"} Core: Global Sozlamalar va Integratsiyalar`,
     support: "Texnik Yordam va Murojaatlar Markazi",
   };
@@ -1374,7 +1524,7 @@ function SuperAdminDashboardInner({
               onClick={() => { setSuperTab('schools'); if (isMobile) setMobileMenuOpen(false); }}
               icon={<Building2 size={17} />}
               label="Maktablar Boshqaruvi"
-              badge={`${schoolsList.length} ta`}
+              badge={`${activeSchools.length} ta`}
             />
           )}
           {canAccessTab('applications') && (
@@ -1438,6 +1588,15 @@ function SuperAdminDashboardInner({
               icon={<Bell size={17} />}
               label="Texnik Yordam"
               badge={openTicketsCount > 0 ? `${openTicketsCount} yangi` : null}
+            />
+          )}
+          {canAccessTab('archive') && (
+            <SidebarNavBtn
+              active={superTab === 'archive'}
+              onClick={() => { setSuperTab('archive'); if (isMobile) setMobileMenuOpen(false); }}
+              icon={<Archive size={17} />}
+              label="Arxiv"
+              badge={archivedSchools.length > 0 ? `${archivedSchools.length} ta` : null}
             />
           )}
         </div>
@@ -1600,6 +1759,14 @@ function SuperAdminDashboardInner({
                 </button>
                 <button className="sa-btn" onClick={() => setShowOnboardingWizard(true)} style={primaryBtnStyle}>
                   <Plus size={16} /> Yangi Maktab Qo‘shish
+                </button>
+              </>
+            )}
+
+            {superTab === 'archive' && (
+              <>
+                <button className="sa-btn" onClick={() => { loadRealProjectStats(); showToast("Arxiv yangilandi!"); }} style={secondaryBtnStyle}>
+                  <RefreshCw size={14} /> Yangilash
                 </button>
               </>
             )}
@@ -2938,16 +3105,10 @@ function SuperAdminDashboardInner({
 
                           <button
                             className="sa-btn"
-                            onClick={() => handleSetSchoolStatus(currentSelectedSchool, 'ARCHIVED', 'Maktab ma\'lumotlari arxivlandi')}
-                            style={{ padding: '8px 13px', borderRadius: 12, border: `1px solid ${THEME.border}`, backgroundColor: '#FFFFFF', color: THEME.textDark, fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            <Archive size={13} /> Arxivlash
-                          </button>
-
-                          <button
-                            className="sa-btn"
-                            onClick={() => handleHardDeleteSchool(currentSelectedSchool)}
-                            style={{ padding: '8px 13px', borderRadius: 12, border: 'none', backgroundColor: '#F43F5E', color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            <Trash2 size={13} /> O‘chirish
+                            onClick={() => handleDeleteOrArchiveSchool(currentSelectedSchool)}
+                            style={{ padding: '8px 14px', borderRadius: 12, border: 'none', backgroundColor: '#F43F5E', color: '#FFFFFF', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(244, 63, 94, 0.25)' }}
+                            title="Maktabni o'chirish va barcha ma'lumotlarini Arxiv sahifasiga xavfsiz o'tkazish">
+                            <Trash2 size={13} /> O‘chirish (Arxivga o‘tkazish)
                           </button>
                         </div>
                       </div>
@@ -2955,6 +3116,375 @@ function SuperAdminDashboardInner({
                   );
                 })()}
               </div>
+            </div>
+          )}
+
+          {/* ============================================================= */}
+          {/* ARXIVLANGAN MAKTABLAR SAHIFASI (YANGI BO'LIM)                 */}
+          {/* ============================================================= */}
+          {superTab === 'archive' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              
+              {/* Ma'lumotlar xavfsizligi va daxlsizligi kafolati banneri */}
+              <div
+                className="sa-card"
+                style={{
+                  ...cardBoxStyle,
+                  padding: isMobile ? 14 : '18px 22px',
+                  background: 'linear-gradient(135deg, #F8FAFC 0%, #EEF2F6 100%)',
+                  borderLeft: `4px solid ${THEME.primary}`,
+                  display: 'flex',
+                  alignItems: isMobile ? 'flex-start' : 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 14,
+                }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, maxWidth: 840 }}>
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 12,
+                      background: 'rgba(108, 92, 231, 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      color: THEME.primary,
+                    }}>
+                    <Archive size={22} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: THEME.textDark, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span>Xavfsiz Arxiv Tizimi — Barcha Ma'lumotlar Saqlanmoqda</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, backgroundColor: '#ECFDF5', color: '#10AC84', border: '1px solid rgba(16, 172, 132, 0.3)' }}>
+                        100% Ma'lumotlar Saqlangan
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: '#4A5568', lineHeight: 1.55 }}>
+                      Ushbu sahifada Super Admin tomonidan o‘chirilgan barcha ta'lim muassasalari joylashgan. 
+                      Maktabning barcha <strong>o‘quvchilari, o‘qituvchilari, sinflari, baholari va davomat arxivlari bazadan butunlay o‘chirilmagan</strong>, 
+                      balki xavfsiz muzlatilgan holatda turadi. Istalgan vaqtda <strong>"Qayta tiklash"</strong> tugmasini bosib, maktabni asl faol holatiga qaytarishingiz mumkin.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, alignSelf: isMobile ? 'stretch' : 'center' }}>
+                  <button
+                    className="sa-btn"
+                    onClick={() => {
+                      loadRealProjectStats();
+                      showToast("Arxiv ma'lumotlari yangilandi!");
+                    }}
+                    style={{
+                      padding: '9px 15px',
+                      borderRadius: 10,
+                      border: `1px solid ${THEME.border}`,
+                      backgroundColor: '#FFFFFF',
+                      color: THEME.textDark,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}>
+                    <RefreshCw size={13} /> Yangilash
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 ta Asosiy KPI Kartochkasi (Arxiv bo'yicha) */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16 }}>
+                <div className="sa-card" style={{ ...cardBoxStyle, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Archive size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Arxivdagi Maktablar</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: THEME.textDark }}>{archivedSchools.length} ta</div>
+                  </div>
+                </div>
+
+                <div className="sa-card" style={{ ...cardBoxStyle, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Users size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Saqlangan O‘quvchilar</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: THEME.textDark }}>
+                      {archivedSchools.reduce((acc, s) => acc + (Number(s.studentsCount) || 0), 0).toLocaleString()} nafar
+                    </div>
+                  </div>
+                </div>
+
+                <div className="sa-card" style={{ ...cardBoxStyle, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(16, 172, 132, 0.1)', color: '#10AC84', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <GraduationCap size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Saqlangan O‘qituvchilar</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: THEME.textDark }}>
+                      {archivedSchools.reduce((acc, s) => acc + (Number(s.teachersCount) || 0), 0).toLocaleString()} nafar
+                    </div>
+                  </div>
+                </div>
+
+                <div className="sa-card" style={{ ...cardBoxStyle, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(168, 85, 247, 0.1)', color: '#A855F7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <BookOpen size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: THEME.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Saqlangan Sinflar</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: THEME.textDark }}>
+                      {archivedSchools.reduce((acc, s) => acc + (Number(s.classesCount) || 0), 0).toLocaleString()} ta
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Qidiruv va Hududlar Bo'yicha Filtr */}
+              <div className="sa-card" style={{ ...cardBoxStyle, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 }}>
+                  <div style={{ position: 'relative', width: isMobile ? '100%' : 320 }}>
+                    <Search size={15} style={{ position: 'absolute', left: 12, top: 11, color: THEME.textMuted }} />
+                    <input
+                      placeholder="Arxivlangan maktab, direktor, tuman qidirish..."
+                      value={archiveSearchQuery}
+                      onChange={e => setArchiveSearchQuery(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px 9px 34px',
+                        borderRadius: 8,
+                        border: `1px solid ${THEME.border}`,
+                        backgroundColor: '#F9FAFE',
+                        fontSize: 12.5,
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <select
+                    value={archiveRegionFilter}
+                    onChange={e => setArchiveRegionFilter(e.target.value)}
+                    style={{ ...selectFilterStyle, minWidth: 160 }}>
+                    <option value="ALL">Barcha Hududlar</option>
+                    {Array.from(new Set(archivedSchools.map(s => s.district).filter(Boolean))).map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: THEME.textMuted }}>
+                  Natija: <span style={{ color: THEME.primary, fontWeight: 800 }}>{filteredArchivedSchools.length} ta</span> arxivlangan muassasa
+                </div>
+              </div>
+
+              {/* Arxivdagi Maktablar Ro'yxati / Kartochkalari */}
+              {filteredArchivedSchools.length === 0 ? (
+                <div
+                  className="sa-card"
+                  style={{
+                    ...cardBoxStyle,
+                    padding: '60px 20px',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}>
+                  <div
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: '50%',
+                      backgroundColor: '#F1F5F9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#94A3B8',
+                    }}>
+                    <Archive size={30} />
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: THEME.textDark }}>
+                    {archivedSchools.length === 0 ? "Hozircha arxivlangan maktablar mavjud emas" : "Qidiruv bo'yicha maktab topilmadi"}
+                  </div>
+                  <div style={{ fontSize: 13, color: THEME.textMuted, maxWidth: 500, lineHeight: 1.5 }}>
+                    {archivedSchools.length === 0
+                      ? "Super Admin tomonidan biron-bir maktab o‘chirilsa, uning barcha ma'lumotlari ushbu Arxiv bo‘limiga xavfsiz saqlab qo‘yiladi va tizim faoliyati muzlatiladi."
+                      : "Qidiruv so‘zini o‘zgartirib yoki filtrni tozalab ko‘ring."}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(460px, 1fr))', gap: 16 }}>
+                  {filteredArchivedSchools.map(school => (
+                    <div
+                      key={school.id}
+                      className="sa-card"
+                      style={{
+                        ...cardBoxStyle,
+                        padding: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: 16,
+                        border: '1px solid #E2E8F0',
+                        position: 'relative',
+                        overflow: 'hidden',
+                      }}>
+                      {/* Yuqori qism: Status badge + Nom + Hudud */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '4px 10px',
+                              borderRadius: 20,
+                              backgroundColor: '#FEF2F2',
+                              color: '#DC2626',
+                              fontSize: 11,
+                              fontWeight: 800,
+                              border: '1px solid rgba(220, 38, 38, 0.25)',
+                              letterSpacing: '0.02em',
+                            }}>
+                            <Lock size={12} /> ARXIVLANGAN (MUZLATILGAN)
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: THEME.textMuted }}>
+                            ID: #{school.id}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h3 style={{ fontSize: 17, fontWeight: 800, color: THEME.textDark, margin: 0, lineHeight: 1.3 }}>
+                            {school.name}
+                          </h3>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: THEME.textMuted, marginTop: 4 }}>
+                            <MapPin size={13} color={THEME.primary} />
+                            <span>{school.district || "Toshkent shahri"} {school.address ? `• ${school.address}` : ''}</span>
+                          </div>
+                        </div>
+
+                        {/* Direktor va Kirish ma'lumotlari */}
+                        <div style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: THEME.textMuted }}>Direktor:</span>
+                            <span style={{ fontWeight: 700, color: THEME.textDark }}>{school.director || "Noma'lum"}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: THEME.textMuted }}>Aloqa telefoni:</span>
+                            <span style={{ fontWeight: 600, color: THEME.textDark }}>{school.phone || "+998 71 200-00-00"}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: THEME.textMuted }}>Direktor Logini:</span>
+                            <span style={{ fontWeight: 700, fontFamily: 'monospace', color: THEME.primary }}>{school.username}</span>
+                          </div>
+                        </div>
+
+                        {/* Saqlangan Statistikalar Metrikasi */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, textAlign: 'center' }}>
+                          <div style={{ padding: '8px 4px', borderRadius: 8, backgroundColor: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+                            <div style={{ fontSize: 10, color: '#3B82F6', fontWeight: 700 }}>O‘QUVCHILAR</div>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: '#1E40AF' }}>{school.studentsCount || 0}</div>
+                          </div>
+                          <div style={{ padding: '8px 4px', borderRadius: 8, backgroundColor: '#F0FDF4', border: '1px solid #DCFCE7' }}>
+                            <div style={{ fontSize: 10, color: '#16A34A', fontWeight: 700 }}>O‘QITUVCHILAR</div>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: '#15803D' }}>{school.teachersCount || 0}</div>
+                          </div>
+                          <div style={{ padding: '8px 4px', borderRadius: 8, backgroundColor: '#FAF5FF', border: '1px solid #F3E8FF' }}>
+                            <div style={{ fontSize: 10, color: '#9333EA', fontWeight: 700 }}>SINFLAR</div>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: '#7E22CE' }}>{school.classesCount || 0}</div>
+                          </div>
+                          <div style={{ padding: '8px 4px', borderRadius: 8, backgroundColor: '#FFF7ED', border: '1px solid #FFEDD5' }}>
+                            <div style={{ fontSize: 10, color: '#EA580C', fontWeight: 700 }}>DAVOMAT %</div>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: '#C2410C' }}>{school.attendanceRate || 0}%</div>
+                          </div>
+                        </div>
+
+                        {/* Arxivlanish sababi va vaqti */}
+                        <div style={{ fontSize: 11.5, color: '#64748B', backgroundColor: '#FEF2F2', padding: '8px 12px', borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                          <AlertCircle size={14} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                          <div>
+                            <strong>Holati:</strong> {school.statusReason || "Super Admin tomonidan o'chirildi va arxivlandi"}. 
+                            <span style={{ display: 'block', fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                              Muzlatilgan vaqt: {school.archivedAt || school.updated_at || "Yaqinda"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tugmalar: Qayta tiklash va Pasport */}
+                      <div style={{ display: 'flex', gap: 10, paddingTop: 12, borderTop: `1px solid ${THEME.border}` }}>
+                        <button
+                          className="sa-btn"
+                          onClick={() => handleRestoreSchool(school)}
+                          style={{
+                            flex: 1,
+                            padding: '10px 14px',
+                            borderRadius: 10,
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #10AC84 0%, #059669 100%)',
+                            color: '#FFFFFF',
+                            fontWeight: 800,
+                            fontSize: 12.5,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            boxShadow: '0 4px 12px rgba(16, 172, 132, 0.3)',
+                          }}>
+                          <RotateCcw size={15} /> Qayta Tiklash (Faollashtirish)
+                        </button>
+
+                        <button
+                          className="sa-btn"
+                          onClick={() => setSelectedArchivedModalSchool(school)}
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: 10,
+                            border: `1px solid ${THEME.border}`,
+                            backgroundColor: '#FFFFFF',
+                            color: THEME.textDark,
+                            fontWeight: 700,
+                            fontSize: 12.5,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                          }}>
+                          <Eye size={15} /> Pasport
+                        </button>
+
+                        <button
+                          className="sa-btn"
+                          onClick={() => handlePermanentDeleteSchool(school)}
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: 10,
+                            border: '1px solid #FECACA',
+                            backgroundColor: '#FEF2F2',
+                            color: '#DC2626',
+                            fontWeight: 800,
+                            fontSize: 12.5,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            transition: 'all 0.15s ease',
+                          }}
+                          title="Maktabni va barcha ma'lumotlarini bazadan butunlay va izsiz o'chirish">
+                          <Trash2 size={14} /> Butunlay O‘chirish
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -4902,6 +5432,171 @@ function SuperAdminDashboardInner({
             }
           }}
         />
+      )}
+
+      {/* ============================================================= */}
+      {/* ARXIVLANGAN MAKTAB PASPORTI MODALI                            */}
+      {/* ============================================================= */}
+      {selectedArchivedModalSchool && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+          onClick={() => setSelectedArchivedModalSchool(null)}>
+          <div
+            className="sa-card"
+            style={{
+              ...cardBoxStyle,
+              width: '100%',
+              maxWidth: 580,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: 24,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 18,
+            }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 12, backgroundColor: '#FEF2F2', color: '#DC2626' }}>
+                  🔒 ARXIVLANGAN PASPORT
+                </span>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: THEME.textDark, margin: '6px 0 0 0' }}>
+                  {selectedArchivedModalSchool.name}
+                </h2>
+                <div style={{ fontSize: 12, color: THEME.textMuted }}>
+                  Tizim ID: #{selectedArchivedModalSchool.id} • INN: {selectedArchivedModalSchool.inn || '309481023'}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedArchivedModalSchool(null)}
+                style={{ border: 'none', background: '#F1F5F9', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ padding: '12px 14px', borderRadius: 10, backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', fontSize: 12, color: '#B45309', lineHeight: 1.5 }}>
+              ⚠️ <strong>Eslatma:</strong> Mazkur maktab arxivga joylashtirilgan. Barcha ma'lumotlar to'liq saqlangan holda xizmatlar to'xtatilgan. Tizimga qaytarish uchun quyidagi "Qayta Tiklash" tugmasini bosing.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              <div style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 10 }}>
+                <div style={{ fontSize: 11, color: THEME.textMuted }}>Direktor</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: THEME.textDark }}>{selectedArchivedModalSchool.director || "Noma'lum"}</div>
+              </div>
+              <div style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 10 }}>
+                <div style={{ fontSize: 11, color: THEME.textMuted }}>Aloqa telefoni</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: THEME.textDark }}>{selectedArchivedModalSchool.phone || "+998 71 200-00-00"}</div>
+              </div>
+              <div style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 10 }}>
+                <div style={{ fontSize: 11, color: THEME.textMuted }}>Direktor Logini</div>
+                <div style={{ fontSize: 13, fontWeight: 800, fontFamily: 'monospace', color: THEME.primary }}>{selectedArchivedModalSchool.username}</div>
+              </div>
+              <div style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 10 }}>
+                <div style={{ fontSize: 11, color: THEME.textMuted }}>Direktor Paroli</div>
+                <div style={{ fontSize: 13, fontWeight: 800, fontFamily: 'monospace', color: THEME.primary }}>{selectedArchivedModalSchool.password || 'school123'}</div>
+              </div>
+              <div style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 10 }}>
+                <div style={{ fontSize: 11, color: THEME.textMuted }}>Hudud / Manzil</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: THEME.textDark }}>{selectedArchivedModalSchool.district || "Toshkent shahri"}</div>
+              </div>
+              <div style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 10 }}>
+                <div style={{ fontSize: 11, color: THEME.textMuted }}>Arxivlangan Vaqti</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: THEME.textDark }}>{selectedArchivedModalSchool.archivedAt || selectedArchivedModalSchool.updated_at || "Yaqinda"}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, textAlign: 'center' }}>
+              <div style={{ padding: 10, borderRadius: 8, backgroundColor: '#EFF6FF' }}>
+                <div style={{ fontSize: 11, color: '#3B82F6', fontWeight: 700 }}>O‘quvchilar</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#1E40AF' }}>{selectedArchivedModalSchool.studentsCount || 0}</div>
+              </div>
+              <div style={{ padding: 10, borderRadius: 8, backgroundColor: '#F0FDF4' }}>
+                <div style={{ fontSize: 11, color: '#16A34A', fontWeight: 700 }}>O‘qituvchilar</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#15803D' }}>{selectedArchivedModalSchool.teachersCount || 0}</div>
+              </div>
+              <div style={{ padding: 10, borderRadius: 8, backgroundColor: '#FAF5FF' }}>
+                <div style={{ fontSize: 11, color: '#9333EA', fontWeight: 700 }}>Sinflar</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#7E22CE' }}>{selectedArchivedModalSchool.classesCount || 0}</div>
+              </div>
+              <div style={{ padding: 10, borderRadius: 8, backgroundColor: '#FFF7ED' }}>
+                <div style={{ fontSize: 11, color: '#EA580C', fontWeight: 700 }}>Davomat %</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#C2410C' }}>{selectedArchivedModalSchool.attendanceRate || 0}%</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button
+                className="sa-btn"
+                onClick={() => handleRestoreSchool(selectedArchivedModalSchool)}
+                style={{
+                  flex: 1.2,
+                  padding: '12px 18px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #10AC84 0%, #059669 100%)',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}>
+                <RotateCcw size={16} /> Qayta Tiklash
+              </button>
+              <button
+                className="sa-btn"
+                onClick={() => handlePermanentDeleteSchool(selectedArchivedModalSchool)}
+                style={{
+                  flex: 1,
+                  padding: '12px 18px',
+                  borderRadius: 10,
+                  border: 'none',
+                  backgroundColor: '#DC2626',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+                title="Barcha ma'lumotlarni bazadan butunlay va izsiz o'chirish">
+                <Trash2 size={16} /> Butunlay O‘chirish
+              </button>
+              <button
+                className="sa-btn"
+                onClick={() => setSelectedArchivedModalSchool(null)}
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: 10,
+                  border: `1px solid ${THEME.border}`,
+                  backgroundColor: '#FFFFFF',
+                  color: THEME.textDark,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}>
+                Yopish
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {warningModalSchool && (

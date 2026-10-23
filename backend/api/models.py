@@ -456,6 +456,29 @@ class SchoolConfig(models.Model):
                 'warning_banner': self.warning_banner or '',
             }
 
+        if self.status == 'ARCHIVED':
+            if client_type == 'DASHBOARD':
+                return {
+                    'is_allowed': False,
+                    'status': self.status,
+                    'is_debt': False,
+                    'debt_amount': "0 so'm",
+                    'title': "Ta'lim muassasasi arxivlangan",
+                    'message': self.status_reason or "Ushbu maktab Super Administrator tomonidan arxivga o'tkazilgan va faoliyati muzlatilgan. Barcha ma'lumotlar to'liq va xavfsiz saqlanmoqda.",
+                    'warning_banner': '',
+                    'support_phone': "+998 71 200-00-00",
+                }
+            else:
+                return {
+                    'is_allowed': False,
+                    'status': self.status,
+                    'is_debt': False,
+                    'title': "Muassasa arxivlangan",
+                    'message': "Ushbu maktab arxivga o'tkazilgan va tizim faoliyati muzlatilgan. Ma'lumot olish uchun Super Admin bilan bog'laning.",
+                    'warning_banner': '',
+                    'support_phone': "+998 71 200-00-00",
+                }
+
         is_debt = (self.payment_status == 'OVERDUE') or ('qarzdor' in (self.status_reason or '').lower())
         
         if client_type == 'DASHBOARD':
