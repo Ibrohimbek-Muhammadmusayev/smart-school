@@ -76,6 +76,34 @@ class PassportLoginView(views.APIView):
                     'detail': access_info['message']
                 }, status=status.HTTP_403_FORBIDDEN)
 
+        # 3. QOROVUL / KIRISH NAZORATCHISI: Face ID talab etilmaydi, to'g'ridan-to'g'ri JWT token beriladi
+        if user.role == 'GUARD':
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'require_face_id': False,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'role': 'GUARD',
+                'school_config': school_cfg.to_dict(),
+                'user': {
+                    'id': user.id,
+                    'full_name': user.get_full_name() or user.username,
+                    'role': user.role,
+                    'student_id': '',
+                    'passport_series': user.passport_series,
+                    'class_name': '',
+                    'raw_class_name': '',
+                    'school_id': user.school_id or '1',
+                    'school_name': school_cfg.school_name,
+                    'school_config': school_cfg.to_dict(),
+                    'photo_3x4': photo_url,
+                    'can_manage_passwords': False,
+                    'stars_count': 0,
+                    'session_days_left': 10
+                },
+                'message': 'Qorovul / Nazoratchi kabinetiga muvaffaqiyatli kirildi.'
+            })
+
         # Face ID tekshiruvi talab qilinadi
         return Response({
             'require_face_id': True,
@@ -5473,7 +5501,7 @@ class SchoolStaffListView(views.APIView):
             elif role == 'PSYCHOLOGIST':
                 position_title = "Maktab Amaliyotchi Psixologi"
             elif role == 'GUARD':
-                position_title = "Maktab Xavfsizlik Qorovuli"
+                position_title = "Maktab hududiga kirish nazoratchisi (Qorovul)"
             else:
                 position_title = "Maktab Xodimi"
 

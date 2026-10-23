@@ -791,7 +791,7 @@ class StaffMember(models.Model):
         ('MAHALLA', "Mahalla Fuqarolar Yig'ini (MFY)"),
         ('DISTRICT_ADMIN', "Tuman XTB (RayONO)"),
         ('PSYCHOLOGIST', 'Maktab Psixologi'),
-        ('GUARD', 'Qorovul / Xavfsizlik'),
+        ('GUARD', "Maktab Hududiga Kirishni Tasdiqlovchi Xodim (Qorovul / Nazoratchi)"),
     )
     SCOPE_CHOICES = (
         ('SUPER_ADMIN', 'Super Admin Boshqarma'),

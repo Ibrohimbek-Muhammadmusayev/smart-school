@@ -54,12 +54,12 @@ const SCHOOL_ROLE_CONFIGS = {
     icon: <Brain size={16} color="#7E22CE" />,
   },
   GUARD: {
-    label: "Maktab Xavfsizlik Xodimi / Qorovul",
-    shortLabel: "Qorovul / Nazoratchi",
-    desc: "Turniket, darvoza va kirish-chiqish xavfsizligini nazorat qiluvchi xodim.",
+    label: "Maktab Hududiga Kirishni Tasdiqlovchi Xodim (Darvoza / Qorovul)",
+    shortLabel: "Kirish Nazoratchisi",
+    desc: "Maktab darvozasida Face ID yoki dinamik QR kod orqali o'quvchilar kirishini tasdiqlovchi mas'ul xodim.",
     badgeBg: '#FEF3C7',
-    badgeColor: '#92400E',
-    icon: <Briefcase size={16} color="#92400E" />,
+    badgeColor: '#B45309',
+    icon: <ShieldCheck size={16} color="#B45309" />,
   },
 };
 
@@ -131,6 +131,22 @@ export default function SchoolStaffManagement({
     setModalOpen(true);
   };
 
+  const handleOpenAddGuard = () => {
+    setEditingStaff(null);
+    const randNum = Math.floor(100 + Math.random() * 900);
+    setForm({
+      full_name: '',
+      username: `kirish_${schoolId}_${randNum}`,
+      password: `maktab${randNum}`,
+      phone: '+998 ',
+      role: 'GUARD',
+      position_title: "Maktab hududiga kirish nazoratchisi",
+      mahalla_name: "Maktab darvozasi / Turniket",
+      notes: "Maktab hududiga kiruvchi o'quvchilar shaxsini Face ID yoki QR kod orqali tasdiqlash mas'uli",
+    });
+    setModalOpen(true);
+  };
+
   const handleRoleChange = (newRole) => {
     const randNum = Math.floor(100 + Math.random() * 900);
     let defaultUsername = `staff_${schoolId}_${randNum}`;
@@ -146,8 +162,8 @@ export default function SchoolStaffManagement({
       defaultUsername = `psixolog_${schoolId}_${randNum}`;
       defaultTitle = "Maktab Amaliyotchi Psixologi";
     } else if (newRole === 'GUARD') {
-      defaultUsername = `qorovul_${schoolId}_${randNum}`;
-      defaultTitle = "Maktab Xavfsizlik Qorovuli";
+      defaultUsername = `kirish_${schoolId}_${randNum}`;
+      defaultTitle = "Maktab hududiga kirish nazoratchisi";
     }
 
     setForm(prev => ({
@@ -304,16 +320,16 @@ export default function SchoolStaffManagement({
             </div>
             <div>
               <h2 style={{ fontSize: 20, fontWeight: 800, color: THEME.textDark, margin: 0 }}>
-                Profilaktika va Hududiy Mas'ullar Boshqaruvi
+                Profilaktika va Hududiy Mas'ullar xodimlar
               </h2>
               <p style={{ fontSize: 13, color: THEME.textMuted, margin: 0 }}>
-                {schoolName} • Profilaktika inspektori (IIB), Mahalla MFY, Psixolog va Xavfsizlik xodimlari
+                {schoolName} • Profilaktika inspektori (IIB), Mahalla MFY, Kirish nazoratchisi (Qorovul) va Psixolog
               </p>
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button
             onClick={fetchStaff}
             disabled={loading}
@@ -332,6 +348,26 @@ export default function SchoolStaffManagement({
             }}>
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             Yangilash
+          </button>
+
+          <button
+            onClick={handleOpenAddGuard}
+            style={{
+              padding: '9px 16px',
+              borderRadius: 8,
+              border: '1px solid #FCD34D',
+              backgroundColor: '#FEF3C7',
+              color: '#92400E',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 2px 8px rgba(180, 83, 9, 0.12)',
+            }}>
+            <ShieldCheck size={16} color="#92400E" />
+            + Kirishni Tasdiqlovchi Xodim Qo'shish
           </button>
 
           <button
@@ -382,7 +418,7 @@ export default function SchoolStaffManagement({
           <Shield size={18} />
         </div>
         <div style={{ fontSize: 12.5, color: THEME.textDark, lineHeight: 1.5, flex: 1 }}>
-          <b>Maktab hududiy mas'ullari:</b> Ushbu ro'yxatdagi profilaktika inspektori (uchastkavoy) va mahalla yetakchilari faqat <b>{schoolName}</b> o'quvchilarining dars davomati, sababsiz qoldirilgan darslari va surunkali dars qoldiruvchilar profilaktikasini ko'ra oladi va nazorat qiladi.
+          <b>Maktab hududiy mas'ullari va xodimlari:</b> Ushbu ro'yxatda maktab hududiga kirishni tasdiqlovchi xodim (Darvoza qorovuli/nazoratchisi), profilaktika inspektori (uchastkavoy), mahalla yetakchisi va psixolog faoliyat yuritadi. Kirish nazoratchisi darvozada o'quvchilar shaxsini Face ID yoki QR kod orqali tasdiqlaydi.
         </div>
       </div>
 
@@ -482,6 +518,29 @@ export default function SchoolStaffManagement({
           </div>
           <div style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: '#F3E8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7E22CE' }}>
             <Brain size={22} />
+          </div>
+        </div>
+
+        <div style={{
+          backgroundColor: '#FFFFFF',
+          borderRadius: 10,
+          border: `1px solid ${THEME.border}`,
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <div>
+            <div style={{ fontSize: 12, color: THEME.textMuted, fontWeight: 600 }}>Kirish Nazoratchisi</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#B45309', marginTop: 4 }}>
+              {stats.guards || staffList.filter(s => s.role === 'GUARD').length}
+            </div>
+            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>
+              Darvoza & Qorovul
+            </div>
+          </div>
+          <div style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B45309' }}>
+            <ShieldCheck size={22} />
           </div>
         </div>
       </div>
@@ -686,17 +745,17 @@ export default function SchoolStaffManagement({
                       {/* Actions */}
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                          {/* Preview Cabinet */}
+                          {/* Preview Cabinet / Checkpoint Terminal */}
                           {typeof onPreviewCabinet === 'function' && (
                             <button
                               onClick={() => onPreviewCabinet(staff)}
-                              title="Xodim kabinetini ko'rish (Test kirish)"
+                              title={staff.role === 'GUARD' ? "Kirish terminalini ochish (Face ID / QR Tekshirish)" : "Xodim kabinetini ko'rish (Test kirish)"}
                               style={{
                                 padding: '6px 10px',
                                 borderRadius: 6,
-                                border: `1px solid ${THEME.primary}`,
-                                backgroundColor: THEME.primaryLight,
-                                color: THEME.primaryDark,
+                                border: staff.role === 'GUARD' ? '1px solid #F59E0B' : `1px solid ${THEME.primary}`,
+                                backgroundColor: staff.role === 'GUARD' ? '#FEF3C7' : THEME.primaryLight,
+                                color: staff.role === 'GUARD' ? '#92400E' : THEME.primaryDark,
                                 fontSize: 11.5,
                                 fontWeight: 700,
                                 cursor: 'pointer',
@@ -704,8 +763,8 @@ export default function SchoolStaffManagement({
                                 alignItems: 'center',
                                 gap: 4,
                               }}>
-                              <Eye size={13} />
-                              Kabinet
+                              {staff.role === 'GUARD' ? <ShieldCheck size={13} color="#92400E" /> : <Eye size={13} />}
+                              {staff.role === 'GUARD' ? "Kirish Terminali" : "Kabinet"}
                             </button>
                           )}
 
@@ -845,6 +904,9 @@ export default function SchoolStaffManagement({
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
                             {rCfg.shortLabel}
+                          </div>
+                          <div style={{ fontSize: 10, color: THEME.textMuted, marginTop: 1 }}>
+                            {rKey === 'GUARD' ? "Face ID & QR Kirish" : rKey === 'INSPECTOR' ? "IIB Profilaktika" : rKey === 'MAHALLA' ? "MFY Yetakchisi" : "Psixologik ko'mak"}
                           </div>
                         </div>
                       </div>

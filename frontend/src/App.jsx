@@ -19,6 +19,7 @@ import SchoolMapPicker from './components/SchoolMapPicker';
 import { MaintenanceScreen, SchoolSuspendedScreen, TeacherSuspendedScreen } from './components/MaintenanceScreens';
 import SchoolHelpSupportSection from './components/SchoolHelpSupportSection';
 import SchoolStaffManagement from './components/SchoolStaffManagement';
+import CheckpointCabinet from './components/CheckpointCabinet';
 import LandingPage from './LandingPage';
 
 // Easy Learn Palette Constants
@@ -893,7 +894,17 @@ export default function App() {
     );
   }
 
-    if (currentUser.role === 'INSPECTOR' || currentUser.role === 'MAHALLA' || currentUser.role === 'DISTRICT_ADMIN') {
+    if (currentUser.role === 'GUARD') {
+    return (
+      <CheckpointCabinet
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        systemConfig={systemMaintenance}
+      />
+    );
+  }
+
+  if (currentUser.role === 'INSPECTOR' || currentUser.role === 'MAHALLA' || currentUser.role === 'DISTRICT_ADMIN') {
     return (
       <TerritoryCabinet
         currentUser={currentUser}
@@ -2079,6 +2090,20 @@ function SchoolAdminDashboardView({
   };
 
   if (previewStaffCabinet) {
+    if (previewStaffCabinet.role === 'GUARD') {
+      return (
+        <CheckpointCabinet
+          currentUser={{
+            ...previewStaffCabinet,
+            schoolId: schoolId,
+            schoolName: schoolName,
+          }}
+          onLogout={() => setPreviewStaffCabinet(null)}
+          onBack={() => setPreviewStaffCabinet(null)}
+          systemConfig={systemMaintenance}
+        />
+      );
+    }
     return (
       <TerritoryCabinet
         currentUser={{
@@ -2351,11 +2376,11 @@ function SchoolAdminDashboardView({
             active={activeTab === 'staff'}
             onClick={() => setActiveTab('staff')}
             icon={<ShieldCheck size={18} />}
-            label="Profilaktika & Mas'ullar"
+            label="Profilaktika va Hududiy Mas'ullar xodimlar"
             badge="Hamkorlik"
             badgeColor="#2563EB"
             collapsed={isSidebarCollapsed}
-            title="Profilaktika Inspektori (IIB), Mahalla (MFY) va Psixolog"
+            title="Profilaktika va Hududiy Mas'ullar xodimlar (IIB, Mahalla, Psixolog, Kirish nazoratchisi)"
           />
 
           {/* Section 2: Smart Xizmatlar */}
@@ -2665,7 +2690,7 @@ function SchoolAdminDashboardView({
                 {activeTab === 'schedule' && `${terms.lessonSingular} Jadvali`}
                 {activeTab === 'students' && terms.studentPlural}
                 {activeTab === 'teachers' && "O'qituvchilar"}
-                {activeTab === 'staff' && "Profilaktika va Hududiy Mas'ullar"}
+                {activeTab === 'staff' && "Profilaktika va Hududiy Mas'ullar xodimlar"}
                 {activeTab === 'attendance' && "Jonli Davomat Auditi"}
                 {activeTab === 'settings' && "Maktab Sozlamalari"}
                 {activeTab === 'help' && "Yordam & Qo'llab-quvvatlash"}
