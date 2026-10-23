@@ -345,7 +345,7 @@ export default function SchoolApplicationsManager({ onSchoolCreated, onToast }) 
 
                 </div>
 
-                {/* O'rta qism: Mas'ul shaxs, telefon, turniket, modullar */}
+                {/* O'rta qism: Mas'ul shaxs, telefon, turniket */}
                 <div style={{
                   padding: '12px 16px', borderRadius: 12, backgroundColor: '#F8FAFC',
                   border: '1px solid #F1F5F9', display: 'flex', alignItems: 'center',
@@ -382,21 +382,11 @@ export default function SchoolApplicationsManager({ onSchoolCreated, onToast }) 
                     </div>
                   </div>
 
-                  {/* Modullar */}
-                  {app.desired_modules && app.desired_modules.length > 0 && (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {app.desired_modules.slice(0, 3).map((m, idx) => (
-                        <span key={idx} style={{ backgroundColor: '#E0E7FF', color: '#3730A3', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 8 }}>
-                          {m}
-                        </span>
-                      ))}
-                      {app.desired_modules.length > 3 && (
-                        <span style={{ backgroundColor: '#F1F5F9', color: '#64748B', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 8 }}>
-                          +{app.desired_modules.length - 3} ta
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  {/* Tizim Ta'minoti */}
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: '#ECFDF5', color: '#065F46', fontSize: 11.5, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #A7F3D0' }}>
+                    <CheckCircle2 size={13} color="#059669" />
+                    <span>Barcha standart funksiyalar</span>
+                  </div>
 
                 </div>
 
@@ -525,13 +515,10 @@ export default function SchoolApplicationsManager({ onSchoolCreated, onToast }) 
               <DetailRow label="Turniket Holati" value={selectedApp.turnstile_status_label} />
               
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Tanlangan Modullar:</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {selectedApp.desired_modules && selectedApp.desired_modules.map((m, i) => (
-                    <span key={i} style={{ backgroundColor: '#EEF2FF', color: '#4338CA', padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
-                      {m}
-                    </span>
-                  ))}
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Tizim Ta'minoti:</div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: '#ECFDF5', color: '#065F46', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, border: '1px solid #A7F3D0' }}>
+                  <CheckCircle2 size={14} color="#059669" />
+                  <span>Barcha funksiyalar (Face ID, Jurnal, Telegram bot, Mobil ilova, Aqlli doska) to'liq ulanadi</span>
                 </div>
               </div>
 

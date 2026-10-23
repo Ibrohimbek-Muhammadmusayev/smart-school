@@ -44,7 +44,7 @@ const ROLE_CONFIGS = {
   SUB_ADMIN: {
     label: "Operator / Yordamchi Admin",
     shortLabel: "Sub-Admin",
-    desc: "Bosh boshqarma operatori. Faqat Super Admin tomonidan ruxsat berilgan modullarga kiradi. Belgilanmagan bo'limlar yopiq.",
+    desc: "Bosh boshqarma operatori. Faqat Super Admin tomonidan ruxsat berilgan bo'limlarga kiradi. Belgilanmagan bo'limlar yopiq.",
     badgeBg: '#F3E8FF',
     badgeColor: '#7E22CE',
     icon: <Sliders size={15} color="#7E22CE" />,
@@ -765,7 +765,7 @@ export default function SuperAdminStaffView({
                   {editingStaff ? "Xodim Ma'lumotlarini Tahrirlash" : "Yangi Xodim Qo'shish & Ruxsatlar Biriktirish"}
                 </h3>
                 <p style={{ fontSize: 12, color: THEME.textMuted, margin: '4px 0 0 0' }}>
-                  Xodim roli, hududi, maktablari va ko'ra oladigan modullarini belgilang
+                  Xodim roli, hududi, maktablari va ko'ra oladigan bo'limlarini belgilang
                 </p>
               </div>
               <button
@@ -989,7 +989,7 @@ export default function SuperAdminStaffView({
               <div style={{ borderTop: `1px solid ${THEME.border}`, paddingTop: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <label style={{ fontSize: 12, fontWeight: 700, color: THEME.textDark }}>
-                    4. Huquqlar va Ruxsatlar Matrisasi (Faqat ruxsat berilgan modullar ko'rinadi):
+                    4. Huquqlar va Ruxsatlar Matrisasi (Faqat ruxsat berilgan bo'limlar ko'rinadi):
                   </label>
                   <button
                     type="button"

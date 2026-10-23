@@ -57,19 +57,19 @@ const INITIAL_PRICING_TIERS = [
     maxStudents: 500,
     maxRooms: 25,
     storageGb: 20,
-    features: ['Dinamik 25s QR Davomat', 'Dars Matritsasi va Jurnal', '5 xonali ID Avtorizatsiya', 'CSV Hisobotlar'],
+    features: ['Face ID va 25s Dinamik QR Davomat', 'Dars Matritsasi va Jurnal', 'Telegram Bot va SMS Bildirishnomalar', 'CSV Hisobotlar'],
     color: '#0EA5E9',
     popular: false,
     modules: {
-      face_id: false,
+      face_id: true,
       dynamic_qr: true,
-      telegram_bot: false,
-      turnstile_api: false,
-      anti_spoofing: false,
-      sms_alerts: false,
+      telegram_bot: true,
+      turnstile_api: true,
+      anti_spoofing: true,
+      sms_alerts: true,
       journal_matrix: true,
       gps_geofence: true,
-      vip_support: false,
+      vip_support: true,
     },
   },
   {
@@ -80,7 +80,7 @@ const INITIAL_PRICING_TIERS = [
     maxStudents: 1200,
     maxRooms: 60,
     storageGb: 100,
-    features: ['Face ID Biometrik Kirish', 'Dinamik 25s QR Davomat', 'Ota-onalar Telegram Boti', 'Turniket Integratsiyasi'],
+    features: ['Face ID va 25s Dinamik QR Davomat', 'Dars Matritsasi va Jurnal', 'Telegram Bot va SMS Bildirishnomalar', 'Turniket Integratsiyasi'],
     color: '#6C5CE7',
     popular: true,
     modules: {
@@ -88,11 +88,11 @@ const INITIAL_PRICING_TIERS = [
       dynamic_qr: true,
       telegram_bot: true,
       turnstile_api: true,
-      anti_spoofing: false,
+      anti_spoofing: true,
       sms_alerts: true,
       journal_matrix: true,
       gps_geofence: true,
-      vip_support: false,
+      vip_support: true,
     },
   },
   {
@@ -103,7 +103,7 @@ const INITIAL_PRICING_TIERS = [
     maxStudents: 5000,
     maxRooms: 200,
     storageGb: 500,
-    features: ['Dedicated AI Face Server', 'Anti-Spoofing Liveness v3', 'SMS + Telegram + Push', '24/7 VIP SLA & Backup'],
+    features: ['Face ID va 25s Dinamik QR Davomat', 'Dars Matritsasi va Jurnal', 'Telegram Bot va SMS Bildirishnomalar', '24/7 VIP SLA & Backup'],
     color: '#10B981',
     popular: false,
     modules: {
@@ -142,7 +142,7 @@ const INITIAL_QR_ALERTS = [
 ];
 
 const INITIAL_RBAC_ADMINS = [
-  { id: 1, name: 'Bosh Boshqarma (Super Owner)', role: 'SUPER_OWNER', email: 'root@idrokedu.uz', twoFactor: true, permissions: 'To‘liq ruxsat (Barcha modullar)' },
+  { id: 1, name: 'Bosh Boshqarma (Super Owner)', role: 'SUPER_OWNER', email: 'root@idrokedu.uz', twoFactor: true, permissions: 'To‘liq ruxsat (Barcha bo‘limlar)' },
   { id: 2, name: 'Sardorbek Usmonov', role: 'TECH_SUPPORT', email: 'devops@idrokedu.uz', twoFactor: true, permissions: 'AI Serverlar, Turniketlar, Backup va Helpdesk' },
   { id: 3, name: 'Malika Rahimova', role: 'FINANCE_MANAGER', email: 'billing@idrokedu.uz', twoFactor: true, permissions: 'Obunalar, Fakturalar va MRR Tahlil' },
   { id: 4, name: 'Komiljon Toshmatov', role: 'SECURITY_AUDITOR', email: 'audit@idrokedu.uz', twoFactor: false, permissions: 'Global Audit Jurnali va Xavfsizlik loglari' },
@@ -474,12 +474,12 @@ function SuperAdminDashboardInner({
         face_id: true,
         dynamic_qr: true,
         telegram_bot: true,
-        turnstile_api: false,
-        anti_spoofing: false,
-        sms_alerts: false,
+        turnstile_api: true,
+        anti_spoofing: true,
+        sms_alerts: true,
         journal_matrix: true,
         gps_geofence: true,
-        vip_support: false,
+        vip_support: true,
       },
     });
     setShowTierModal(true);
@@ -739,7 +739,7 @@ function SuperAdminDashboardInner({
         })
       });
       if (res.ok) {
-        showToast("Tizim sozlamalari muvaffaqiyatli saqlandi va barcha modullarga tatbiq etildi!");
+        showToast("Tizim sozlamalari muvaffaqiyatli saqlandi va barcha tizimlarga tatbiq etildi!");
         appendAuditLog('UPDATE_SYSTEM_CONFIG', 'Global Sozlamalar', `Loyiha: ${systemConfig.projectName}, QR: ${systemConfig.qrRefreshSeconds}s, Call-markaz: ${systemConfig.supportPhone}`);
         if (typeof onSystemConfigUpdated === 'function') onSystemConfigUpdated();
         if (typeof loadRealProjectStats === 'function') loadRealProjectStats();
@@ -1725,7 +1725,7 @@ function SuperAdminDashboardInner({
                 />
               </div>
 
-              {/* Idrok Edu Ekotizim Modullari Paneli */}
+              {/* Idrok Edu Yagona Standart Arxitektura Paneli */}
               <div style={{
                 backgroundColor: '#FFFFFF',
                 borderRadius: 10,
@@ -1743,7 +1743,7 @@ function SuperAdminDashboardInner({
                     </div>
                     <div>
                       <h3 style={{ fontSize: 15, fontWeight: 800, color: THEME.textDark, margin: 0 }}>
-                        Idrok Edu — Tizim Arxitekturasi va Modullar
+                        Idrok Edu — Yagona Standart Arxitektura
                       </h3>
                       <p style={{ fontSize: 11.5, color: THEME.textMuted, margin: 0, marginTop: 2 }}>
                         Platformaning 5 ta o'zaro integratsiyalashgan asosiy arxitektura bo'g'inlari
@@ -1751,12 +1751,12 @@ function SuperAdminDashboardInner({
                     </div>
                   </div>
                   <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, backgroundColor: '#DCFCE7', color: '#166534', fontWeight: 800, border: '1px solid #86EFAC' }}>
-                    ● Barcha 5 modul sinxron va faol
+                    ● Barcha 5 tizim sinxron va faol
                   </span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: isSmallScreen ? '1fr' : (isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(210px, 1fr))'), gap: 12 }}>
-                  {/* Modul 1: Idrok Edu */}
+                  {/* Tizim 1: Idrok Edu */}
                   <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: THEME.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1769,7 +1769,7 @@ function SuperAdminDashboardInner({
                     <div style={{ fontSize: 10.5, color: THEME.textMuted, lineHeight: 1.35 }}>Asosiy platforma, landing sahifasi va umumiy boshqaruv shlyuzi.</div>
                   </div>
 
-                  {/* Modul 2: IdrokBoard */}
+                  {/* Tizim 2: IdrokBoard */}
                   <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: '#D97706', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1782,7 +1782,7 @@ function SuperAdminDashboardInner({
                     <div style={{ fontSize: 10.5, color: THEME.textMuted, lineHeight: 1.35 }}>AI vizualizatsiyasi, interaktiv doska va virtual laboratoriya.</div>
                   </div>
 
-                  {/* Modul 3: Idrok Core */}
+                  {/* Tizim 3: Idrok Core */}
                   <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: '#2563EB', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1795,7 +1795,7 @@ function SuperAdminDashboardInner({
                     <div style={{ fontSize: 10.5, color: THEME.textMuted, lineHeight: 1.35 }}>Dars jadvallari algoritmi, Face ID oqimlari, RBAC va baza integratsiyasi.</div>
                   </div>
 
-                  {/* Modul 4: Idrok Vision */}
+                  {/* Tizim 4: Idrok Vision */}
                   <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: '#059669', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1804,11 +1804,11 @@ function SuperAdminDashboardInner({
                       </span>
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#D1FAE5', color: '#047857', fontWeight: 800 }}>Computer Vision</span>
                     </div>
-                    <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Kameralar & Face ID moduli</div>
+                    <div style={{ fontSize: 11, color: THEME.textDark, fontWeight: 700 }}>Kameralar & Face ID tizimi</div>
                     <div style={{ fontSize: 10.5, color: THEME.textMuted, lineHeight: 1.35 }}>Kirish-chiqish avtomat davomati, darsdagi ishtirok monitoringi.</div>
                   </div>
 
-                  {/* Modul 5: Idrok Mobile */}
+                  {/* Tizim 5: Idrok Mobile */}
                   <div style={{ padding: 14, borderRadius: 8, backgroundColor: '#F8F9FE', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: 13, color: '#7C3AED', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -2877,7 +2877,7 @@ function SuperAdminDashboardInner({
                           </div>
 
                           <div style={{ padding: '12px 14px', borderRadius: 6, backgroundColor: '#FFFFFF', border: `1px solid ${THEME.border}` }}>
-                            <div style={{ fontSize: 11, color: THEME.textMuted }}>Faol Tizim Modullari</div>
+                            <div style={{ fontSize: 11, color: THEME.textMuted }}>Xizmatlar Holati (Barcha Standart Funksiyalar)</div>
                             <div style={{ fontSize: 12, fontWeight: 700, color: THEME.green, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><ScanFace size={13} /> Face ID</span>
                               •
@@ -5413,15 +5413,15 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: 18, color: THEME.textDark }}>Yangi Maktab Qo‘shish</div>
-            <div style={{ fontSize: 12, color: THEME.textMuted }}>Qadam {step} / 4</div>
+            <div style={{ fontSize: 12, color: THEME.textMuted }}>Qadam {step} / 3</div>
           </div>
           <button onClick={onClose} style={{ border: 'none', background: '#F1F5F9', borderRadius: 12, width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <X size={15} color={THEME.textMuted} />
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
-          {['1. Rekvizitlar', '2. Limitlar', '3. Direktor', '4. Modullar'].map((label, idx) => {
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 20 }}>
+          {['1. Rekvizitlar', '2. Limitlar', '3. Direktor'].map((label, idx) => {
             const active = step >= idx + 1;
             return (
               <div key={idx} style={{ padding: '7px 8px', borderRadius: 11, textAlign: 'center', fontSize: 11, fontWeight: 700, backgroundColor: active ? THEME.primary : '#F1F5F9', color: active ? '#FFFFFF' : THEME.textMuted, transition: 'all 0.25s ease' }}>
@@ -5570,32 +5570,6 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
             </>
           )}
 
-          {step === 4 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                { key: 'faceIdEnabled', icon: <ScanFace size={16} color={THEME.primary} />, title: 'Face ID Biometrik Kirish va Turniket', desc: '3x4 rasm orqali yuzni solishtirish va turniket integratsiyasi' },
-                { key: 'qrAttendanceEnabled', icon: <QrCode size={16} color={THEME.cyan} />, title: '25-soniyalik Dinamik QR Davomat', desc: 'Soxtalashtirishga qarshi har 25 soniyada yangilanuvchi QR kod' },
-                { key: 'telegramBotEnabled', icon: <Bot size={16} color="#0EA5E9" />, title: 'Ota-onalar Telegram Bildirishnomasi', desc: 'O‘quvchi maktabga kirganda ota-onaga avtomatik xabar yuborish' },
-              ].map(mod => (
-                <div
-                  key={mod.key}
-                  onClick={() => setForm({ ...form, [mod.key]: !form[mod.key] })}
-                  style={{ padding: 14, borderRadius: 8, border: `1px solid ${form[mod.key] ? THEME.primary : THEME.border}`, backgroundColor: form[mod.key] ? THEME.primaryLight : '#F8FAFC', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <div style={{ marginTop: 2 }}>{mod.icon}</div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>{mod.title}</div>
-                      <div style={{ fontSize: 11.5, color: THEME.textMuted, marginTop: 2 }}>{mod.desc}</div>
-                    </div>
-                  </div>
-                  <span style={{ fontWeight: 800, color: form[mod.key] ? THEME.primary : THEME.textMuted, fontSize: 11 }}>
-                    {form[mod.key] ? 'YOQILGAN' : 'O‘CHIQ'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
             {step > 1 ? (
               <button type="button" onClick={() => setStep(step - 1)} style={{ ...secondaryBtnStyle, flex: 1, justifyContent: 'center' }}>
@@ -5607,9 +5581,9 @@ function OnboardingWizardModal({ onClose, onSubmit }) {
               </button>
             )}
 
-            {step < 4 ? (
+            {step < 3 ? (
               <button type="button" onClick={() => setStep(step + 1)} style={{ ...primaryBtnStyle, flex: 1.5, justifyContent: 'center' }}>
-                Keyingi Qadam ({step + 1}/4) <ChevronRight size={14} />
+                Keyingi Qadam ({step + 1}/3) <ChevronRight size={14} />
               </button>
             ) : (
               <button type="submit" style={{ ...primaryBtnStyle, flex: 1.5, justifyContent: 'center' }}>
@@ -5785,15 +5759,15 @@ function TariffPlanModal({ tier, onClose, onSave }) {
     popular: Boolean(tier.popular),
     features: Array.isArray(tier.features) ? [...tier.features] : [],
     modules: {
-      face_id: false,
+      face_id: true,
       dynamic_qr: true,
-      telegram_bot: false,
-      turnstile_api: false,
-      anti_spoofing: false,
-      sms_alerts: false,
+      telegram_bot: true,
+      turnstile_api: true,
+      anti_spoofing: true,
+      sms_alerts: true,
       journal_matrix: true,
       gps_geofence: true,
-      vip_support: false,
+      vip_support: true,
       ...(tier.modules || {}),
     },
   }));
@@ -5949,7 +5923,7 @@ function TariffPlanModal({ tier, onClose, onSave }) {
               </h3>
             </div>
             <p style={{ margin: '4px 0 0 0', fontSize: 12, color: THEME.textMuted }}>
-              Narxlar, texnik limitlar va maktablarga beriladigan modullarni boshqaring ({activeModulesCount}/9 modul faol)
+              Narxlar va texnik limitlarni boshqaring (Barcha standart imkoniyatlar to‘liq faol)
             </p>
           </div>
           <button
@@ -6141,71 +6115,66 @@ function TariffPlanModal({ tier, onClose, onSave }) {
             </div>
           </div>
 
-          {/* 4. Tizim Modullari va Ruxsatlar (NIMALARNI QILA OLISHI) */}
+          {/* 4. Yagona Standart Imkoniyatlar (Barcha maktablar uchun to'liq faol) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <div>
                 <span style={{ fontSize: 12.5, fontWeight: 800, color: THEME.textDark, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                  4. Ruxsat Berilgan Modullar (Nimalarni qila olishi)
+                  4. Yagona Standart Imkoniyatlar (Barcha Maktablarda Bir Xil)
                 </span>
                 <p style={{ margin: '2px 0 0 0', fontSize: 11.5, color: THEME.textMuted }}>
-                  Ushbu tarifdagi maktablar quyidagi modullardan foydalanishi mumkin bo‘ladi:
+                  Yagona standart siyosatiga binoan barcha maktablar to'liq va teng funksionallikdan foydalanadi:
                 </p>
               </div>
-              <span style={{ padding: '3px 9px', borderRadius: 10, backgroundColor: THEME.primaryLight, color: THEME.primary, fontWeight: 800, fontSize: 11 }}>
-                {activeModulesCount} / {MODULE_DEFINITIONS.length} Faol
+              <span style={{ padding: '3px 9px', borderRadius: 10, backgroundColor: '#DCFCE7', color: '#166534', fontWeight: 800, fontSize: 11, border: '1px solid #86EFAC' }}>
+                ● Barcha Imkoniyatlar Standart Faol
               </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {MODULE_DEFINITIONS.map(mod => {
-                const isEnabled = Boolean(form.modules[mod.key]);
-                return (
-                  <div
-                    key={mod.key}
-                    onClick={() => handleToggleModule(mod.key)}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: 8,
-                      border: `1.5px solid ${isEnabled ? form.color || THEME.primary : THEME.border}`,
-                      backgroundColor: isEnabled ? `${form.color || THEME.primary}0D` : '#FAFAFA',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: 8,
-                    }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center' }}>{mod.icon}</span>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark }}>
-                            {mod.title}
-                          </div>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: THEME.textMuted }}>
-                            {mod.badge}
-                          </span>
+              {MODULE_DEFINITIONS.map(mod => (
+                <div
+                  key={mod.key}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 8,
+                    border: '1.5px solid #E2E8F0',
+                    backgroundColor: '#F8FAFC',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                  }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center' }}>{mod.icon}</span>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: 12.5, color: THEME.textDark }}>
+                          {mod.title}
                         </div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: THEME.textMuted }}>
+                          {mod.badge}
+                        </span>
                       </div>
-                      <span style={{
-                        padding: '3px 8px',
-                        borderRadius: 8,
-                        fontSize: 10.5,
-                        fontWeight: 800,
-                        backgroundColor: isEnabled ? (form.color || THEME.primary) : '#E2E8F0',
-                        color: isEnabled ? '#FFFFFF' : '#64748B',
-                        flexShrink: 0,
-                      }}>
-                        {isEnabled ? 'YOQILGAN' : 'O‘CHIQ'}
-                      </span>
                     </div>
-                    <div style={{ fontSize: 11, color: THEME.textMuted, lineHeight: 1.35 }}>
-                      {mod.desc}
-                    </div>
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: 8,
+                      fontSize: 10,
+                      fontWeight: 800,
+                      backgroundColor: '#DCFCE7',
+                      color: '#166534',
+                      border: '1px solid #86EFAC',
+                      flexShrink: 0,
+                    }}>
+                      STANDART FAOL
+                    </span>
                   </div>
-                );
-              })}
+                  <div style={{ fontSize: 11, color: THEME.textMuted, lineHeight: 1.35 }}>
+                    {mod.desc}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

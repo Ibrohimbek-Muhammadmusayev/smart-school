@@ -338,7 +338,7 @@ function generateLessonSlots(cfg, totalSlots = 7, shift = 1) {
 }
 
 // =========================================================================
-// RASMIY ENTERPRISE YUKLANISH VA AUTENTIFIKATSIYA MODULLARI (OFFICIAL LOADERS)
+// RASMIY ENTERPRISE YUKLANISH VA AUTENTIFIKATSIYA KOMPONENTLARI (OFFICIAL LOADERS)
 // =========================================================================
 function AppInitialLoader({ systemConfig }) {
   const brand = systemConfig ? {
@@ -1220,7 +1220,9 @@ function LoginPage({ onLoginSuccess, schoolsList = DEFAULT_SCHOOLS, systemMainte
             alt="Idrok Edu" 
             style={{ height: 68, objectFit: 'contain', margin: '0 auto 12px auto', display: 'block' }} 
           />
-          <p style={{ fontSize: 13, color: THEME.textMuted, marginTop: 4 }}>Yagona Ta'lim va Davomat Boshqaruv Ekotizimi</p>
+          <p style={{ fontSize: 13, color: THEME.textMuted, marginTop: 4 }}>
+            {systemMaintenance?.project_slogan || "Yagona Ta'lim va Davomat Boshqaruv Ekotizimi"}
+          </p>
         </div>
 
         {systemMaintenance?.is_maintenance_mode && (

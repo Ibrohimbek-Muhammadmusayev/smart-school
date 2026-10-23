@@ -45,19 +45,62 @@ const TURNSTILE_OPTIONS = [
   { value: "NEED_INSTALLATION", label: "Yangi turniket o'rnatmoqchimiz (Maslahat kerak)", desc: "Mutaxassislarimiz uskunalarni o'rnatishda yordam beradi" }
 ];
 
-const AVAILABLE_MODULES = [
-  { id: "face_turnstile", label: "Face ID & QR Turniket Davomat Tizimi" },
-  { id: "parent_bot", label: "Ota-onalar Uchun 24/7 Telegram Xabarnoma Boti" },
-  { id: "electronic_journal", label: "Elektron Jurnal, Dars Jadvali & Baholash" },
-  { id: "idrok_board", label: "Aqlli Doska (IdrokBoard AI Masofaviy Pulti)" },
-  { id: "mobile_app", label: "O'quvchi va O'qituvchilar Mobil Ilovasi (iOS / Android)" },
-  { id: "kiosk_mode", label: "Qorovul / Nazoratchi Uchun Mobil Kiosk Kabineti" },
-  { id: "finance_analytics", label: "Moliya, Shartnomalar & Super Admin Analitikasi" }
-];
-
 export default function LandingPage({ onGoToLogin, systemConfig }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
+
+  // Super Admin kiritgan dinamik brending & tizim ma'lumotlari
+  const [liveConfig, setLiveConfig] = useState(() => {
+    if (systemConfig && systemConfig.project_name) return systemConfig;
+    try {
+      const cached = localStorage.getItem('smart_school_system_config');
+      if (cached) return JSON.parse(cached);
+    } catch (_) {}
+    return null;
+  });
+
+  useEffect(() => {
+    if (systemConfig && systemConfig.project_name) {
+      setLiveConfig(systemConfig);
+    }
+    const loadSystemConfig = async () => {
+      try {
+        const res = await fetch('/api/system-config/');
+        if (res.ok) {
+          const data = await res.json();
+          setLiveConfig(data);
+          try {
+            localStorage.setItem('smart_school_system_config', JSON.stringify(data));
+          } catch (_) {}
+        }
+      } catch (_) {}
+    };
+    loadSystemConfig();
+  }, [systemConfig]);
+
+  const projectName = liveConfig?.project_name || "Idrok Edu";
+  const projectBadge = liveConfig?.project_badge || "SMART SCHOOL";
+  const projectSlogan = liveConfig?.project_slogan || "Milliy Ta'limni Raqamlashtirish Platformasi";
+  const supportPhone = liveConfig?.support_phone || "+998 (71) 200-00-55";
+  const supportTelegram = liveConfig?.support_telegram || "@IdrokEduBot";
+  const supportEmail = liveConfig?.support_email || "info@idrokedu.uz";
+  const supportHours = liveConfig?.support_hours || "Dushanba – Shanba, 08:00 – 20:00";
+
+  useEffect(() => {
+    if (projectName) {
+      document.title = `${projectName} — ${projectSlogan}`;
+    }
+  }, [projectName, projectSlogan]);
+
+  useEffect(() => {
+    // Sahifa yangilanganda yoki ochilganda har doim eng yuqori (Hero) qismidan ochilishi uchun
+    try {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
+    } catch (_) {}
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
 
   // Ariza formasi holati
   const [formData, setFormData] = useState({
@@ -73,12 +116,6 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
     estimated_students: '',
     estimated_teachers: '',
     turnstile_status: 'MOBILE_KIOSK',
-    desired_modules: [
-      'Face ID & QR Turniket Davomat Tizimi',
-      'Ota-onalar Uchun 24/7 Telegram Xabarnoma Boti',
-      'Elektron Jurnal, Dars Jadvali & Baholash',
-      "O'quvchi va O'qituvchilar Mobil Ilovasi (iOS / Android)"
-    ],
     notes: ''
   });
 
@@ -86,18 +123,6 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(null);
   const [submitError, setSubmitError] = useState(null);
-
-  const handleModuleToggle = (moduleLabel) => {
-    setFormData(prev => {
-      const exists = prev.desired_modules.includes(moduleLabel);
-      return {
-        ...prev,
-        desired_modules: exists
-          ? prev.desired_modules.filter(m => m !== moduleLabel)
-          : [...prev.desired_modules, moduleLabel]
-      };
-    });
-  };
 
   const validateStep = (stepNumber) => {
     setSubmitError(null);
@@ -129,7 +154,7 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
   const handleNextStep = () => {
     if (validateStep(currentStep)) {
       setSubmitError(null);
-      setCurrentStep(prev => Math.min(4, prev + 1));
+      setCurrentStep(prev => Math.min(3, prev + 1));
     }
   };
 
@@ -163,6 +188,10 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
       if (res.ok && data.success) {
         setSubmitSuccess(data);
         setCurrentStep(1);
+        setTimeout(() => {
+          const el = document.getElementById('apply-section');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
         setFormData({
           school_name: '',
           school_type: 'PUBLIC',
@@ -176,12 +205,6 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
           estimated_students: '',
           estimated_teachers: '',
           turnstile_status: 'MOBILE_KIOSK',
-          desired_modules: [
-            'Face ID & QR Turniket Davomat Tizimi',
-            'Ota-onalar Uchun 24/7 Telegram Xabarnoma Boti',
-            'Elektron Jurnal, Dars Jadvali & Baholash',
-            "O'quvchi va O'qituvchilar Mobil Ilovasi (iOS / Android)"
-          ],
           notes: ''
         });
       } else {
@@ -231,21 +254,21 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.5px', background: 'linear-gradient(135deg, #1E1B4B 0%, #4338CA 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                  Idrok Edu
+                  {projectName}
                 </span>
                 <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, backgroundColor: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE' }}>
-                  SMART SCHOOL
+                  {projectBadge}
                 </span>
               </div>
               <div style={{ fontSize: 11, color: '#64748B', fontWeight: 500 }}>
-                Milliy Ta'limni Raqamlashtirish Platformasi
+                {projectSlogan}
               </div>
             </div>
           </div>
 
           {/* Desktop Nav Links */}
           <div style={{ display: 'none', mdDisplay: 'flex', alignItems: 'center', gap: 28 }} className="desktop-menu">
-            <button onClick={() => scrollToSection('modules-section')} style={navLinkStyle}>Imkoniyatlar</button>
+            <button onClick={() => scrollToSection('features-section')} style={navLinkStyle}>Standart Imkoniyatlar</button>
             <button onClick={() => scrollToSection('devices-section')} style={navLinkStyle}>Face ID & Kiosk</button>
             <button onClick={() => scrollToSection('idrokboard-section')} style={navLinkStyle}>Aqlli Doska</button>
             <button onClick={() => scrollToSection('benefits-section')} style={navLinkStyle}>Afzalliklar</button>
@@ -306,8 +329,8 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
             marginBottom: 24, boxShadow: '0 2px 6px rgba(79, 70, 229, 0.08)'
           }}>
             <Sparkles size={16} color="#4F46E5" />
-            <span>O'zbekistondagi 1-Raqamli Maktab Raqamlashtirish Ekotizimi</span>
-            <span style={{ backgroundColor: '#4F46E5', color: '#FFF', fontSize: 10, padding: '2px 8px', borderRadius: 10 }}>2026 Yangi</span>
+            <span>{projectSlogan || "O'zbekistondagi 1-Raqamli Maktab Raqamlashtirish Ekotizimi"}</span>
+            <span style={{ backgroundColor: '#4F46E5', color: '#FFF', fontSize: 10, padding: '2px 8px', borderRadius: 10 }}>{projectBadge || "Yangi"}</span>
           </div>
 
           {/* Headline */}
@@ -320,7 +343,7 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
               background: 'linear-gradient(135deg, #4F46E5 0%, #9333EA 100%)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
             }}>
-              Yagona Aqlli Boshqaruv Platformasi
+              {projectName} — Yagona Aqlli Boshqaruv Platformasi
             </span>
           </h1>
 
@@ -329,7 +352,7 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
             fontSize: 'clamp(16px, 2vw, 19px)', color: '#475569', lineHeight: 1.6,
             maxWidth: 780, margin: '0 auto 36px', fontWeight: 400
           }}>
-            Face ID va QR turniket kirish nazorati, interaktiv aqlli doska (<strong>IdrokBoard</strong>), elektron jurnal, 24/7 ota-onalar Telegram boti hamda sun'iy intellekt tahlili — qimmat uskunalarsiz ham har qanday maktabga oson moslashadi.
+            Face ID va QR turniket kirish nazorati, interaktiv aqlli doska (<strong>{projectName} AI</strong>), elektron jurnal, 24/7 ota-onalar Telegram boti hamda sun'iy intellekt tahlili — qimmat uskunalarsiz ham har qanday maktabga oson moslashadi.
           </p>
 
           {/* CTA Buttons */}
@@ -480,26 +503,26 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
       </section>
 
       {/* =========================================================================
-          4. BARCHA TIZIM MODULLARI
+          4. BARCHA MAKTABLAR UCHUN YAGONA STANDART IMKONIYATLAR
       ========================================================================= */}
-      <section id="modules-section" style={{ padding: '90px 24px', backgroundColor: '#FFFFFF' }}>
+      <section id="features-section" style={{ padding: '90px 24px', backgroundColor: '#FFFFFF' }}>
         <div style={{ maxWidth: 1140, margin: '0 auto' }}>
           
           <div style={{ textAlign: 'center', marginBottom: 60 }}>
             <span style={{ fontSize: 12, fontWeight: 800, color: '#4F46E5', textTransform: 'uppercase', letterSpacing: '1px', backgroundColor: '#EEF2FF', padding: '4px 14px', borderRadius: 20 }}>
-              To'liq Ekotizim
+              Yagona Standart Ekotizim
             </span>
             <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 900, color: '#0F172A', marginTop: 12 }}>
-              Maktab Faoliyatining Barcha Bo'g'inlarini Qamrab Oluvchi Modullar
+              Barcha Maktablar Uchun Yagona Standart Imkoniyatlar
             </h2>
             <p style={{ color: '#64748B', fontSize: 16.5, maxWidth: 740, margin: '10px auto 0' }}>
-              Qog'ozbozlik, kechikishlar va intizomsizlikka chek qo'ying. Har bir foydalanuvchi uchun qulay va intuitiv vositalar:
+              Barcha maktablar ilg'or raqamli xizmatlardan birdek to'liq va cheklovlarsiz foydalanadi. Hech qanday bo'linish yo'q — yagona sifat standarti:
             </p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
             
-            <ModuleCard
+            <FeatureCard
               icon={<ScanFace size={26} color="#4F46E5" />}
               iconBg="#EEF2FF"
               title="1. Biometrik Davomat & Turniket"
@@ -507,40 +530,40 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
             />
 
             <div id="idrokboard-section">
-              <ModuleCard
+              <FeatureCard
                 icon={<Monitor size={26} color="#7C3AED" />}
                 iconBg="#FAF5FF"
-                title="2. Aqlli Doska (IdrokBoard AI)"
-                desc="Sinfdagi televizor yoki interaktiv doska uchun raqamli doska. O'qituvchi o'z telefonidagi ilova bilan doskani masofadan boshqaradi, yozadi va Gemini AI orqali misollar yaratadi."
+                title={`2. Aqlli Doska (${projectName} AI)`}
+                desc="Sinfdagi televizor yoki interaktiv doska uchun raqamli doska. O'qituvchi o'z telefonidagi ilova bilan doskani masofadan boshqaradi, yozadi va sun'iy intellekt orqali misollar yaratadi."
               />
             </div>
 
-            <ModuleCard
+            <FeatureCard
               icon={<BookOpen size={26} color="#059669" />}
               iconBg="#ECFDF5"
               title="3. Elektron Jurnal & Baholash"
               desc="O'qituvchilar uchun qulay elektron jurnal. Dars jadvaliga asosan darslar, davomat, 1-5 yoki 100 balli tizimda baholar hamda mavzular 1 ta bosishda to'ldiriladi."
             />
 
-            <ModuleCard
+            <FeatureCard
               icon={<Bot size={26} color="#D97706" />}
               iconBg="#FFFBEB"
               title="4. Ota-onalar Uchun 24/7 Telegram Boti"
               desc="Farzandi maktabga qachon kirdi? Darsda qanday baho oldi? Kechikdimi yoki sababsiz dars qoldirdimi? Ota-onaning shaxsiy Telegramiga soniyalar ichida avtomatik hisobot boradi."
             />
 
-            <ModuleCard
+            <FeatureCard
               icon={<Smartphone size={26} color="#2563EB" />}
               iconBg="#EFF6FF"
               title="5. O'quvchi & O'qituvchi Mobil Ilovasi"
               desc="O'quvchining shaxsiy dinamik QR kodi, dars jadvali, baholari va yulduzlar balansi. O'qituvchi uchun parollarni boshqarish, jurnal va masofaviy boshqaruv pulti."
             />
 
-            <ModuleCard
+            <FeatureCard
               icon={<BarChart3 size={26} color="#DC2626" />}
               iconBg="#FEF2F2"
               title="6. Boshqaruv & Server Analitikasi"
-              desc="Direktor va ma'muriyat uchun real vaqtli grafiklar, sinflar davomat reytingi, xodimlar intizomi, oylik obuna hisob-kitoblari va server xotirasi holati."
+              desc="Direktor va ma'muriyat uchun real vaqtli grafiklar, sinflar davomat reytingi, xodimlar intizomi, oylik hisob-kitoblar va server xotirasi holati."
             />
 
           </div>
@@ -645,48 +668,102 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
             color: '#0F172A', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45)'
           }}>
 
-            {/* Success Alert Modal */}
-            {submitSuccess && (
+            {submitSuccess ? (
               <div style={{
-                padding: '24px', borderRadius: 20, backgroundColor: '#F0FDF4',
-                border: '1.5px solid #86EFAC', marginBottom: 24, textAlign: 'center'
+                padding: '36px 16px', textAlign: 'center'
               }}>
-                <div style={{ width: 60, height: 60, borderRadius: '50%', backgroundColor: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                  <CheckCircle2 size={36} color="#16A34A" />
+                <div style={{
+                  width: 90, height: 90, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 20px',
+                  boxShadow: '0 14px 30px -6px rgba(16, 185, 129, 0.45)'
+                }}>
+                  <CheckCircle2 size={54} color="#FFFFFF" />
                 </div>
-                <h3 style={{ fontSize: 20, fontWeight: 900, color: '#166534', marginBottom: 8 }}>
-                  Arizangiz Muvaffaqiyatli Qabul Qilindi! 🎉
+
+                <div style={{ marginBottom: 14 }}>
+                  <span style={{
+                    backgroundColor: '#ECFDF5', color: '#047857',
+                    border: '1px solid #A7F3D0',
+                    fontSize: 12.5, fontWeight: 800, padding: '5px 16px',
+                    borderRadius: 20, letterSpacing: '0.5px'
+                  }}>
+                    ARIZA #{submitSuccess.application_id || submitSuccess.data?.id || ''} QABUL QILINDI
+                  </span>
+                </div>
+
+                <h3 style={{ fontSize: 'clamp(24px, 3.5vw, 32px)', fontWeight: 900, color: '#065F46', marginBottom: 14 }}>
+                  Arizangiz Muvaffaqiyatli Yuborildi! 🎉
                 </h3>
-                <p style={{ color: '#15803D', fontSize: 14.5, lineHeight: 1.6, maxWidth: 540, margin: '0 auto 16px' }}>
-                  {submitSuccess.message}
-                </p>
-                <button
-                  onClick={() => setSubmitSuccess(null)}
-                  style={{
-                    padding: '8px 20px', borderRadius: 10, border: 'none',
-                    backgroundColor: '#16A34A', color: '#FFF', fontWeight: 700, fontSize: 13, cursor: 'pointer'
-                  }}
-                >
-                  Yangi ariza to'ldirish
-                </button>
-              </div>
-            )}
 
-            {submitError && (
-              <div style={{
-                padding: '14px 18px', borderRadius: 14, backgroundColor: '#FEF2F2',
-                border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 14, fontWeight: 600,
-                display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20
-              }}>
-                <AlertTriangle size={20} color="#DC2626" />
-                <span>{submitError}</span>
-              </div>
-            )}
+                <div style={{
+                  backgroundColor: '#F0FDF4', border: '2px solid #86EFAC',
+                  borderRadius: 20, padding: '22px 24px', maxWidth: 640, margin: '0 auto 22px',
+                  boxShadow: '0 4px 14px rgba(22, 163, 74, 0.08)'
+                }}>
+                  <p style={{
+                    color: '#15803D', fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 900,
+                    margin: 0, lineHeight: 1.4
+                  }}>
+                    So'rovingizni ko'rib chiqib, aloqaga chiqamiz.
+                  </p>
+                  <p style={{ color: '#166534', fontSize: 14.5, margin: '8px 0 0 0', lineHeight: 1.5 }}>
+                    {submitSuccess.message || "Mutaxassislarimiz maktabingiz ma'lumotlarini o'rganib chiqadi va tizimni faollashtirish uchun ko'rsatilgan telefon raqami orqali tez orada bog'lanadi."}
+                  </p>
+                </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); if (currentStep < 4) handleNextStep(); else handleSubmitApplication(e); }}>
+                {submitSuccess.data && (
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 14,
+                    padding: '12px 24px', borderRadius: 16,
+                    backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+                    marginBottom: 28, color: '#334155', fontSize: 14.5, fontWeight: 600,
+                    flexWrap: 'wrap', justifyContent: 'center'
+                  }}>
+                    <span>🏛 <b>Maktab:</b> {submitSuccess.data.school_name}</span>
+                    <span>•</span>
+                    <span>👤 <b>Mas'ul:</b> {submitSuccess.data.contact_name}</span>
+                    <span>•</span>
+                    <span>📞 <b>Aloqa:</b> {submitSuccess.data.phone}</span>
+                  </div>
+                )}
+
+                <div>
+                  <button
+                    onClick={() => {
+                      setSubmitSuccess(null);
+                      setCurrentStep(1);
+                    }}
+                    style={{
+                      padding: '13px 34px', borderRadius: 14, border: 'none',
+                      background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
+                      color: '#FFF', fontWeight: 800, fontSize: 15, cursor: 'pointer',
+                      boxShadow: '0 6px 18px rgba(79, 70, 229, 0.35)',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Yangi ariza to'ldirish
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {submitError && (
+                  <div style={{
+                    padding: '14px 18px', borderRadius: 14, backgroundColor: '#FEF2F2',
+                    border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 14, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20
+                  }}>
+                    <AlertTriangle size={20} color="#DC2626" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={(e) => { e.preventDefault(); if (currentStep < 3) handleNextStep(); else handleSubmitApplication(e); }}>
 
               {/* Stepper Header */}
-              <div style={{ marginBottom: 32, paddingBottom: 20, borderBottom: '1px solid #F1F5F9' }}>
+              <div style={{ marginBottom: 30, paddingBottom: 18, borderBottom: '1px solid #F1F5F9' }}>
                 {/* Progress Indicators and Titles */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -695,27 +772,25 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
                       background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
                       color: '#FFFFFF', fontSize: 11.5, fontWeight: 800, letterSpacing: '0.5px'
                     }}>
-                      {currentStep} / 4-QADAM
+                      {currentStep} / 3-QADAM
                     </span>
                     <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1E1B4B', margin: 0 }}>
                       {currentStep === 1 && "Maktabingiz haqida"}
                       {currentStep === 2 && "Mas'ul shaxs va aloqa"}
-                      {currentStep === 3 && "Turniket va maktab hajmi"}
-                      {currentStep === 4 && "Kerakli modullar va tasdiqlash"}
+                      {currentStep === 3 && "Kirish usuli va arizani yuborish"}
                     </h3>
                   </div>
                   <span style={{ fontSize: 12.5, fontWeight: 700, color: '#6366F1' }}>
-                    {currentStep === 1 && "25% to'ldirildi"}
-                    {currentStep === 2 && "50% to'ldirildi"}
-                    {currentStep === 3 && "75% to'ldirildi"}
-                    {currentStep === 4 && "So'nggi qadam (100%)"}
+                    {currentStep === 1 && "33% to'ldirildi"}
+                    {currentStep === 2 && "66% to'ldirildi"}
+                    {currentStep === 3 && "Yakuniy qadam (100%)"}
                   </span>
                 </div>
 
                 {/* Animated Gradient Progress Line */}
                 <div style={{ width: '100%', height: 7, backgroundColor: '#F1F5F9', borderRadius: 10, overflow: 'hidden' }}>
                   <div style={{
-                    width: `${currentStep * 25}%`,
+                    width: `${currentStep === 1 ? 33 : (currentStep === 2 ? 66 : 100)}%`,
                     height: '100%',
                     background: 'linear-gradient(90deg, #4F46E5 0%, #7C3AED 50%, #10B981 100%)',
                     borderRadius: 10,
@@ -724,12 +799,11 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
                 </div>
 
                 {/* Step Pills Buttons */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginTop: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: 14 }}>
                   {[
                     { step: 1, label: "1. Maktab", icon: Building2 },
                     { step: 2, label: "2. Mas'ul", icon: Users },
-                    { step: 3, label: "3. Turniket", icon: Sliders },
-                    { step: 4, label: "4. Modullar", icon: CheckCircle }
+                    { step: 3, label: "3. Qurilmalar & Yuborish", icon: CheckCircle }
                   ].map(s => {
                     const isCurrent = currentStep === s.step;
                     const isPast = currentStep > s.step;
@@ -746,17 +820,15 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
                             setCurrentStep(2);
                           } else if (s.step === 3 && validateStep(1) && validateStep(2)) {
                             setCurrentStep(3);
-                          } else if (s.step === 4 && validateStep(1) && validateStep(2)) {
-                            setCurrentStep(4);
                           }
                         }}
                         style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                          padding: '8px 12px', borderRadius: 12,
+                          padding: '10px 14px', borderRadius: 12,
                           border: isCurrent ? '2px solid #4F46E5' : (isPast ? '1px solid #A7F3D0' : '1px solid #E2E8F0'),
                           backgroundColor: isCurrent ? '#EEF2FF' : (isPast ? '#F0FDF4' : '#FFFFFF'),
                           color: isCurrent ? '#4F46E5' : (isPast ? '#166534' : '#94A3B8'),
-                          fontSize: 12, fontWeight: isCurrent ? 800 : 600,
+                          fontSize: 12.5, fontWeight: isCurrent ? 800 : 600,
                           cursor: 'pointer', transition: 'all 0.15s'
                         }}
                       >
@@ -787,7 +859,6 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
                         value={formData.school_name}
                         onChange={(e) => setFormData({ ...formData, school_name: e.target.value })}
                         style={{ ...inputStyle, fontSize: 14.5, padding: '13px 16px' }}
-                        autoFocus
                         required
                       />
                     </div>
@@ -901,7 +972,6 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
                           value={formData.contact_name}
                           onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
                           style={{ ...inputStyle, fontSize: 14.5, padding: '13px 16px' }}
-                          autoFocus
                           required
                         />
                       </div>
@@ -996,7 +1066,7 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
               )}
 
               {/* ============================================================== */}
-              {/* QADAM 3: KIRISH USULI VA MAKTAB HAJMI (BITTA BOSISHDA TANLASH) */}
+              {/* QADAM 3: KIRISH USULI, HAJM VA ARIZANI YUBORISH                */}
               {/* ============================================================== */}
               {currentStep === 3 && (
                 <div style={{ animation: 'fadeIn 0.25s ease-out' }}>
@@ -1042,7 +1112,7 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
                     </div>
 
                     {/* O'quvchilar Soni & O'qituvchilar Soni */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 16 }}>
                       <div>
                         <label style={labelStyle}>Taxminiy O'quvchilar Soni (Ixtiyoriy):</label>
                         <input
@@ -1096,89 +1166,30 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Step 3 Actions */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
-                    <button
-                      type="button"
-                      onClick={handlePrevStep}
-                      style={{
-                        padding: '12px 20px', borderRadius: 14, border: '1px solid #CBD5E1',
-                        backgroundColor: '#F8FAFC', color: '#475569', fontSize: 13.5, fontWeight: 700,
-                        cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6
-                      }}
-                    >
-                      <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
-                      <span>Orqaga</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleNextStep}
-                      style={{
-                        padding: '13px 28px', borderRadius: 14, border: 'none',
-                        background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
-                        color: '#FFFFFF', fontSize: 14.5, fontWeight: 700, cursor: 'pointer',
-                        display: 'inline-flex', alignItems: 'center', gap: 8,
-                        boxShadow: '0 6px 18px rgba(79, 70, 229, 0.3)', transition: 'all 0.2s'
-                      }}
-                    >
-                      <span>Keyingi qadam (Modullar)</span>
-                      <ArrowRight size={17} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ============================================================== */}
-              {/* QADAM 4: MODULLAR VA YAKUNIY YUBORISH (MINI XULOSA BILAN)      */}
-              {/* ============================================================== */}
-              {currentStep === 4 && (
-                <div style={{ animation: 'fadeIn 0.25s ease-out' }}>
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
-                      Asosiy 4 ta modul avtomatik belgilangan. Xohlasangiz boshqalarini ham qo'shishingiz mumkin:
-                    </div>
-
-                    {/* Modullar Chiptalari */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10, marginBottom: 18 }}>
-                      {AVAILABLE_MODULES.map(m => {
-                        const isSelected = formData.desired_modules.includes(m.label);
-                        return (
-                          <div
-                            key={m.id}
-                            onClick={() => handleModuleToggle(m.label)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
-                              borderRadius: 12, border: isSelected ? '1.5px solid #4F46E5' : '1px solid #E2E8F0',
-                              backgroundColor: isSelected ? '#EEF2FF' : '#FFFFFF', cursor: 'pointer',
-                              userSelect: 'none', transition: 'all 0.15s'
-                            }}
-                          >
-                            {isSelected ? (
-                              <CheckSquare size={18} color="#4F46E5" />
-                            ) : (
-                              <Square size={18} color="#94A3B8" />
-                            )}
-                            <span style={{ fontSize: 12.5, fontWeight: isSelected ? 700 : 500, color: isSelected ? '#1E1B4B' : '#475569' }}>
-                              {m.label}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
 
                     {/* Qo'shimcha Izoh (1 qator) */}
                     <div style={{ marginBottom: 16 }}>
                       <label style={labelStyle}>Qo'shimcha Taklif yoki Izoh (Ixtiyoriy):</label>
                       <input
                         type="text"
-                        placeholder="Masalan: Test qilish uchun sinov muddatini xohlaymiz..."
+                        placeholder="Masalan: 2 ta alohida kirish darvozamiz bor, test muddatini xohlaymiz..."
                         value={formData.notes}
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                         style={inputStyle}
                       />
+                    </div>
+
+                    {/* Barcha Funksiyalar Birdek Ulanishi Kafolati Banneri */}
+                    <div style={{
+                      padding: '12px 16px', borderRadius: 14,
+                      backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0',
+                      color: '#065F46', fontSize: 12.5, fontWeight: 600,
+                      display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16
+                    }}>
+                      <CheckCircle size={18} color="#059669" style={{ flexShrink: 0 }} />
+                      <span>
+                        <b>Yagona Standart:</b> Barcha maktablar uchun barcha imkoniyatlar (Face ID, Dinamik 25s QR, Elektron Jurnal, Baholash, Ota-onalar Telegram Boti, Mobil Ilova va Aqlli Doska) to'liq va cheklovlarsiz standart ravishda ulanadi.
+                      </span>
                     </div>
 
                     {/* Mini Xulosa Kartochkasi */}
@@ -1199,7 +1210,7 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
                     </div>
                   </div>
 
-                  {/* Step 4 Actions */}
+                  {/* Step 3 Actions */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
                     <button
                       type="button"
@@ -1242,11 +1253,79 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
                 </div>
               )}
 
-            </form>
+                </form>
+              </>
+            )}
 
           </div>
 
         </div>
+
+        {/* Modal Popup for Instant Feedback */}
+        {submitSuccess && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 99999,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20
+          }}>
+            <div style={{
+              backgroundColor: '#FFFFFF', borderRadius: 28, padding: '36px 28px',
+              maxWidth: 520, width: '100%', textAlign: 'center',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)',
+              border: '2px solid #86EFAC'
+            }}>
+              <div style={{
+                width: 80, height: 80, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 18px',
+                boxShadow: '0 10px 24px -4px rgba(16, 185, 129, 0.45)'
+              }}>
+                <CheckCircle2 size={48} color="#FFFFFF" />
+              </div>
+
+              <span style={{
+                backgroundColor: '#ECFDF5', color: '#047857',
+                border: '1px solid #A7F3D0',
+                fontSize: 12, fontWeight: 800, padding: '4px 14px',
+                borderRadius: 20, letterSpacing: '0.5px'
+              }}>
+                ARIZA #{submitSuccess.application_id || submitSuccess.data?.id || ''} QABUL QILINDI
+              </span>
+
+              <h3 style={{ fontSize: 24, fontWeight: 900, color: '#065F46', marginTop: 12, marginBottom: 12 }}>
+                Arizangiz Qabul Qilindi! 🎉
+              </h3>
+
+              <div style={{
+                backgroundColor: '#F0FDF4', border: '1.5px solid #86EFAC',
+                borderRadius: 16, padding: '16px 20px', margin: '14px 0 16px'
+              }}>
+                <p style={{ color: '#15803D', fontSize: 18, fontWeight: 900, margin: 0, lineHeight: 1.4 }}>
+                  So'rovingizni ko'rib chiqib, aloqaga chiqamiz.
+                </p>
+              </div>
+
+              <p style={{ color: '#475569', fontSize: 14.5, lineHeight: 1.6, margin: '0 0 24px' }}>
+                {submitSuccess.message || "Mutaxassislarimiz maktabingiz ma'lumotlarini ko'rib chiqib, tez orada siz bilan aloqaga chiqishadi."}
+              </p>
+
+              <button
+                onClick={() => setSubmitSuccess(null)}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  color: '#FFF', fontWeight: 800, fontSize: 15, cursor: 'pointer',
+                  boxShadow: '0 6px 18px rgba(16, 185, 129, 0.35)'
+                }}
+              >
+                Tushunarli
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* =========================================================================
@@ -1305,17 +1384,17 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
               <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <GraduationCap size={20} color="#FFF" />
               </div>
-              <span style={{ fontSize: 18, fontWeight: 900, color: '#FFFFFF' }}>Idrok Edu</span>
+              <span style={{ fontSize: 18, fontWeight: 900, color: '#FFFFFF' }}>{projectName}</span>
             </div>
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: '#64748B' }}>
-              O'zbekistondagi maktablar, kollejlar va ta'lim muassasalarini raqamlashtirish bo'yicha yagona milliy platforma.
+            <p style={{ fontSize: 13, lineHeight: 1.6, color: '#94A3B8' }}>
+              {projectSlogan}. O'zbekistondagi maktablar, kollejlar va ta'lim muassasalarini raqamlashtirish bo'yicha yagona milliy platforma.
             </p>
           </div>
 
           <div>
             <h5 style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', marginBottom: 14 }}>Asosiy Bo'limlar</h5>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-              <li><button onClick={() => scrollToSection('modules-section')} style={footerLinkStyle}>Tizim Modullari</button></li>
+              <li><button onClick={() => scrollToSection('features-section')} style={footerLinkStyle}>Standart Imkoniyatlar</button></li>
               <li><button onClick={() => scrollToSection('devices-section')} style={footerLinkStyle}>Face ID & Turniket</button></li>
               <li><button onClick={() => scrollToSection('idrokboard-section')} style={footerLinkStyle}>Aqlli Doska</button></li>
               <li><button onClick={scrollToApply} style={footerLinkStyle}>Maktabni Ulash</button></li>
@@ -1325,9 +1404,10 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
           <div>
             <h5 style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', marginBottom: 14 }}>Aloqa & Yordam</h5>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-              <li>Telefon: +998 (71) 200-00-55</li>
-              <li>Telegram Bot: @IdrokEduBot</li>
-              <li>Email: info@idrokedu.uz</li>
+              <li>Telefon: <a href={`tel:${supportPhone.replace(/[^0-9+]/g, '')}`} style={{ color: 'inherit', textDecoration: 'none', fontWeight: 600 }}>{supportPhone}</a></li>
+              <li>Telegram: <a href={supportTelegram.startsWith('@') ? `https://t.me/${supportTelegram.slice(1)}` : (supportTelegram.startsWith('http') ? supportTelegram : `https://t.me/${supportTelegram}`)} target="_blank" rel="noreferrer" style={{ color: '#818CF8', textDecoration: 'none', fontWeight: 600 }}>{supportTelegram}</a></li>
+              <li>Email: <a href={`mailto:${supportEmail}`} style={{ color: 'inherit', textDecoration: 'none' }}>{supportEmail}</a></li>
+              <li>Ish vaqti: <span style={{ color: '#E2E8F0' }}>{supportHours}</span></li>
               <li>Toshkent shahri, O'zbekiston</li>
             </ul>
           </div>
@@ -1353,7 +1433,7 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
         </div>
 
         <div style={{ maxWidth: 1140, margin: '0 auto', paddingTop: 24, borderTop: '1px solid #1E293B', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 12, color: '#475569' }}>
-          <div>© 2026 Idrok Edu / Smart School Technologies. Barcha huquqlar himoyalangan.</div>
+          <div>© {new Date().getFullYear()} {projectName}. Barcha huquqlar himoyalangan.</div>
           <div style={{ display: 'flex', gap: 16 }}>
             <span>Maxfiylik Siyosati</span>
             <span>Foydalanish Qoidalari</span>
@@ -1392,7 +1472,7 @@ function FeatureCheck({ text }) {
   );
 }
 
-function ModuleCard({ icon, iconBg, title, desc }) {
+function FeatureCard({ icon, iconBg, title, desc }) {
   return (
     <div style={{
       backgroundColor: '#FFFFFF', borderRadius: 20, padding: 26,

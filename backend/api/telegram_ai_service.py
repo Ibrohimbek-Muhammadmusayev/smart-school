@@ -140,7 +140,7 @@ def query_gemini_ai(user_question, context_data=None):
     system_instruction = (
         "Siz Smart School (Idrok Edu) platformasi uchun ixtisoslashgan bosh aqlli AI Biznes va Texnik Tahlilchisiz (Executive AI Assistant). "
         "Sizga platforma Super Admini (egasi) murojaat qilmoqda.\n\n"
-        "Quyida sizga butun platformaning barcha modullari (maktablar, o'quvchilar, o'qituvchilar, sinflar, "
+        "Quyida sizga butun platformaning barcha bo'limlari (maktablar, o'quvchilar, o'qituvchilar, sinflar, "
         "Idrok Vision Face ID, turniket qurilmalari, oylik to'lovlar, tushumlar, qarzdorliklar, sinov muddatlari) "
         "bo'yicha 100% REAL vaqtli to'liq ma'lumotlar bazasi beriladi.\n\n"
         "QAT'IY QOIDALAR:\n"

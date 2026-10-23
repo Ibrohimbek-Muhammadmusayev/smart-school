@@ -60,11 +60,8 @@ def _send_telegram_notification_to_superadmin(application: SchoolApplication):
         msg += (
             f"👥 <b>Hajmi:</b> ~{application.estimated_students} o'quvchi, ~{application.estimated_teachers} o'qituvchi\n"
             f"🛡 <b>Turniket:</b> {application.get_turnstile_status_display()}\n"
+            f"✨ <b>Funksiyalar:</b> Barcha standart funksiyalar to'liq faol\n"
         )
-
-        if application.desired_modules:
-            modules_str = ", ".join(str(m) for m in application.desired_modules)
-            msg += f"⚙️ <b>Qiziqqan modullar:</b> {modules_str}\n"
 
         if application.notes:
             msg += f"📝 <b>Izoh:</b> {application.notes}\n"
@@ -147,7 +144,7 @@ class SchoolApplicationCreateView(views.APIView):
         return Response({
             'success': True,
             'application_id': application.id,
-            'message': f"Hurmatli {contact_name}, arizangiz qabul qilindi! Arizangiz raqami: #{application.id}. Tez orada Super Admin siz bilan bog'lanadi va tizim faollashtiriladi.",
+            'message': f"Hurmatli {contact_name}, so'rovingiz muvaffaqiyatli qabul qilindi! So'rovingizni ko'rib chiqib, tez orada siz bilan aloqaga chiqamiz.",
             'data': application.to_dict()
         }, status=status.HTTP_201_CREATED)
 
