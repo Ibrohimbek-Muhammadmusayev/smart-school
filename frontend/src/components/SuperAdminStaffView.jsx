@@ -44,34 +44,34 @@ const ROLE_CONFIGS = {
   SUB_ADMIN: {
     label: "Operator / Yordamchi Admin",
     shortLabel: "Sub-Admin",
-    desc: "Bosh boshqarma operatori. Faqat ruxsat berilgan modullarga (analitika, maktablar, xarita) kiradi. Maxfiy sozlamalar yopiq.",
+    desc: "Bosh boshqarma operatori. Faqat Super Admin tomonidan ruxsat berilgan modullarga kiradi. Belgilanmagan bo'limlar yopiq.",
     badgeBg: '#F3E8FF',
     badgeColor: '#7E22CE',
     icon: <Sliders size={15} color="#7E22CE" />,
   },
-  INSPECTOR: {
-    label: "Profilaktika Inspektori (IIB)",
-    shortLabel: "IIB Inspektori",
-    desc: "Voyaga yetmaganlar profilaktikasi mas'uli. Biriktirilgan maktablarning surunkali dars qoldiruvchilari, turniket oqimi va xavf guruhini nazorat qiladi.",
-    badgeBg: '#DBEAFE',
-    badgeColor: '#1E40AF',
-    icon: <Shield size={15} color="#1E40AF" />,
-  },
-  MAHALLA: {
-    label: "Mahalla Fuqarolar Yig'ini (MFY)",
-    shortLabel: "Mahalla MFY",
-    desc: "Mahalla raisi yoki yoshlar yetakchisi. Mahalla hududida yashovchi o'quvchilar davomati, oilalar bilan ishlash va profilaktikani olib boradi.",
-    badgeBg: '#D1FAE5',
-    badgeColor: '#065F46',
-    icon: <Building size={15} color="#065F46" />,
-  },
-  DISTRICT_ADMIN: {
-    label: "Tuman XTB (RayONO) Nazoratchi",
-    shortLabel: "Tuman XTB",
-    desc: "Tuman xalq ta'limi bo'limi bosh mutaxassisi. Tuman maktablarining ta'lim sifati, davomat reytingi va ko'rsatkichlarini tahlil qiladi.",
+  REGIONAL_ANALYST: {
+    label: "Hududiy Analitik / Tuman Nazoratchisi",
+    shortLabel: "Tuman Nazoratchi",
+    desc: "Tuman yoki viloyat maktablari ko'rsatkichlari, ta'lim sifati va davomat reytingini tahlil qiluvchi mas'ul.",
     badgeBg: '#FEF3C7',
     badgeColor: '#92400E',
     icon: <Briefcase size={15} color="#92400E" />,
+  },
+  BILLING_OPERATOR: {
+    label: "Moliya & To'lovlar Nazoratchisi",
+    shortLabel: "Moliya Admin",
+    desc: "Maktablar obuna to'lovlari, tarif rejalari, qarzdorliklar va billing hisobotlarini nazorat qiluvchi operator.",
+    badgeBg: '#DCFCE7',
+    badgeColor: '#166534',
+    icon: <CheckCircle2 size={15} color="#166534" />,
+  },
+  TECH_SUPPORT: {
+    label: "Texnik Qo'llab-quvvatlash Operatori",
+    shortLabel: "Texnik Yordam",
+    desc: "Maktablardan kelgan texnik murojaatlar, savollar va xatoliklarni bartaraf etish operatori.",
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8',
+    icon: <HelpCircle size={15} color="#1D4ED8" />,
   },
 };
 
@@ -241,6 +241,38 @@ export default function SuperAdminStaffView({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       
+      {/* Super Admin va Maktab Admin Mas'ullari Ajratilishi Banneri */}
+      <div style={{
+        backgroundColor: '#EFF6FF',
+        border: '1px solid #BFDBFE',
+        borderRadius: 10,
+        padding: '14px 18px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        boxShadow: '0 2px 6px rgba(59, 130, 246, 0.05)',
+      }}>
+        <div style={{
+          width: 38,
+          height: 38,
+          borderRadius: 8,
+          backgroundColor: '#DBEAFE',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#1D4ED8',
+          flexShrink: 0,
+        }}>
+          <Shield size={20} />
+        </div>
+        <div style={{ flex: 1, fontSize: 13, color: '#1E40AF', lineHeight: 1.5 }}>
+          <b>Bosh Boshqarma (Super Admin) Xodimlari & Kirish Huquqlari:</b> Ushbu sahifada faqat Super Admin paneliga (Global Analitika, Maktablar, Moliya, Server va h.k.) kirish huquqiga ega bo'lgan platforma operatorlari va sub-adminlari boshqariladi.
+          <span style={{ display: 'block', marginTop: 3, color: '#2563EB', fontSize: 12 }}>
+            ℹ️ <b>Eslatma:</b> Maktablarga biriktirilgan Profilaktika inspektori (IIB/uchastkavoy), Mahalla raisi (MFY) va maktab psixologi o'sha maktab ma'muri (Maktab Admini) tomonidan o'z maktabining <b>«Profilaktika & Mas'ullar»</b> bo'limida yaratiladi.
+          </span>
+        </div>
+      </div>
+
       {/* 1. TOP KPI SUMMARY CARDS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
         
@@ -276,31 +308,31 @@ export default function SuperAdminStaffView({
 
         <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: '16px 18px', border: `1px solid ${THEME.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textMuted }}>Profilaktika Inspektorlari</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#DBEAFE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Shield size={17} color="#1E40AF" />
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textMuted }}>Hududiy Analitiklar</span>
+            <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Briefcase size={17} color="#92400E" />
             </div>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#1E40AF', marginTop: 6 }}>
-            {stats.inspectors || staffList.filter(s => s.role === 'INSPECTOR').length} nafar
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#92400E', marginTop: 6 }}>
+            {stats.regional_analysts || staffList.filter(s => s.role === 'REGIONAL_ANALYST' || s.role === 'DISTRICT_ADMIN').length} nafar
           </div>
           <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 3 }}>
-            IIB Voyaga yetmaganlar xizmati
+            Tuman & Viloyat monitoringi
           </div>
         </div>
 
         <div style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: '16px 18px', border: `1px solid ${THEME.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textMuted }}>Mahalla Fuqarolar Yig'inlari</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Building size={17} color="#065F46" />
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: THEME.textMuted }}>Moliya & Texnik Yordam</span>
+            <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CheckCircle2 size={17} color="#166534" />
             </div>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#065F46', marginTop: 6 }}>
-            {stats.mahalla || staffList.filter(s => s.role === 'MAHALLA').length} nafar
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#166534', marginTop: 6 }}>
+            {(stats.billing_operators || 0) + (stats.tech_support || 0)} nafar
           </div>
           <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 3 }}>
-            MFY Yoshlar va oila mas'ullari
+            Billing va Texnik operatorlar
           </div>
         </div>
 

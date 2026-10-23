@@ -82,6 +82,7 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
     notes: ''
   });
 
+  const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(null);
   const [submitError, setSubmitError] = useState(null);
@@ -98,24 +99,55 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
     });
   };
 
+  const validateStep = (stepNumber) => {
+    setSubmitError(null);
+    if (stepNumber === 1) {
+      if (!formData.school_name.trim()) {
+        setSubmitError("Iltimos, maktab nomini kiriting.");
+        return false;
+      }
+      if (!formData.district.trim()) {
+        setSubmitError("Iltimos, tuman yoki shaharni kiriting.");
+        return false;
+      }
+      return true;
+    }
+    if (stepNumber === 2) {
+      if (!formData.contact_name.trim()) {
+        setSubmitError("Iltimos, mas'ul shaxs (Direktor) F.I.SH ni kiriting.");
+        return false;
+      }
+      if (!formData.phone.trim() || formData.phone.length < 9) {
+        setSubmitError("Iltimos, to'liq telefon raqamini kiriting.");
+        return false;
+      }
+      return true;
+    }
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (validateStep(currentStep)) {
+      setSubmitError(null);
+      setCurrentStep(prev => Math.min(4, prev + 1));
+    }
+  };
+
+  const handlePrevStep = () => {
+    setSubmitError(null);
+    setCurrentStep(prev => Math.max(1, prev - 1));
+  };
+
   const handleSubmitApplication = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setSubmitError(null);
 
-    if (!formData.school_name.trim()) {
-      setSubmitError("Iltimos, maktab nomini kiriting.");
+    if (!validateStep(1)) {
+      setCurrentStep(1);
       return;
     }
-    if (!formData.contact_name.trim()) {
-      setSubmitError("Iltimos, mas'ul shaxs (Direktor) F.I.SH ni kiriting.");
-      return;
-    }
-    if (!formData.phone.trim() || formData.phone.length < 9) {
-      setSubmitError("Iltimos, to'liq telefon raqamini kiriting.");
-      return;
-    }
-    if (!formData.district.trim()) {
-      setSubmitError("Iltimos, tuman yoki shaharni kiriting.");
+    if (!validateStep(2)) {
+      setCurrentStep(2);
       return;
     }
 
@@ -130,6 +162,7 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
 
       if (res.ok && data.success) {
         setSubmitSuccess(data);
+        setCurrentStep(1);
         setFormData({
           school_name: '',
           school_type: 'PUBLIC',
@@ -146,7 +179,8 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
           desired_modules: [
             'Face ID & QR Turniket Davomat Tizimi',
             'Ota-onalar Uchun 24/7 Telegram Xabarnoma Boti',
-            'Elektron Jurnal, Dars Jadvali & Baholash'
+            'Elektron Jurnal, Dars Jadvali & Baholash',
+            "O'quvchi va O'qituvchilar Mobil Ilovasi (iOS / Android)"
           ],
           notes: ''
         });
@@ -649,273 +683,564 @@ export default function LandingPage({ onGoToLogin, systemConfig }) {
               </div>
             )}
 
-            <form onSubmit={handleSubmitApplication}>
-              
-              {/* 1. Maktab Asosiy Ma'lumotlari */}
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <Building2 size={20} color="#4F46E5" />
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E1B4B' }}>1. Maktab va Muassasa Ma'lumotlari</h4>
-                </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-                  
-                  <div>
-                    <label style={labelStyle}>Maktab / Muassasa Nomi *</label>
-                    <input
-                      type="text"
-                      placeholder="Masalan: 1-sonli Ixtisoslashtirilgan Maktab"
-                      value={formData.school_name}
-                      onChange={(e) => setFormData({ ...formData, school_name: e.target.value })}
-                      style={inputStyle}
-                      required
-                    />
+            <form onSubmit={(e) => { e.preventDefault(); if (currentStep < 4) handleNextStep(); else handleSubmitApplication(e); }}>
+
+              {/* Stepper Header */}
+              <div style={{ marginBottom: 32, paddingBottom: 20, borderBottom: '1px solid #F1F5F9' }}>
+                {/* Progress Indicators and Titles */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{
+                      padding: '4px 12px', borderRadius: 20,
+                      background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                      color: '#FFFFFF', fontSize: 11.5, fontWeight: 800, letterSpacing: '0.5px'
+                    }}>
+                      {currentStep} / 4-QADAM
+                    </span>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1E1B4B', margin: 0 }}>
+                      {currentStep === 1 && "Maktabingiz haqida"}
+                      {currentStep === 2 && "Mas'ul shaxs va aloqa"}
+                      {currentStep === 3 && "Turniket va maktab hajmi"}
+                      {currentStep === 4 && "Kerakli modullar va tasdiqlash"}
+                    </h3>
                   </div>
-
-                  <div>
-                    <label style={labelStyle}>Muassasa Turi *</label>
-                    <select
-                      value={formData.school_type}
-                      onChange={(e) => setFormData({ ...formData, school_type: e.target.value })}
-                      style={inputStyle}
-                    >
-                      {SCHOOL_TYPES.map(t => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Hudud (Viloyat) *</label>
-                    <select
-                      value={formData.region}
-                      onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                      style={inputStyle}
-                    >
-                      {UZBEKISTAN_REGIONS.map(r => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Tuman / Shahar *</label>
-                    <input
-                      type="text"
-                      placeholder="Masalan: Quva tumani yoki Yunusobod"
-                      value={formData.district}
-                      onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                      style={inputStyle}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={labelStyle}>Aniq Manzil (Ko'cha, bino raqami)</label>
-                    <input
-                      type="text"
-                      placeholder="Masalan: Amir Temur shoh ko'chasi, 24-uy"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                </div>
-              </div>
-
-              {/* 2. Mas'ul Shaxs va Aloqa */}
-              <div style={{ marginBottom: 28, paddingTop: 20, borderTop: '1px solid #E2E8F0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <Users size={20} color="#4F46E5" />
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E1B4B' }}>2. Mas'ul Shaxs (Direktor / Ta'sischi) Aloqa Ma'lumotlari</h4>
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#6366F1' }}>
+                    {currentStep === 1 && "25% to'ldirildi"}
+                    {currentStep === 2 && "50% to'ldirildi"}
+                    {currentStep === 3 && "75% to'ldirildi"}
+                    {currentStep === 4 && "So'nggi qadam (100%)"}
+                  </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-                  
-                  <div>
-                    <label style={labelStyle}>F.I.SH (Direktor / Mas'ul) *</label>
-                    <input
-                      type="text"
-                      placeholder="Masalan: Rahimov Jamshid Akmalovich"
-                      value={formData.contact_name}
-                      onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                      style={inputStyle}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Lavozimi</label>
-                    <input
-                      type="text"
-                      placeholder="Direktor, Ta'sischi yoki IT Menejer"
-                      value={formData.contact_role}
-                      onChange={(e) => setFormData({ ...formData, contact_role: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Telefon Raqami *</label>
-                    <input
-                      type="tel"
-                      placeholder="+998 90 123 45 67"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      style={inputStyle}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Telegram Foydalanuvchi Nomi</label>
-                    <input
-                      type="text"
-                      placeholder="@username (bog'lanish uchun)"
-                      value={formData.telegram_username}
-                      onChange={(e) => setFormData({ ...formData, telegram_username: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                </div>
-              </div>
-
-              {/* 3. Maktab Hajmi va Turniket Holati */}
-              <div style={{ marginBottom: 28, paddingTop: 20, borderTop: '1px solid #E2E8F0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <Sliders size={20} color="#4F46E5" />
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E1B4B' }}>3. O'quvchilar Soni va Turniket Qurilmasi</h4>
+                {/* Animated Gradient Progress Line */}
+                <div style={{ width: '100%', height: 7, backgroundColor: '#F1F5F9', borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${currentStep * 25}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #4F46E5 0%, #7C3AED 50%, #10B981 100%)',
+                    borderRadius: 10,
+                    transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }} />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 18 }}>
-                  <div>
-                    <label style={labelStyle}>Taxminiy O'quvchilar Soni</label>
-                    <input
-                      type="number"
-                      placeholder="Masalan: 850"
-                      value={formData.estimated_students}
-                      onChange={(e) => setFormData({ ...formData, estimated_students: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>O'qituvchilar Soni</label>
-                    <input
-                      type="number"
-                      placeholder="Masalan: 55"
-                      value={formData.estimated_teachers}
-                      onChange={(e) => setFormData({ ...formData, estimated_teachers: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-                </div>
-
-                {/* Turniket holati radiolar */}
-                <label style={{ ...labelStyle, marginBottom: 8 }}>Maktabingizdagi Turniket va Kirish Holati:</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {TURNSTILE_OPTIONS.map(opt => {
-                    const isChecked = formData.turnstile_status === opt.value;
+                {/* Step Pills Buttons */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginTop: 14 }}>
+                  {[
+                    { step: 1, label: "1. Maktab", icon: Building2 },
+                    { step: 2, label: "2. Mas'ul", icon: Users },
+                    { step: 3, label: "3. Turniket", icon: Sliders },
+                    { step: 4, label: "4. Modullar", icon: CheckCircle }
+                  ].map(s => {
+                    const isCurrent = currentStep === s.step;
+                    const isPast = currentStep > s.step;
+                    const IconC = s.icon;
                     return (
-                      <label
-                        key={opt.value}
+                      <button
+                        key={s.step}
+                        type="button"
+                        onClick={() => {
+                          if (s.step < currentStep) {
+                            setSubmitError(null);
+                            setCurrentStep(s.step);
+                          } else if (s.step === 2 && validateStep(1)) {
+                            setCurrentStep(2);
+                          } else if (s.step === 3 && validateStep(1) && validateStep(2)) {
+                            setCurrentStep(3);
+                          } else if (s.step === 4 && validateStep(1) && validateStep(2)) {
+                            setCurrentStep(4);
+                          }
+                        }}
                         style={{
-                          display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px',
-                          borderRadius: 14, border: isChecked ? '1.5px solid #4F46E5' : '1px solid #E2E8F0',
-                          backgroundColor: isChecked ? '#EEF2FF' : '#F8FAFC', cursor: 'pointer', transition: 'all 0.15s'
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          padding: '8px 12px', borderRadius: 12,
+                          border: isCurrent ? '2px solid #4F46E5' : (isPast ? '1px solid #A7F3D0' : '1px solid #E2E8F0'),
+                          backgroundColor: isCurrent ? '#EEF2FF' : (isPast ? '#F0FDF4' : '#FFFFFF'),
+                          color: isCurrent ? '#4F46E5' : (isPast ? '#166534' : '#94A3B8'),
+                          fontSize: 12, fontWeight: isCurrent ? 800 : 600,
+                          cursor: 'pointer', transition: 'all 0.15s'
                         }}
                       >
-                        <input
-                          type="radio"
-                          name="turnstile_status"
-                          value={opt.value}
-                          checked={isChecked}
-                          onChange={(e) => setFormData({ ...formData, turnstile_status: e.target.value })}
-                          style={{ marginTop: 3, accentColor: '#4F46E5' }}
-                        />
-                        <div>
-                          <div style={{ fontSize: 13.5, fontWeight: 700, color: isChecked ? '#1E1B4B' : '#334155' }}>
-                            {opt.label}
-                          </div>
-                          <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
-                            {opt.desc}
-                          </div>
-                        </div>
-                      </label>
+                        {isPast ? <Check size={14} color="#16A34A" /> : <IconC size={14} />}
+                        <span>{s.label}</span>
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* 4. Kerakli Modullar */}
-              <div style={{ marginBottom: 28, paddingTop: 20, borderTop: '1px solid #E2E8F0' }}>
-                <label style={{ ...labelStyle, marginBottom: 10 }}>Sizga Qaysi Modullar Kerak? (Tanlang):</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
-                  {AVAILABLE_MODULES.map(m => {
-                    const isSelected = formData.desired_modules.includes(m.label);
-                    return (
-                      <div
-                        key={m.id}
-                        onClick={() => handleModuleToggle(m.label)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-                          borderRadius: 12, border: isSelected ? '1.5px solid #4F46E5' : '1px solid #E2E8F0',
-                          backgroundColor: isSelected ? '#EEF2FF' : '#FFFFFF', cursor: 'pointer',
-                          userSelect: 'none', transition: 'all 0.15s'
-                        }}
-                      >
-                        {isSelected ? (
-                          <CheckSquare size={18} color="#4F46E5" />
-                        ) : (
-                          <Square size={18} color="#94A3B8" />
-                        )}
-                        <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? '#1E1B4B' : '#475569' }}>
-                          {m.label}
-                        </span>
+              {/* ============================================================== */}
+              {/* QADAM 1: MAKTAB HAQIDA (ATIGI 3 TA MAYDON)                      */}
+              {/* ============================================================== */}
+              {currentStep === 1 && (
+                <div style={{ animation: 'fadeIn 0.25s ease-out' }}>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
+                      Muassasangiz nomi va hududini belgilang. Qolgan ma'lumotlarni keyingi qisqa qadamlarda olasiz.
+                    </div>
+
+                    {/* Maktab Nomi */}
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={labelStyle}>Maktab / Muassasa Nomi *</label>
+                      <input
+                        type="text"
+                        placeholder="Masalan: 1-sonli Ixtisoslashtirilgan Maktab yoki Ziyo Zukko litseyi"
+                        value={formData.school_name}
+                        onChange={(e) => setFormData({ ...formData, school_name: e.target.value })}
+                        style={{ ...inputStyle, fontSize: 14.5, padding: '13px 16px' }}
+                        autoFocus
+                        required
+                      />
+                    </div>
+
+                    {/* Muassasa Turi (Zamonaviy bosiladigan tabletkalar) */}
+                    <div style={{ marginBottom: 18 }}>
+                      <label style={labelStyle}>Muassasa Turi:</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {SCHOOL_TYPES.map(t => {
+                          const isSelected = formData.school_type === t.value;
+                          return (
+                            <button
+                              key={t.value}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, school_type: t.value })}
+                              style={{
+                                padding: '9px 15px', borderRadius: 12,
+                                border: isSelected ? '1.5px solid #4F46E5' : '1px solid #CBD5E1',
+                                backgroundColor: isSelected ? '#4F46E5' : '#F8FAFC',
+                                color: isSelected ? '#FFFFFF' : '#334155',
+                                fontSize: 13, fontWeight: isSelected ? 700 : 600,
+                                cursor: 'pointer', transition: 'all 0.15s',
+                                display: 'inline-flex', alignItems: 'center', gap: 6
+                              }}
+                            >
+                              <span>{t.label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+
+                    {/* Hudud va Tuman (Yonma-yon) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 16 }}>
+                      <div>
+                        <label style={labelStyle}>Hudud (Viloyat) *</label>
+                        <select
+                          value={formData.region}
+                          onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                          style={{ ...inputStyle, padding: '12px 14px' }}
+                        >
+                          {UZBEKISTAN_REGIONS.map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={labelStyle}>Tuman / Shahar *</label>
+                        <input
+                          type="text"
+                          placeholder="Masalan: Quva tumani yoki Yunusobod"
+                          value={formData.district}
+                          onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                          style={{ ...inputStyle, padding: '12px 14px' }}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Aniq Manzil */}
+                    <div>
+                      <label style={labelStyle}>Aniq Manzil (Ixtiyoriy)</label>
+                      <input
+                        type="text"
+                        placeholder="Masalan: Amir Temur ko'chasi, 24-uy"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Step 1 Actions */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
+                    <button
+                      type="button"
+                      onClick={handleNextStep}
+                      style={{
+                        padding: '13px 28px', borderRadius: 14, border: 'none',
+                        background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                        color: '#FFFFFF', fontSize: 14.5, fontWeight: 700, cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        boxShadow: '0 6px 18px rgba(79, 70, 229, 0.3)', transition: 'all 0.2s'
+                      }}
+                    >
+                      <span>Keyingi qadam (Aloqa)</span>
+                      <ArrowRight size={17} />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* 5. Qo'shimcha Izoh */}
-              <div style={{ marginBottom: 28 }}>
-                <label style={labelStyle}>Qo'shimcha Talablar yoki Izoh (Ixtiyoriy):</label>
-                <textarea
-                  rows={3}
-                  placeholder="Masalan: Bizda 2 ta alohida kirish darvozasi bor, test qilish uchun sinov muddatini xohlaymiz..."
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  style={{ ...inputStyle, resize: 'vertical' }}
-                />
-              </div>
+              {/* ============================================================== */}
+              {/* QADAM 2: MAS'UL SHAXS VA ALOQA (DIREKTOR LOGIN-PAROL UCHUN)    */}
+              {/* ============================================================== */}
+              {currentStep === 2 && (
+                <div style={{ animation: 'fadeIn 0.25s ease-out' }}>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
+                      Maktab tasdiqlanganda shaxsiy direktor hisobi va maxfiy login-parol ushbu raqamga yuboriladi.
+                    </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={submitting}
-                style={{
-                  width: '100%', padding: '16px 24px', borderRadius: 16, border: 'none',
-                  background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
-                  color: '#FFFFFF', fontSize: 16, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 8px 24px rgba(79, 70, 229, 0.35)', transition: 'all 0.2s',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10
-                }}
-              >
-                {submitting ? (
-                  <>
-                    <RefreshCw size={20} className="spin-animate" />
-                    <span>Ariza Yuborilmoqda...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={20} />
-                    <span>Arizani Super Adminga Yuborish</span>
-                  </>
-                )}
-              </button>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 16 }}>
+                      {/* F.I.SH */}
+                      <div>
+                        <label style={labelStyle}>Mas'ul Shaxs F.I.SH (Direktor) *</label>
+                        <input
+                          type="text"
+                          placeholder="Masalan: Rahimov Jamshid Akmalovich"
+                          value={formData.contact_name}
+                          onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                          style={{ ...inputStyle, fontSize: 14.5, padding: '13px 16px' }}
+                          autoFocus
+                          required
+                        />
+                      </div>
+
+                      {/* Telefon */}
+                      <div>
+                        <label style={labelStyle}>Telefon Raqami *</label>
+                        <input
+                          type="tel"
+                          placeholder="+998 90 123 45 67"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          style={{ ...inputStyle, fontSize: 14.5, padding: '13px 16px' }}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+                      {/* Telegram Username */}
+                      <div>
+                        <label style={labelStyle}>Telegram Username (Ixtiyoriy)</label>
+                        <input
+                          type="text"
+                          placeholder="@username (tezkor aloqa uchun)"
+                          value={formData.telegram_username}
+                          onChange={(e) => setFormData({ ...formData, telegram_username: e.target.value })}
+                          style={inputStyle}
+                        />
+                      </div>
+
+                      {/* Lavozim Chips */}
+                      <div>
+                        <label style={labelStyle}>Lavozimingiz:</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {["Direktor", "O'rinbosar", "Ta'sischi", "IT Menejer"].map(role => {
+                            const isSelected = formData.contact_role === role;
+                            return (
+                              <button
+                                key={role}
+                                type="button"
+                                onClick={() => setFormData({ ...formData, contact_role: role })}
+                                style={{
+                                  padding: '7px 12px', borderRadius: 10,
+                                  border: isSelected ? '1.5px solid #4F46E5' : '1px solid #CBD5E1',
+                                  backgroundColor: isSelected ? '#EEF2FF' : '#F8FAFC',
+                                  color: isSelected ? '#4F46E5' : '#475569',
+                                  fontSize: 12, fontWeight: isSelected ? 700 : 500,
+                                  cursor: 'pointer', transition: 'all 0.15s'
+                                }}
+                              >
+                                {role}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 2 Actions */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
+                    <button
+                      type="button"
+                      onClick={handlePrevStep}
+                      style={{
+                        padding: '12px 20px', borderRadius: 14, border: '1px solid #CBD5E1',
+                        backgroundColor: '#F8FAFC', color: '#475569', fontSize: 13.5, fontWeight: 700,
+                        cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6
+                      }}
+                    >
+                      <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
+                      <span>Orqaga</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleNextStep}
+                      style={{
+                        padding: '13px 28px', borderRadius: 14, border: 'none',
+                        background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                        color: '#FFFFFF', fontSize: 14.5, fontWeight: 700, cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        boxShadow: '0 6px 18px rgba(79, 70, 229, 0.3)', transition: 'all 0.2s'
+                      }}
+                    >
+                      <span>Keyingi qadam (Qurilmalar)</span>
+                      <ArrowRight size={17} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ============================================================== */}
+              {/* QADAM 3: KIRISH USULI VA MAKTAB HAJMI (BITTA BOSISHDA TANLASH) */}
+              {/* ============================================================== */}
+              {currentStep === 3 && (
+                <div style={{ animation: 'fadeIn 0.25s ease-out' }}>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
+                      Maktabingizga qaysi kirish usuli qulay? Turniket apparati bo'lmasa, oddiy telefon/planshet orqali ishlayveradi.
+                    </div>
+
+                    {/* Turniket holati radiolar */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+                      {TURNSTILE_OPTIONS.map(opt => {
+                        const isChecked = formData.turnstile_status === opt.value;
+                        return (
+                          <div
+                            key={opt.value}
+                            onClick={() => setFormData({ ...formData, turnstile_status: opt.value })}
+                            style={{
+                              display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 18px',
+                              borderRadius: 16, border: isChecked ? '2px solid #4F46E5' : '1px solid #E2E8F0',
+                              backgroundColor: isChecked ? '#EEF2FF' : '#F8FAFC', cursor: 'pointer',
+                              transition: 'all 0.15s', boxShadow: isChecked ? '0 4px 12px rgba(79, 70, 229, 0.12)' : 'none'
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="turnstile_status"
+                              value={opt.value}
+                              checked={isChecked}
+                              onChange={() => {}}
+                              style={{ marginTop: 4, accentColor: '#4F46E5', width: 17, height: 17 }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: isChecked ? '#1E1B4B' : '#1E293B' }}>
+                                {opt.label}
+                              </div>
+                              <div style={{ fontSize: 12.5, color: '#64748B', marginTop: 3, lineHeight: 1.4 }}>
+                                {opt.desc}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* O'quvchilar Soni & O'qituvchilar Soni */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                      <div>
+                        <label style={labelStyle}>Taxminiy O'quvchilar Soni (Ixtiyoriy):</label>
+                        <input
+                          type="number"
+                          placeholder="Masalan: 650"
+                          value={formData.estimated_students}
+                          onChange={(e) => setFormData({ ...formData, estimated_students: e.target.value })}
+                          style={inputStyle}
+                        />
+                        {/* Tezkor tanlov knopkalari */}
+                        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                          {["300", "600", "900", "1200"].map(num => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, estimated_students: num })}
+                              style={{
+                                padding: '3px 8px', borderRadius: 6, border: '1px solid #CBD5E1',
+                                backgroundColor: '#FFF', fontSize: 11, color: '#475569', cursor: 'pointer'
+                              }}
+                            >
+                              {num} ta
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={labelStyle}>O'qituvchilar Soni (Ixtiyoriy):</label>
+                        <input
+                          type="number"
+                          placeholder="Masalan: 45"
+                          value={formData.estimated_teachers}
+                          onChange={(e) => setFormData({ ...formData, estimated_teachers: e.target.value })}
+                          style={inputStyle}
+                        />
+                        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                          {["25", "45", "70", "100"].map(num => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, estimated_teachers: num })}
+                              style={{
+                                padding: '3px 8px', borderRadius: 6, border: '1px solid #CBD5E1',
+                                backgroundColor: '#FFF', fontSize: 11, color: '#475569', cursor: 'pointer'
+                              }}
+                            >
+                              {num} ta
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 3 Actions */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
+                    <button
+                      type="button"
+                      onClick={handlePrevStep}
+                      style={{
+                        padding: '12px 20px', borderRadius: 14, border: '1px solid #CBD5E1',
+                        backgroundColor: '#F8FAFC', color: '#475569', fontSize: 13.5, fontWeight: 700,
+                        cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6
+                      }}
+                    >
+                      <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
+                      <span>Orqaga</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleNextStep}
+                      style={{
+                        padding: '13px 28px', borderRadius: 14, border: 'none',
+                        background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                        color: '#FFFFFF', fontSize: 14.5, fontWeight: 700, cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        boxShadow: '0 6px 18px rgba(79, 70, 229, 0.3)', transition: 'all 0.2s'
+                      }}
+                    >
+                      <span>Keyingi qadam (Modullar)</span>
+                      <ArrowRight size={17} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ============================================================== */}
+              {/* QADAM 4: MODULLAR VA YAKUNIY YUBORISH (MINI XULOSA BILAN)      */}
+              {/* ============================================================== */}
+              {currentStep === 4 && (
+                <div style={{ animation: 'fadeIn 0.25s ease-out' }}>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
+                      Asosiy 4 ta modul avtomatik belgilangan. Xohlasangiz boshqalarini ham qo'shishingiz mumkin:
+                    </div>
+
+                    {/* Modullar Chiptalari */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10, marginBottom: 18 }}>
+                      {AVAILABLE_MODULES.map(m => {
+                        const isSelected = formData.desired_modules.includes(m.label);
+                        return (
+                          <div
+                            key={m.id}
+                            onClick={() => handleModuleToggle(m.label)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                              borderRadius: 12, border: isSelected ? '1.5px solid #4F46E5' : '1px solid #E2E8F0',
+                              backgroundColor: isSelected ? '#EEF2FF' : '#FFFFFF', cursor: 'pointer',
+                              userSelect: 'none', transition: 'all 0.15s'
+                            }}
+                          >
+                            {isSelected ? (
+                              <CheckSquare size={18} color="#4F46E5" />
+                            ) : (
+                              <Square size={18} color="#94A3B8" />
+                            )}
+                            <span style={{ fontSize: 12.5, fontWeight: isSelected ? 700 : 500, color: isSelected ? '#1E1B4B' : '#475569' }}>
+                              {m.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Qo'shimcha Izoh (1 qator) */}
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={labelStyle}>Qo'shimcha Taklif yoki Izoh (Ixtiyoriy):</label>
+                      <input
+                        type="text"
+                        placeholder="Masalan: Test qilish uchun sinov muddatini xohlaymiz..."
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    {/* Mini Xulosa Kartochkasi */}
+                    <div style={{
+                      padding: '16px 18px', borderRadius: 16,
+                      background: 'linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 100%)',
+                      border: '1.5px solid #E0E7FF'
+                    }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 800, color: '#4F46E5', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+                        📋 Ariza Xulosasi:
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10, fontSize: 13, color: '#1E1B4B' }}>
+                        <div>🏫 <b>Maktab:</b> {formData.school_name || "—"}</div>
+                        <div>📍 <b>Hudud:</b> {formData.region}, {formData.district || "—"}</div>
+                        <div>👤 <b>Mas'ul:</b> {formData.contact_name || "—"}</div>
+                        <div>📞 <b>Aloqa:</b> {formData.phone || "—"}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 4 Actions */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
+                    <button
+                      type="button"
+                      onClick={handlePrevStep}
+                      style={{
+                        padding: '12px 20px', borderRadius: 14, border: '1px solid #CBD5E1',
+                        backgroundColor: '#F8FAFC', color: '#475569', fontSize: 13.5, fontWeight: 700,
+                        cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6
+                      }}
+                    >
+                      <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
+                      <span>Orqaga</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSubmitApplication}
+                      disabled={submitting}
+                      style={{
+                        padding: '14px 32px', borderRadius: 16, border: 'none',
+                        background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                        color: '#FFFFFF', fontSize: 15.5, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer',
+                        boxShadow: '0 8px 24px rgba(79, 70, 229, 0.35)', transition: 'all 0.2s',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10
+                      }}
+                    >
+                      {submitting ? (
+                        <>
+                          <RefreshCw size={19} className="spin-animate" />
+                          <span>Yuborilmoqda...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send size={19} />
+                          <span>Arizani Super Adminga Yuborish 🚀</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
             </form>
 

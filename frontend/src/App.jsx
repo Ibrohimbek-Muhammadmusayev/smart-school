@@ -18,6 +18,7 @@ import TerritoryCabinet from './components/TerritoryCabinet';
 import SchoolMapPicker from './components/SchoolMapPicker';
 import { MaintenanceScreen, SchoolSuspendedScreen, TeacherSuspendedScreen } from './components/MaintenanceScreens';
 import SchoolHelpSupportSection from './components/SchoolHelpSupportSection';
+import SchoolStaffManagement from './components/SchoolStaffManagement';
 import LandingPage from './LandingPage';
 
 // Easy Learn Palette Constants
@@ -1408,10 +1409,18 @@ function SchoolAdminDashboardView({
     currentUser?.actorLabel ||
     `${schoolConfig?.director_name || currentUser?.name || 'Maktab Direktori'} (${currentUser?.username || 'maktab1'})`;
   const actorRole = currentUser?.actorRole || (currentUser?.isSuperAdminImpersonating ? 'SUPER_ADMIN' : 'SCHOOL_ADMIN');
+  const [previewStaffCabinet, setPreviewStaffCabinet] = useState(null);
+  const [schoolToastMsg, setSchoolToastMsg] = useState(null);
+  const showSchoolToast = (msg) => {
+    setSchoolToastMsg(msg);
+    setTimeout(() => {
+      setSchoolToastMsg(prev => (prev === msg ? null : prev));
+    }, 3400);
+  };
 
   const [isTabLoading, setIsTabLoading] = useState(false);
   const [activeTab, setActiveTabState] = useState(() => {
-    const validTabs = ['matrix', 'schedule', 'groups', 'students', 'teachers', 'attendance', 'settings', 'help'];
+    const validTabs = ['matrix', 'schedule', 'groups', 'students', 'teachers', 'staff', 'attendance', 'settings', 'help'];
     const saved = sessionStorage.getItem(`school_active_tab_${schoolId}`);
     return (saved && validTabs.includes(saved)) ? saved : 'matrix';
   });
@@ -2067,6 +2076,21 @@ function SchoolAdminDashboardView({
     }
   };
 
+  if (previewStaffCabinet) {
+    return (
+      <TerritoryCabinet
+        currentUser={{
+          ...previewStaffCabinet,
+          schoolId: schoolId,
+          schoolName: schoolName,
+        }}
+        onLogout={() => setPreviewStaffCabinet(null)}
+        onBackToSuperAdmin={() => setPreviewStaffCabinet(null)}
+        systemConfig={systemMaintenance}
+      />
+    );
+  }
+
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', backgroundColor: THEME.bgSoft, overflow: 'hidden' }}>
       
@@ -2319,6 +2343,17 @@ function SchoolAdminDashboardView({
             badge={teachersList.length > 0 ? `${teachersList.length}` : undefined}
             collapsed={isSidebarCollapsed}
             title="Maktab O'qituvchilari"
+          />
+
+          <NavButton
+            active={activeTab === 'staff'}
+            onClick={() => setActiveTab('staff')}
+            icon={<ShieldCheck size={18} />}
+            label="Profilaktika & Mas'ullar"
+            badge="Hamkorlik"
+            badgeColor="#2563EB"
+            collapsed={isSidebarCollapsed}
+            title="Profilaktika Inspektori (IIB), Mahalla (MFY) va Psixolog"
           />
 
           {/* Section 2: Smart Xizmatlar */}
@@ -2628,6 +2663,7 @@ function SchoolAdminDashboardView({
                 {activeTab === 'schedule' && `${terms.lessonSingular} Jadvali`}
                 {activeTab === 'students' && terms.studentPlural}
                 {activeTab === 'teachers' && "O'qituvchilar"}
+                {activeTab === 'staff' && "Profilaktika va Hududiy Mas'ullar"}
                 {activeTab === 'attendance' && "Jonli Davomat Auditi"}
                 {activeTab === 'settings' && "Maktab Sozlamalari"}
                 {activeTab === 'help' && "Yordam & Qo'llab-quvvatlash"}
@@ -2960,6 +2996,17 @@ function SchoolAdminDashboardView({
             />
           )}
 
+          {/* TAB 4.5: HUDUDIY PROFILAKTIKA VA HAMKOR MAS'ULLAR */}
+          {activeTab === 'staff' && (
+            <SchoolStaffManagement
+              schoolId={schoolId}
+              schoolName={schoolName}
+              currentUser={currentUser}
+              onPreviewCabinet={(staff) => setPreviewStaffCabinet(staff)}
+              showToast={showSchoolToast}
+            />
+          )}
+
           {/* TAB 5: DAVOMAT AUDITI */}
           {activeTab === 'attendance' && (
             <AttendanceAuditSection realStudents={realStudents} schoolName={schoolName} schoolId={schoolId} terms={terms} />
@@ -3125,6 +3172,29 @@ function SchoolAdminDashboardView({
           onClose={() => setEditingTeacher(null)}
           onSave={handleUpdateTeacher}
         />
+      )}
+
+      {/* School Toast Message */}
+      {schoolToastMsg && (
+        <div style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          backgroundColor: '#1E2038',
+          color: '#FFFFFF',
+          padding: '12px 20px',
+          borderRadius: 10,
+          fontSize: 13,
+          fontWeight: 700,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <CheckCircle2 size={16} color="#10AC84" />
+          {schoolToastMsg}
+        </div>
       )}
 
       {/* 5.0 KATTALASHTIRILGAN RASM MODALI (LIGHTBOX) */}
